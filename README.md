@@ -5,8 +5,11 @@ passes, then walks that instead of the bytes.** Built on
 [simd.go](https://github.com/sebishogun/simd).
 
 **No cgo, and it runs the same on amd64, arm64, riscv64, s390x, ppc64le and
-loong64.** The existing Go ports of simdjson are amd64 with hand-written
-assembly; this is the same idea without that restriction.
+loong64.** The established Go port,
+[minio/simdjson-go](https://github.com/minio/simdjson-go), is amd64 with AVX2
+and hand-written assembly — and on amd64 it is faster than this, by 1.3–1.8×.
+The trade this package makes is portability for speed, and
+[the numbers say so plainly](#against-miniosimdjson-go-which-is-faster).
 
 ```
 go get github.com/sebishogun/simdjson
@@ -38,6 +41,42 @@ Zen 5, worse of two runs of six, against `encoding/json` unmarshalling into
 | get 1 field, 1,000 items | 0.985 ms | 0.77× | **2.82×** |
 | get 1 field, 10,000 items | 9.77 ms | 0.80× | **2.77×** |
 | walk every item | 1.92 ms | — | 0.45× |
+
+### Against minio/simdjson-go, which is faster
+
+[minio/simdjson-go](https://github.com/minio/simdjson-go) is the established Go
+port of this idea, and on amd64 **it beats this package**:
+
+| get one field | encoding/json | minio | this | vs stdlib | vs minio |
+|---|---|---|---|---|---|
+| 100 items | 0.098 ms | 0.027 ms | 0.036 ms | 2.72× | **0.75×** |
+| 1,000 items | 1.089 ms | 0.227 ms | 0.358 ms | 3.04× | **0.63×** |
+| 10,000 items | 11.17 ms | 2.081 ms | 3.628 ms | 3.08× | **0.57×** |
+
+Parse alone, 2,000 items: minio 0.437 ms, `Scan` 0.718 ms.
+
+**The gap is architectural, not incidental.** The real simdjson algorithm
+processes a 64-byte chunk at a time and produces a 64-bit bitmask of structural
+positions in one fused pass, using a carry-less multiply — `PCLMULQDQ` — to turn
+quote and backslash parity into a prefix-XOR that costs one instruction. minio
+implements that in hand-written AVX2 assembly.
+
+This package makes one vector pass per structural character — six of them — plus
+one for quotes and one for backslashes, merges the results, and walks the
+backslash runs in scalar code. Eight passes and a merge against one pass.
+
+**What this has instead is portability.** minio is amd64 with AVX2 and refuses
+to run without it; this runs on amd64, arm64, riscv64, s390x, ppc64le and
+loong64 from the same source, because the kernels are generated per target
+rather than written by hand. If you are on amd64 and want the fastest JSON
+parser, use minio's. If you need one that works everywhere, this is 2.7–3.1×
+the standard library.
+
+**It is not as fast as it could be.** Closing most of the gap needs one
+primitive that does not exist yet: a single pass that finds the positions of
+*any* of a set of bytes. `simd.IndexAll` takes one byte and `simd.IndexAny`
+returns only the first match, so six passes is currently the only way to ask.
+That kernel would collapse them into one.
 
 Two things in that table are worth reading carefully.
 
