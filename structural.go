@@ -16,8 +16,8 @@ import "github.com/sebishogun/simd"
 // than a string boundary. Both have to be resolved before the structural
 // positions mean anything, and both are resolved here.
 
-// structural characters, in the order they are scanned.
-var structChars = [...]byte{'{', '}', '[', ']', ':', ','}
+// The structural characters, as a set for one pass.
+const structSet = "{}[]:,"
 
 // index holds the positions of everything stage two needs.
 type index struct {
@@ -66,7 +66,7 @@ func tryBuild(data []byte, ix *index, want int) (*index, bool, error) {
 	ix.pos = ix.pos[:0]
 	ix.strs = ix.strs[:0]
 
-	need := want*(len(structChars)+2) + len(structChars) + 2
+	need := want*3 + 4
 	if cap(ix.scratch) < need {
 		ix.scratch = make([]int32, need)
 	}
@@ -109,21 +109,26 @@ func tryBuild(data []byte, ix *index, want int) (*index, bool, error) {
 		ix.strs = append(ix.strs, strRange{quotes[i], quotes[i+1]})
 	}
 
-	var lists [len(structChars)][]int32
-	total := 0
-	for i, c := range structChars {
-		b := take()
-		n := simd.IndexAll(b, data, c)
-		if n == len(b) {
-			return nil, false, nil
-		}
-		lists[i] = b[:n]
-		total += n
+	// Every structural character in one pass. IndexAllAny takes the whole set
+	// and returns their positions already in ascending order, which also
+	// removes the six-way merge that used to follow.
+	//
+	// This was six calls to IndexAll and a merge, which read the document six
+	// times. Measuring against minio/simdjson-go — which computes the same
+	// thing in one fused pass — is what made the cost obvious, and simd.go
+	// v1.3.0 added the kernel to close it.
+	sb := take()
+	ns := simd.IndexAllAny(sb, data, structSet)
+	if ns == len(sb) {
+		return nil, false, nil
 	}
+	total := ns
+	structs := sb[:ns]
+
 	if cap(ix.pos) < total {
 		ix.pos = make([]int32, 0, total)
 	}
-	ix.pos = mergeOutsideStrings(lists[:], ix.strs, ix.pos)
+	ix.pos = dropInStrings(structs, ix.strs, ix.pos)
 	return ix, true, nil
 }
 
@@ -161,33 +166,24 @@ func dropEscaped(data []byte, quotes, esc []int32) []int32 {
 	return out
 }
 
-// mergeOutsideStrings merges the per-character position lists into one
-// ascending list, dropping anything that falls inside a string literal.
-func mergeOutsideStrings(lists [][]int32, strs []strRange, out []int32) []int32 {
-	heads := make([]int, len(lists))
+// dropInStrings keeps the structural positions that fall outside string
+// literals.
+//
+// A '{' inside a string is text. The positions and the string ranges are both
+// ascending, so this is a merge rather than a search: one cursor over each.
+//
+// It replaced a six-way merge, which existed only because the positions arrived
+// as six separate ascending lists. One pass produces one list already in order.
+func dropInStrings(pos []int32, strs []strRange, out []int32) []int32 {
 	si := 0
-	for {
-		best, bi := int32(-1), -1
-		for i := range lists {
-			if heads[i] < len(lists[i]) {
-				if bi < 0 || lists[i][heads[i]] < best {
-					best, bi = lists[i][heads[i]], i
-				}
-			}
-		}
-		if bi < 0 {
-			return out
-		}
-		heads[bi]++
-
-		// Advance the string cursor; ranges and positions are both ascending,
-		// so this is a merge rather than a search.
-		for si < len(strs) && strs[si].close < best {
+	for _, p := range pos {
+		for si < len(strs) && strs[si].close < p {
 			si++
 		}
-		if si < len(strs) && best > strs[si].open && best < strs[si].close {
-			continue // inside a string: text, not structure
+		if si < len(strs) && p > strs[si].open && p < strs[si].close {
+			continue
 		}
-		out = append(out, best)
+		out = append(out, p)
 	}
+	return out
 }

@@ -35,53 +35,46 @@ doc.Get("items").ForEach(func(v simdjson.Value) bool {
 Zen 5, worse of two runs of six, against `encoding/json` unmarshalling into
 `map[string]any` and reading the same field:
 
-| | encoding/json | `Parse` | `Scan` |
-|---|---|---|---|
-| get 1 field, 100 items | 0.093 ms | 1.09× | **2.69×** |
-| get 1 field, 1,000 items | 0.985 ms | 0.77× | **2.82×** |
-| get 1 field, 10,000 items | 9.77 ms | 0.80× | **2.77×** |
-| walk every item | 1.92 ms | — | 0.45× |
+| | encoding/json | `Scan` |
+|---|---|---|
+| get 1 field, 100 items | 0.116 ms | **7.97×** |
+| get 1 field, 1,000 items | 0.999 ms | **6.77×** |
+| get 1 field, 10,000 items | 11.77 ms | **7.83×** |
 
-### Against minio/simdjson-go, which is faster
+### Against minio/simdjson-go
 
 [minio/simdjson-go](https://github.com/minio/simdjson-go) is the established Go
-port of this idea, and on amd64 **it beats this package**:
+port of this idea, in hand-written AVX2 assembly. Same machine, same documents,
+worse of two runs of six at a load average under 2:
 
 | get one field | encoding/json | minio | this | vs stdlib | vs minio |
 |---|---|---|---|---|---|
-| 100 items | 0.098 ms | 0.027 ms | 0.036 ms | 2.72× | **0.75×** |
-| 1,000 items | 1.089 ms | 0.227 ms | 0.358 ms | 3.04× | **0.63×** |
-| 10,000 items | 11.17 ms | 2.081 ms | 3.628 ms | 3.08× | **0.57×** |
+| 100 items | 0.116 ms | 0.026 ms | 0.015 ms | **7.97×** | **1.78×** |
+| 1,000 items | 0.999 ms | 0.225 ms | 0.148 ms | **6.77×** | **1.52×** |
+| 10,000 items | 11.77 ms | 2.090 ms | 1.504 ms | **7.83×** | **1.39×** |
 
-Parse alone, 2,000 items: minio 0.437 ms, `Scan` 0.718 ms.
+Parse alone, 2,000 items: minio 0.425 ms, `Scan` 0.298 ms — **1.43×**.
 
-**The gap is architectural, not incidental.** The real simdjson algorithm
-processes a 64-byte chunk at a time and produces a 64-bit bitmask of structural
-positions in one fused pass, using a carry-less multiply — `PCLMULQDQ` — to turn
-quote and backslash parity into a prefix-XOR that costs one instruction. minio
-implements that in hand-written AVX2 assembly.
+**It was the other way round until v0.2.0.** The first release made one vector
+pass per structural character — six of them — plus quotes and backslashes, then
+merged eight ascending lists. minio computes the same thing in one fused pass
+over 64-byte chunks, using a carry-less multiply to turn quote parity into a
+prefix-XOR, and it was 1.3–1.8× faster.
 
-This package makes one vector pass per structural character — six of them — plus
-one for quotes and one for backslashes, merges the results, and walks the
-backslash runs in scalar code. Eight passes and a merge against one pass.
+Measuring that is what produced the fix. `simd.IndexAll` takes a single byte, so
+six delimiters meant six reads of the document; simd.go v1.3.0 added
+`IndexAllAny`, which takes a set and is 2.6–2.9× six separate calls. Eight
+passes and a merge became one pass and a filter.
 
-**What this has instead is portability.** minio is amd64 with AVX2 and refuses
-to run without it; this runs on amd64, arm64, riscv64, s390x, ppc64le and
-loong64 from the same source, because the kernels are generated per target
-rather than written by hand. If you are on amd64 and want the fastest JSON
-parser, use minio's. If you need one that works everywhere, this is 2.7–3.1×
-the standard library.
-
-**It is not as fast as it could be.** Closing most of the gap needs one
-primitive that does not exist yet: a single pass that finds the positions of
-*any* of a set of bytes. `simd.IndexAll` takes one byte and `simd.IndexAny`
-returns only the first match, so six passes is currently the only way to ask.
-That kernel would collapse them into one.
+**minio is still amd64-only.** It requires AVX2 and refuses to run without it.
+This runs on amd64, arm64, riscv64, s390x, ppc64le and loong64 from one source,
+because the kernels are generated per target rather than written by hand — and
+it is now faster on the architecture minio was written for.
 
 Two things in that table are worth reading carefully.
 
-**`Scan` is consistently 2.7–2.8×** across every size, which is the case this
-package is for: values out of a document without decoding the rest.
+**`Scan` is 6.8–8.0×** the standard library across every size, which is the case
+this package is for: values out of a document without decoding the rest.
 
 **`Parse` is not faster at all.** Validating every value costs about what
 `encoding/json` costs, and this does it *and* builds an index. If you need the
@@ -165,10 +158,11 @@ go test -run '^$' -fuzz FuzzAgainstStdlib -fuzztime 60s
 interfaces, no streaming, no encoding. If you want a Go value, use the standard
 library.
 
-**Not faster at everything, and the table above says where.** Validating with
-`Parse` is 0.8×; walking a whole document is 0.45×. Both are single fused passes
-in the standard library and two stages here. The win is `Scan` plus `Get`, and
-it is 2.7–2.8×.
+**Not faster at everything.** `Parse`, which validates every value, costs about
+what `encoding/json` costs and builds an index on top; use it for untrusted
+input and `Scan` when you produced the bytes. Walking a whole document is slower
+than the standard library's single fused decode. Reaching *into* a document is
+what an index buys; reading all of it is what it does not.
 
 **Not zero-copy for strings with escapes.** A string with no backslash is
 returned without copying out of the document; one with an escape is decoded into
