@@ -126,7 +126,7 @@ type index struct {
 // Only the brackets are indexed — see structSet for why the colons and commas
 // are not, and docs/wrong.md for why indexing every *token* start, which is
 // what C++ simdjson's pseudo-structural characters are, is slower here.
-func buildIndex(data []byte, ix *index) (*index, error) {
+func buildIndex(data []byte, ix *index, validate bool) (*index, error) {
 	if ix == nil {
 		ix = &index{}
 	}
@@ -150,6 +150,18 @@ func buildIndex(data []byte, ix *index) (*index, error) {
 	simd.MaskBits(ix.quote, data, '"')
 	simd.MaskBits(ix.esc, data, '\\')
 	simd.MaskBitsAny(ix.structural, data, structSet)
+	if validate {
+		ix.ctl = maskBuf(ix.ctl, nw, len(data))
+		ix.ws = maskBuf(ix.ws, nw, len(data))
+		simd.MaskBitsLess(ix.ctl, data, 0x20)
+		simd.MaskBitsAny(ix.ws, data, wsSet)
+		if cap(ix.wsw) < nw {
+			ix.wsw = make([]uint64, nw)
+		}
+		ix.wsw = ix.wsw[:nw]
+	} else {
+		ix.wsw = nil
+	}
 
 	if cap(ix.inStr) < nw {
 		ix.inStr = make([]uint64, nw)
@@ -160,11 +172,12 @@ func buildIndex(data []byte, ix *index) (*index, error) {
 	// survives, the second writes it. Counting first is what lets the second
 	// pass write by index into an exactly-sized array instead of appending —
 	// no capacity check per position, and no growth.
-	var prevEsc, strCarry uint64
+	var prevEsc, strCarry, anyWS, prevLead uint64
 	total := 0
 	for w := 0; w < nw; w++ {
 		off := w * 8
-		escaped := escapedMask(binary.LittleEndian.Uint64(ix.esc[off:]), &prevEsc)
+		bs := binary.LittleEndian.Uint64(ix.esc[off:])
+		escaped := escapedMask(bs, &prevEsc)
 
 		// A quote that is escaped is text. Everything after this line treats
 		// the survivors as the real string boundaries.
@@ -187,6 +200,51 @@ func buildIndex(data []byte, ix *index) (*index, error) {
 		ix.inStr[w] = in
 
 		total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in)
+
+		if !validate {
+			continue
+		}
+		// The string checks ride along here rather than in a pass of their own.
+		// They need the escape mask and the in-string mask, and both are in
+		// registers at this point — a separate pass recomputed escapedMask for
+		// every word of the document to get back what this loop had already
+		// worked out.
+		if binary.LittleEndian.Uint64(ix.ctl[off:])&in != 0 {
+			return nil, errSyntax("control character in string")
+		}
+		wsw := binary.LittleEndian.Uint64(ix.ws[off:])
+		ix.wsw[w] = wsw
+		anyWS |= wsw &^ in
+
+		leaders := bs & in &^ escaped
+		target := leaders<<1 | prevLead
+		prevLead = leaders >> 63
+		for t := target; t != 0; t &= t - 1 {
+			p := w*64 + bits.TrailingZeros64(t)
+			if p >= len(data) {
+				return nil, errSyntax("string ends in a backslash")
+			}
+			switch data[p] {
+			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+			case 'u':
+				if p+4 >= len(data) {
+					return nil, errSyntax("short \\u escape")
+				}
+				for k := 1; k <= 4; k++ {
+					if !isHex(data[p+k]) {
+						return nil, errSyntax("invalid \\u escape")
+					}
+				}
+			default:
+				return nil, errSyntax("invalid escape")
+			}
+		}
+	}
+	if validate {
+		if prevLead != 0 {
+			return nil, errSyntax("string ends in a backslash")
+		}
+		ix.noWS = anyWS == 0
 	}
 	if strCarry != 0 {
 		return nil, errSyntax("unterminated string")
@@ -335,93 +393,4 @@ func (ix *index) stringEndAt(i, n int) (int, bool) {
 		return 0, false
 	}
 	return end + 1, true
-}
-
-// validateStrings checks every string in the document at once.
-//
-// Two rules, both found by fuzzing against encoding/json rather than by reading
-// the grammar: a raw control character is not allowed and has to be escaped,
-// and only a fixed set of escapes exists, so \0 is invalid however reasonable
-// it looks.
-//
-// Checking them per string, walking its bytes, was 14% of Parse — a branch per
-// byte of every string in the document, which is the thing stage one exists to
-// avoid. Both rules are properties of the whole document and both are maskable:
-// "is there a control character inside a string" is an and of two masks over
-// the document, and "is every escape one of the nine allowed" is a shift and an
-// and-not. What is left scalar is the four hex digits after a \u, and those are
-// rare enough to extract one at a time.
-func (ix *index) validateStrings(data []byte) error {
-	nw := len(ix.inStr)
-	if nw == 0 {
-		return nil
-	}
-	ix.ctl = maskBuf(ix.ctl, nw, len(data))
-	ix.ws = maskBuf(ix.ws, nw, len(data))
-	simd.MaskBitsLess(ix.ctl, data, 0x20)
-	simd.MaskBitsAny(ix.ws, data, wsSet)
-	if cap(ix.wsw) < nw {
-		ix.wsw = make([]uint64, nw)
-	}
-	ix.wsw = ix.wsw[:nw]
-
-	// prevEsc carries the backslash-run parity between words exactly as it does
-	// in buildIndex; prevLead carries the top bit of the leader mask, because
-	// the character a backslash escapes is one position later and that position
-	// can be in the next word.
-	var prevEsc, prevLead, anyWS uint64
-	for w := 0; w < nw; w++ {
-		off := w * 8
-		in := ix.inStr[w]
-		bs := binary.LittleEndian.Uint64(ix.esc[off:])
-		escaped := escapedMask(bs, &prevEsc)
-
-		if binary.LittleEndian.Uint64(ix.ctl[off:])&in != 0 {
-			return errSyntax("control character in string")
-		}
-		wsw := binary.LittleEndian.Uint64(ix.ws[off:])
-		ix.wsw[w] = wsw
-		anyWS |= wsw &^ in
-
-		// A backslash inside a string that is not itself escaped opens an
-		// escape. One outside a string is an ordinary byte and not our concern.
-		leaders := bs & in &^ escaped
-		target := leaders<<1 | prevLead
-		prevLead = leaders >> 63
-
-		// The escaped bytes are looked at directly rather than masked for.
-		//
-		// Two more vector passes over the whole document would answer "is every
-		// escape one of the nine allowed" without a branch, and that is what
-		// this did. It is the wrong trade: escapes are rare — a document can
-		// have none at all — so the passes cost the same on every input while
-		// the work they save is proportional to something that is usually near
-		// zero. Extracting the positions instead costs nothing when there are
-		// none.
-		for t := target; t != 0; t &= t - 1 {
-			p := w*64 + bits.TrailingZeros64(t)
-			if p >= len(data) {
-				return errSyntax("string ends in a backslash")
-			}
-			switch data[p] {
-			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
-			case 'u':
-				if p+4 >= len(data) {
-					return errSyntax("short \\u escape")
-				}
-				for k := 1; k <= 4; k++ {
-					if !isHex(data[p+k]) {
-						return errSyntax("invalid \\u escape")
-					}
-				}
-			default:
-				return errSyntax("invalid escape")
-			}
-		}
-	}
-	if prevLead != 0 {
-		return errSyntax("string ends in a backslash")
-	}
-	ix.noWS = anyWS == 0
-	return nil
 }

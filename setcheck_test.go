@@ -43,7 +43,7 @@ func TestIndexHoldsExactlyTheBracketsOutsideStrings(t *testing.T) {
 	}
 	for _, doc := range docs {
 		data := []byte(doc)
-		ix, err := buildIndex(data, nil)
+		ix, err := buildIndex(data, nil, true)
 		if err != nil {
 			t.Fatalf("%s: %v", doc, err)
 		}
@@ -145,12 +145,9 @@ func TestValidateValueMatchesValue(t *testing.T) {
 	for _, in := range cases {
 		// Wrap in an array so the index is built the same way for both paths.
 		data := []byte(in)
-		ix, err := buildIndex(data, nil)
+		ix, err := buildIndex(data, nil, true)
 		if err != nil {
 			continue // stage one rejected it; neither path is reached
-		}
-		if verr := ix.validateStrings(data); verr != nil {
-			continue
 		}
 		d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 		vEnd, vErr := d.validateValue(0)

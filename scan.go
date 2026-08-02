@@ -26,7 +26,7 @@ package simdjson
 //
 // Use Parse for anything from outside. Use Scan when you produced the bytes.
 func Scan(data []byte) (*Doc, error) {
-	ix, err := buildIndex(data, nil)
+	ix, err := buildIndex(data, nil, false)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func Scan(data []byte) (*Doc, error) {
 // See [Scan] for what is given up, and [Parser.Parse] for the lifetime of the
 // returned Doc.
 func (p *Parser) Scan(data []byte) (*Doc, error) {
-	ix, err := buildIndex(data, p.ix)
+	ix, err := buildIndex(data, p.ix, false)
 	if err != nil {
 		return nil, err
 	}

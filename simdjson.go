@@ -123,7 +123,7 @@ type Parser struct{ ix *index }
 // The returned Doc borrows those buffers, so it is only valid until the next
 // call to Parse on the same Parser. Use [Parse] if a Doc has to outlive that.
 func (p *Parser) Parse(data []byte) (*Doc, error) {
-	ix, err := buildIndex(data, p.ix)
+	ix, err := buildIndex(data, p.ix, true)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (p *Parser) Parse(data []byte) (*Doc, error) {
 // The returned Doc keeps data — it is not copied, and every string a Value
 // yields points into it unless the string contains an escape.
 func Parse(data []byte) (*Doc, error) {
-	ix, err := buildIndex(data, nil)
+	ix, err := buildIndex(data, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -145,12 +145,6 @@ func Parse(data []byte) (*Doc, error) {
 
 // finish validates the document and records its root.
 func finish(data []byte, ix *index) (*Doc, error) {
-	// Every string in the document, checked in one pass over the masks rather
-	// than a byte at a time as each one is met. Scan does not call this, which
-	// is part of what Scan gives up.
-	if err := ix.validateStrings(data); err != nil {
-		return nil, err
-	}
 	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 	v, end, err := d.value(d.skip(0))
 	if err != nil {

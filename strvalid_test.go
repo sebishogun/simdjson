@@ -57,7 +57,7 @@ func validateString(b []byte) error {
 // which is what Parse used to do one string at a time as it met them.
 func refValidateStrings(t *testing.T, data []byte) error {
 	t.Helper()
-	ix, err := buildIndex(data, nil)
+	ix, err := buildIndex(data, nil, false)
 	if err != nil {
 		return err
 	}
@@ -105,11 +105,10 @@ func TestValidateStringsMatchesTheByteWalk(t *testing.T) {
 		sb.WriteByte(']')
 		doc := []byte(sb.String())
 
-		ix, err := buildIndex(doc, nil)
-		if err != nil {
+		if _, err := buildIndex(doc, nil, false); err != nil {
 			continue // not indexable at all; both sides agree by not being reached
 		}
-		got := ix.validateStrings(doc)
+		_, got := buildIndex(doc, nil, true)
 		want := refValidateStrings(t, doc)
 		if (got == nil) != (want == nil) {
 			t.Fatalf("%s: mask validator says %v, byte validator says %v", doc, got, want)
