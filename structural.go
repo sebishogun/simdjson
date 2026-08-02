@@ -54,6 +54,10 @@ import (
 // predicate is two instructions per sixty-four bytes and a compress-store is
 // not.
 
+// The whitespace JSON allows between tokens. Exactly these four: anything else
+// below 0x20 is a syntax error there, not something to skip past.
+const wsSet = " \t\n\r"
+
 // The characters stage one indexes.
 //
 // Brackets only, not the full `{}[]:,`. The index has exactly one consumer —
@@ -83,25 +87,31 @@ type index struct {
 	quote, esc, structural []byte
 
 	// Masks used only by validateStrings, kept here for the same reason.
-	ctl, escOK, uEsc []byte
+	ctl []byte
 
-	// space is the mask of ' ', and noWS records that the document has no
-	// whitespace at all outside its strings.
+	// ws is the whitespace mask as words, and noWS records that the document
+	// has none at all outside its strings.
 	//
 	// Most JSON in flight is machine-generated and has none, and proving that
 	// once turns every whitespace skip in stage two — several per field, and
 	// the largest single item in the profile — into a branch that always goes
 	// the same way. Worth about 52 us of the descent on a 1.17 MB document.
 	//
-	// It is computed in validateStrings rather than here, and from the cheapest
-	// masks available, because the first version put a MaskBitsAny pass in
-	// buildIndex and that cost Scan 36 us to save Parse 16. Tab, newline and
-	// carriage return are all below 0x20, so the control-character mask
-	// validateStrings already needs covers three of the four; only ' ' needs a
-	// pass of its own, and the single-byte kernel runs at 156 GB/s against the
-	// set form's 41.
-	space []byte
-	noWS  bool
+	// It is computed in validateStrings rather than in buildIndex, because a
+	// MaskBitsAny pass there cost Scan 36 us to save Parse 16 — Scan would be
+	// paying for something only Parse uses.
+	//
+	// The mask is kept, not just its emptiness, because skipping whitespace is
+	// then a bit scan rather than a byte loop. citm_catalog.json is 71%
+	// whitespace and spent 37% of its parse in that loop.
+	//
+	// It has to be the exact four bytes JSON allows. An earlier version built
+	// it from the control-character mask, which is cheaper and wrong: every
+	// control byte below 0x20 would have been skipped as whitespace, so a NUL
+	// between two tokens would have been accepted.
+	ws   []byte
+	wsw  []uint64
+	noWS bool
 
 	match []int32 // for each entry of pos, the index of its partner bracket
 	stack []int32 // bracket stack, reused between parses
@@ -327,11 +337,6 @@ func (ix *index) stringEndAt(i, n int) (int, bool) {
 	return end + 1, true
 }
 
-// The escape characters JSON allows after a backslash, less 'u'. Exactly eight,
-// which is what MaskBitsAny takes; 'u' is checked separately because it is the
-// one that needs the four hex digits after it looked at.
-const escSet = "\"\\/bfnrt"
-
 // validateStrings checks every string in the document at once.
 //
 // Two rules, both found by fuzzing against encoding/json rather than by reading
@@ -352,13 +357,13 @@ func (ix *index) validateStrings(data []byte) error {
 		return nil
 	}
 	ix.ctl = maskBuf(ix.ctl, nw, len(data))
-	ix.space = maskBuf(ix.space, nw, len(data))
-	ix.escOK = maskBuf(ix.escOK, nw, len(data))
-	ix.uEsc = maskBuf(ix.uEsc, nw, len(data))
+	ix.ws = maskBuf(ix.ws, nw, len(data))
 	simd.MaskBitsLess(ix.ctl, data, 0x20)
-	simd.MaskBits(ix.space, data, ' ')
-	simd.MaskBitsAny(ix.escOK, data, escSet)
-	simd.MaskBits(ix.uEsc, data, 'u')
+	simd.MaskBitsAny(ix.ws, data, wsSet)
+	if cap(ix.wsw) < nw {
+		ix.wsw = make([]uint64, nw)
+	}
+	ix.wsw = ix.wsw[:nw]
 
 	// prevEsc carries the backslash-run parity between words exactly as it does
 	// in buildIndex; prevLead carries the top bit of the leader mask, because
@@ -371,14 +376,12 @@ func (ix *index) validateStrings(data []byte) error {
 		bs := binary.LittleEndian.Uint64(ix.esc[off:])
 		escaped := escapedMask(bs, &prevEsc)
 
-		ctl := binary.LittleEndian.Uint64(ix.ctl[off:])
-		if ctl&in != 0 {
+		if binary.LittleEndian.Uint64(ix.ctl[off:])&in != 0 {
 			return errSyntax("control character in string")
 		}
-		// Tab, newline and carriage return are the control characters JSON
-		// allows between tokens, so outside a string the two masks together are
-		// exactly the whitespace.
-		anyWS |= (ctl | binary.LittleEndian.Uint64(ix.space[off:])) &^ in
+		wsw := binary.LittleEndian.Uint64(ix.ws[off:])
+		ix.wsw[w] = wsw
+		anyWS |= wsw &^ in
 
 		// A backslash inside a string that is not itself escaped opens an
 		// escape. One outside a string is an ordinary byte and not our concern.
@@ -386,19 +389,33 @@ func (ix *index) validateStrings(data []byte) error {
 		target := leaders<<1 | prevLead
 		prevLead = leaders >> 63
 
-		u := binary.LittleEndian.Uint64(ix.uEsc[off:])
-		if target&^(binary.LittleEndian.Uint64(ix.escOK[off:])|u) != 0 {
-			return errSyntax("invalid escape")
-		}
-		for t := target & u; t != 0; t &= t - 1 {
+		// The escaped bytes are looked at directly rather than masked for.
+		//
+		// Two more vector passes over the whole document would answer "is every
+		// escape one of the nine allowed" without a branch, and that is what
+		// this did. It is the wrong trade: escapes are rare — a document can
+		// have none at all — so the passes cost the same on every input while
+		// the work they save is proportional to something that is usually near
+		// zero. Extracting the positions instead costs nothing when there are
+		// none.
+		for t := target; t != 0; t &= t - 1 {
 			p := w*64 + bits.TrailingZeros64(t)
-			if p+4 >= len(data) {
-				return errSyntax("short \\u escape")
+			if p >= len(data) {
+				return errSyntax("string ends in a backslash")
 			}
-			for k := 1; k <= 4; k++ {
-				if !isHex(data[p+k]) {
-					return errSyntax("invalid \\u escape")
+			switch data[p] {
+			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+			case 'u':
+				if p+4 >= len(data) {
+					return errSyntax("short \\u escape")
 				}
+				for k := 1; k <= 4; k++ {
+					if !isHex(data[p+k]) {
+						return errSyntax("invalid \\u escape")
+					}
+				}
+			default:
+				return errSyntax("invalid escape")
 			}
 		}
 	}

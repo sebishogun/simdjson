@@ -127,3 +127,40 @@ func TestWhitespaceHeavyDocument(t *testing.T) {
 		t.Fatalf(`Get("b","c") = %q, want "d"`, got)
 	}
 }
+
+// validateValue is a copy of value()'s dispatch without the Value, so the two
+// have to agree about where every value ends and about what is an error.
+//
+// A duplicate that drifts is worse than the branch it avoided: Parse would
+// accept what navigation rejects, or step to a different offset.
+func TestValidateValueMatchesValue(t *testing.T) {
+	cases := []string{
+		`1`, `-0`, `0`, `123`, `1.5`, `1e10`, `1E+10`, `-1.5e-10`, `0.0`,
+		`01`, `1.`, `.1`, `1e`, `1e+`, `-`, `+1`, `1x`, `00`, `1.2.3`,
+		`"a"`, `""`, `"\n"`, `"A"`, `"\q"`, `"a`, `"\"`,
+		`true`, `false`, `null`, `tru`, `truex`, `nul`, `falsey`,
+		`{}`, `[]`, `{"a":1}`, `[1,2]`, `{"a":}`, `[1,]`, `{`, `[`,
+		`{"a":[1,{"b":"c"}]}`, ` 1`, `x`, ``,
+	}
+	for _, in := range cases {
+		// Wrap in an array so the index is built the same way for both paths.
+		data := []byte(in)
+		ix, err := buildIndex(data, nil)
+		if err != nil {
+			continue // stage one rejected it; neither path is reached
+		}
+		if verr := ix.validateStrings(data); verr != nil {
+			continue
+		}
+		d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
+		vEnd, vErr := d.validateValue(0)
+		_, wEnd, wErr := d.value(0)
+		if (vErr == nil) != (wErr == nil) {
+			t.Errorf("%q: validateValue err=%v, value err=%v", in, vErr, wErr)
+			continue
+		}
+		if vErr == nil && vEnd != wEnd {
+			t.Errorf("%q: validateValue ends at %d, value ends at %d", in, vEnd, wEnd)
+		}
+	}
+}

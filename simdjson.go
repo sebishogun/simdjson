@@ -95,8 +95,11 @@ type Doc struct {
 	inStr []uint64
 
 	// noWS is ix.noWS: the document has no whitespace between its tokens, so
-	// every skip is the identity. See index.noWS.
+	// every skip is the identity. wsw is ix.wsw, the whitespace mask, which
+	// turns skipping a run of it into a bit scan; it is nil after Scan, which
+	// does not build it, and the byte loop stands in. See index.ws.
 	noWS bool
+	wsw  []uint64
 
 	// navigating is false during the initial pass, where containers are
 	// descended into and checked, and true afterwards, where their extent is
@@ -148,7 +151,7 @@ func finish(data []byte, ix *index) (*Doc, error) {
 	if err := ix.validateStrings(data); err != nil {
 		return nil, err
 	}
-	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS}
+	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 	v, end, err := d.value(d.skip(0))
 	if err != nil {
 		return nil, err
@@ -215,10 +218,49 @@ func (v Value) Raw() []byte {
 // perfectly, where the skip it replaces is a load of the byte and a dependent
 // load into a table.
 func (d *Doc) skip(i int) int {
-	if d.noWS {
+	if d.noWS || i >= len(d.data) || !spaceByte[d.data[i]] {
 		return i
 	}
-	return skipSpace(d.data, i)
+	return d.skipRun(i)
+}
+
+// skipRun steps over a run of whitespace that has already been found to start
+// at i.
+//
+// A bit scan over the whitespace mask, so a run of any length costs the same as
+// a run of one — which matters more than it sounds: citm_catalog.json is 71%
+// whitespace, four spaces of indentation at a time, and the byte loop this
+// replaces was 37% of its parse.
+//
+// The mask is only built by Parse. After Scan it is nil and the byte loop
+// stands in, which is the same trade Scan makes everywhere else.
+func (d *Doc) skipRun(i int) int {
+	if d.wsw == nil {
+		return skipSpaceSlow(d.data, i)
+	}
+	w := i >> 6
+	x := ^d.wsw[w] &^ (1<<uint(i&63) - 1)
+	if x != 0 {
+		if e := w<<6 + bits.TrailingZeros64(x); e < len(d.data) {
+			return e
+		}
+		return len(d.data)
+	}
+	return d.skipRunAcross(w + 1)
+}
+
+// skipRunAcross continues a whitespace run that filled the rest of its word.
+// Split out so skipRun stays loop-free and inlines into skip.
+func (d *Doc) skipRunAcross(w int) int {
+	for ; w < len(d.wsw); w++ {
+		if x := ^d.wsw[w]; x != 0 {
+			if e := w<<6 + bits.TrailingZeros64(x); e < len(d.data) {
+				return e
+			}
+			break
+		}
+	}
+	return len(d.data)
 }
 
 func skipSpace(b []byte, i int) int {
@@ -297,11 +339,8 @@ func (d *Doc) value(i int) (Value, int, error) {
 	case c == 'n':
 		return d.lit(i, "null", Null)
 	case c == '-' || (c >= '0' && c <= '9'):
-		end := i
-		for end < len(d.data) && isNumberByte(d.data[end]) {
-			end++
-		}
-		if !validNumber(d.data[i:end]) {
+		end, ok := d.number(i)
+		if !ok {
 			return Value{}, i, errAt("invalid number", i)
 		}
 		return Value{d: d, kind: Number, start: i, end: end}, end, nil
@@ -309,54 +348,64 @@ func (d *Doc) value(i int) (Value, int, error) {
 	return Value{}, i, errAt("unexpected character", i)
 }
 
-// validNumber checks JSON's number grammar, which is narrower than what
-// strconv.ParseFloat accepts.
+// number scans and validates the number starting at i in one pass, returning
+// the offset just past it.
 //
-//	-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?
+// It used to be two passes: a scan with isNumberByte to find where the number
+// ended, then validNumber walking the same bytes again to check the grammar.
+// On canada.json — 2.25 MB that is almost entirely coordinate pairs — those
+// three functions were 37% of the parse between them.
 //
-// ParseFloat takes "10." and JSON does not, which is how this arrived: fuzzing
-// against encoding/json rejected a document this accepted. Checking the grammar
-// directly is also cheaper than parsing, and skips the string allocation that
-// ParseFloat needed per number.
-func validNumber(b []byte) bool {
-	i := 0
-	if i < len(b) && b[i] == '-' {
-		i++
+// The grammar, which is the whole of it:
+//
+//	-? ( 0 | [1-9][0-9]* ) ( . [0-9]+ )? ( [eE] [+-]? [0-9]+ )?
+//
+// Trailing junk is not rejected here. `1x` returns a number ending at the x,
+// and the caller — which is looking for a comma or a closing bracket next —
+// rejects it there. That is the same division of labour as before.
+func (d *Doc) number(i int) (int, bool) {
+	b := d.data
+	j := i
+	if j < len(b) && b[j] == '-' {
+		j++
 	}
-	// An integer part is required, and a leading zero may not be followed by
-	// more digits: 0 is a number and 01 is not.
+	if j >= len(b) {
+		return 0, false
+	}
 	switch {
-	case i < len(b) && b[i] == '0':
-		i++
-	case i < len(b) && b[i] >= '1' && b[i] <= '9':
-		for i < len(b) && isDigit(b[i]) {
-			i++
+	case b[j] == '0':
+		// A leading zero admits no more digits, which is what rejects `01`.
+		j++
+	case b[j] >= '1' && b[j] <= '9':
+		j++
+		for j < len(b) && isDigit(b[j]) {
+			j++
 		}
 	default:
-		return false
+		return 0, false
 	}
-	if i < len(b) && b[i] == '.' {
-		i++
-		if i >= len(b) || !isDigit(b[i]) {
-			return false
+	if j < len(b) && b[j] == '.' {
+		j++
+		if j >= len(b) || !isDigit(b[j]) {
+			return 0, false
 		}
-		for i < len(b) && isDigit(b[i]) {
-			i++
-		}
-	}
-	if i < len(b) && (b[i] == 'e' || b[i] == 'E') {
-		i++
-		if i < len(b) && (b[i] == '+' || b[i] == '-') {
-			i++
-		}
-		if i >= len(b) || !isDigit(b[i]) {
-			return false
-		}
-		for i < len(b) && isDigit(b[i]) {
-			i++
+		for j < len(b) && isDigit(b[j]) {
+			j++
 		}
 	}
-	return i == len(b)
+	if j < len(b) && (b[j] == 'e' || b[j] == 'E') {
+		j++
+		if j < len(b) && (b[j] == '+' || b[j] == '-') {
+			j++
+		}
+		if j >= len(b) || !isDigit(b[j]) {
+			return 0, false
+		}
+		for j < len(b) && isDigit(b[j]) {
+			j++
+		}
+	}
+	return j, true
 }
 
 func isDigit(c byte) bool { return c >= '0' && c <= '9' }
@@ -365,10 +414,8 @@ func isHex(c byte) bool {
 	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }
 
-// numberByte and spaceByte are lookup tables rather than comparison chains.
-//
-// isNumberByte was seven compares and is called once per byte of every number;
-// the whitespace test was four and is called several times per field.
+// spaceByte is a lookup table rather than the four-wide comparison chain it
+// replaced. It is the first test in every whitespace skip.
 //
 // The whitespace one looked wrong afterwards: a table lookup is a load that
 // *depends* on the byte just loaded, where four compares are register work with
@@ -384,18 +431,6 @@ var spaceByte = func() (t [256]bool) {
 	t[' '], t['\t'], t['\n'], t['\r'] = true, true, true, true
 	return
 }()
-
-var numberByte = func() (t [256]bool) {
-	for c := '0'; c <= '9'; c++ {
-		t[c] = true
-	}
-	for _, c := range []byte("-+.eE") {
-		t[c] = true
-	}
-	return
-}()
-
-func isNumberByte(c byte) bool { return numberByte[c] }
 
 func (d *Doc) lit(i int, want string, k Kind) (Value, int, error) {
 	if i+len(want) > len(d.data) || string(d.data[i:i+len(want)]) != want {
@@ -438,11 +473,78 @@ func (d *Doc) stringEnd(i int) (int, bool) {
 // See index.stringEndAt for the versions this whole thing replaced and why
 // each of them was worse.
 func (d *Doc) stringEndSlow(i int) (int, error) {
-	end, ok := d.ix.stringEndAt(i, len(d.data))
-	if !ok {
-		return 0, errAt("unterminated string", i)
+	j := i + 1
+	if j < len(d.data) {
+		// Walked here rather than delegating to index.stringEndAt, which does
+		// the same thing: a string that crosses a word boundary was paying two
+		// non-inlined calls, and on twitter.json — where strings average
+		// thirty-four bytes, so about half of them cross one — that was the
+		// largest single item in the profile.
+		w := j >> 6
+		x := ^d.inStr[w] &^ (1<<uint(j&63) - 1)
+		for x == 0 {
+			w++
+			if w >= len(d.inStr) {
+				return 0, errAt("unterminated string", i)
+			}
+			x = ^d.inStr[w]
+		}
+		if e := w<<6 + bits.TrailingZeros64(x); e < len(d.data) {
+			return e + 1, nil
+		}
 	}
-	return end, nil
+	return 0, errAt("unterminated string", i)
+}
+
+// validateValue is value() without the Value.
+//
+// The descent throws away every Value it builds — validateObject and
+// validateArray want only the offset the value ends at — and building one is
+// five words stored and returned per element. On canada.json, which is a
+// couple of million numbers, that is the single most repeated thing the parse
+// does.
+//
+// It is a copy of value()'s dispatch rather than a flag on it, because a flag
+// would be a branch on the hottest path in the package to save a duplicate that
+// fits on a screen. The two must agree, and TestValidateValueMatchesValue holds
+// them to it.
+func (d *Doc) validateValue(i int) (int, error) {
+	if i >= len(d.data) {
+		return 0, errAt("unexpected end of input", i)
+	}
+	switch c := d.data[i]; {
+	case c == '{':
+		return d.validateObject(i)
+	case c == '[':
+		return d.validateArray(i)
+	case c == '"':
+		end, ok := d.stringEnd(i)
+		if !ok {
+			return d.stringEndSlow(i)
+		}
+		return end, nil
+	case c == 't':
+		return d.litEnd(i, "true")
+	case c == 'f':
+		return d.litEnd(i, "false")
+	case c == 'n':
+		return d.litEnd(i, "null")
+	case c == '-' || (c >= '0' && c <= '9'):
+		end, ok := d.number(i)
+		if !ok {
+			return 0, errAt("invalid number", i)
+		}
+		return end, nil
+	}
+	return 0, errAt("unexpected character", i)
+}
+
+// litEnd is lit() without the Value, for the same reason.
+func (d *Doc) litEnd(i int, want string) (int, error) {
+	if i+len(want) > len(d.data) || string(d.data[i:i+len(want)]) != want {
+		return 0, errAt("invalid literal", i)
+	}
+	return i + len(want), nil
 }
 
 // validateObject checks the grammar of the object at i and returns the offset
@@ -480,7 +582,7 @@ func (d *Doc) validateObject(i int) (int, error) {
 		if j >= len(d.data) || d.data[j] != ':' {
 			return 0, errAt("expected ':' after object key", j)
 		}
-		_, next, err := d.value(d.skip(j + 1))
+		next, err := d.validateValue(d.skip(j + 1))
 		if err != nil {
 			return 0, err
 		}
@@ -506,7 +608,7 @@ func (d *Doc) validateArray(i int) (int, error) {
 		return j + 1, nil
 	}
 	for {
-		_, next, err := d.value(j)
+		next, err := d.validateValue(j)
 		if err != nil {
 			return 0, err
 		}
