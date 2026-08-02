@@ -10,9 +10,13 @@ loong64.** The established Go port,
 and hand-written assembly. This is 1.4–1.7× faster than it on amd64 and also
 runs on the other five architectures.
 
-It is still slower than [gjson](https://github.com/tidwall/gjson) at pulling a
-field out of a document, by about 2×, and
-[the numbers say so plainly](#against-lazy-scanners-it-still-loses).
+[gjson](https://github.com/tidwall/gjson) is still faster at pulling one field
+out of a document you already trust — by about 2× when both validate, and by a
+thousand-fold when neither does. It is a different operation: gjson keeps
+nothing, so reading the same document twice costs twice. Reading a document once
+this is 1.90× faster than `gjson.Valid`, and past a few hundred queries against
+one document it wins outright.
+[The numbers say all of it plainly](#the-comparison-that-is-actually-like-for-like).
 
 ```
 go get github.com/sebishogun/simdjson
@@ -101,9 +105,52 @@ stack pass over the class array, so finding where an object ends is a lookup
 rather than a depth-counting walk. `Index(j)` is still linear in j, but each
 step is now a lookup instead of a walk over the subtree it is skipping.
 
-**Use gjson or jsonparser** unless you need `encoding/json`-grade validation, an
-architecture minio does not support, or the whole document indexed once and
-queried many times.
+### The comparison that is actually like-for-like
+
+`gjson.Get` and `Parse`+`Get` are not the same operation, and neither the
+13.9× nor the 2.09× above says much on its own. Two comparisons that do.
+
+**Reading the whole document once.** `gjson.Valid` walks 1.17 MB with a switch
+per byte and returns a bool. `Scan` walks the same bytes with vector compares
+and returns a structural index:
+
+| | time | what is left afterwards |
+|---|---|---|
+| `gjson.Valid` | 711 µs | a `bool` |
+| **`Scan`** | **374 µs** | a reusable index — **1.90×** |
+| `Parse` | 1,453 µs | that index, plus the grammar proved |
+
+**Asking a document more than one question.** gjson keeps nothing, so every
+`Get` rescans from byte zero. This indexes once. Reading `items.N.score` for N
+across a 10,000-item document:
+
+| queries | gjson | this | |
+|---|---|---|---|
+| 1 | 365 ns | 375 µs | gjson 1,027× |
+| 10 | 3.1 µs | 382 µs | gjson 123× |
+| 100 | 187 µs | 484 µs | gjson 2.5× |
+| 1,000 | 17.3 ms | **10.7 ms** | **1.62×** |
+
+The crossover is a few hundred queries per document. Both are quadratic here —
+gjson rescans to reach element N, and `Index(j)` walks j elements — but each of
+this package's steps is a lookup where gjson's is a byte scan.
+
+### So which one
+
+**gjson or jsonparser** for pulling a field or two out of a document you
+produced yourself. That is what they are built for and nothing here approaches
+them at it.
+
+**This** when the document comes from outside and has to be checked, when you
+will ask it more than a few hundred questions, or when the target is not amd64.
+
+Worth being clear about what gjson does that this does not: a path language with
+wildcards, `#(age>45)` filters, about fifteen modifiers, JSON Lines and custom
+modifiers. This has `Get(path...)`, `Key`, `Index` and `ForEach`. Also worth
+being clear about what it does not do — its own README says the `Get*` functions
+"expect that the json is well-formed" and that bad JSON "may return back
+unexpected results", which is the difference the validating row above is
+measuring.
 
 ## How it works
 
