@@ -281,7 +281,10 @@ func unquote(b []byte) (string, bool) {
 // The check is the common path and costs one pass; the rebuild only happens for
 // input that was already malformed.
 func sanitize(s string) string {
-	if utf8.ValidString(s) {
+	// simd.ValidUTF8 rather than utf8.ValidString: this runs on every string a
+	// document contains, and it was 7.3% of decoding twitter.json into a
+	// struct. Same answer, a vector pass instead of a byte loop.
+	if simd.ValidUTF8(s) {
 		return s
 	}
 	out := make([]byte, 0, len(s)+8)

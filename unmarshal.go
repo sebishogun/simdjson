@@ -51,7 +51,13 @@ func (v Value) Decode(out any) error {
 	if v.kind == Invalid {
 		return errSyntax("decoding an invalid value")
 	}
-	return v.decode(rv.Elem())
+	// Through the compiled decoder when the destination is addressable, which
+	// it is for every pointer that gets here. See decoder.go.
+	el := rv.Elem()
+	if el.CanAddr() {
+		return decoderFor(el.Type())(unsafe.Pointer(el.UnsafeAddr()), v)
+	}
+	return v.decode(el)
 }
 
 // decode stores v into the settable reflect.Value rv.
