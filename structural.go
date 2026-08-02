@@ -85,6 +85,24 @@ type index struct {
 	// Masks used only by validateStrings, kept here for the same reason.
 	ctl, escOK, uEsc []byte
 
+	// space is the mask of ' ', and noWS records that the document has no
+	// whitespace at all outside its strings.
+	//
+	// Most JSON in flight is machine-generated and has none, and proving that
+	// once turns every whitespace skip in stage two — several per field, and
+	// the largest single item in the profile — into a branch that always goes
+	// the same way. Worth about 52 us of the descent on a 1.17 MB document.
+	//
+	// It is computed in validateStrings rather than here, and from the cheapest
+	// masks available, because the first version put a MaskBitsAny pass in
+	// buildIndex and that cost Scan 36 us to save Parse 16. Tab, newline and
+	// carriage return are all below 0x20, so the control-character mask
+	// validateStrings already needs covers three of the four; only ' ' needs a
+	// pass of its own, and the single-byte kernel runs at 156 GB/s against the
+	// set form's 41.
+	space []byte
+	noWS  bool
+
 	match []int32 // for each entry of pos, the index of its partner bracket
 	stack []int32 // bracket stack, reused between parses
 }
@@ -103,6 +121,10 @@ func buildIndex(data []byte, ix *index) (*index, error) {
 		ix = &index{}
 	}
 	ix.pos = ix.pos[:0]
+	// Cleared here, not in validateStrings, because Scan never calls that — a
+	// Parser reused for Scan after a Parse would otherwise carry the previous
+	// document's answer and skip whitespace that is really there.
+	ix.noWS = false
 	if len(data) == 0 {
 		ix.inStr, ix.match = ix.inStr[:0], ix.match[:0]
 		return ix, nil
@@ -330,9 +352,11 @@ func (ix *index) validateStrings(data []byte) error {
 		return nil
 	}
 	ix.ctl = maskBuf(ix.ctl, nw, len(data))
+	ix.space = maskBuf(ix.space, nw, len(data))
 	ix.escOK = maskBuf(ix.escOK, nw, len(data))
 	ix.uEsc = maskBuf(ix.uEsc, nw, len(data))
 	simd.MaskBitsLess(ix.ctl, data, 0x20)
+	simd.MaskBits(ix.space, data, ' ')
 	simd.MaskBitsAny(ix.escOK, data, escSet)
 	simd.MaskBits(ix.uEsc, data, 'u')
 
@@ -340,16 +364,21 @@ func (ix *index) validateStrings(data []byte) error {
 	// in buildIndex; prevLead carries the top bit of the leader mask, because
 	// the character a backslash escapes is one position later and that position
 	// can be in the next word.
-	var prevEsc, prevLead uint64
+	var prevEsc, prevLead, anyWS uint64
 	for w := 0; w < nw; w++ {
 		off := w * 8
 		in := ix.inStr[w]
 		bs := binary.LittleEndian.Uint64(ix.esc[off:])
 		escaped := escapedMask(bs, &prevEsc)
 
-		if binary.LittleEndian.Uint64(ix.ctl[off:])&in != 0 {
+		ctl := binary.LittleEndian.Uint64(ix.ctl[off:])
+		if ctl&in != 0 {
 			return errSyntax("control character in string")
 		}
+		// Tab, newline and carriage return are the control characters JSON
+		// allows between tokens, so outside a string the two masks together are
+		// exactly the whitespace.
+		anyWS |= (ctl | binary.LittleEndian.Uint64(ix.space[off:])) &^ in
 
 		// A backslash inside a string that is not itself escaped opens an
 		// escape. One outside a string is an ordinary byte and not our concern.
@@ -376,5 +405,6 @@ func (ix *index) validateStrings(data []byte) error {
 	if prevLead != 0 {
 		return errSyntax("string ends in a backslash")
 	}
+	ix.noWS = anyWS == 0
 	return nil
 }

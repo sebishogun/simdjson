@@ -18,7 +18,7 @@ func (v Value) Key(name string) Value {
 		return Value{}
 	}
 	d := v.d
-	i := skipSpace(d.data, v.start+1)
+	i := d.skip(v.start + 1)
 	for i < v.end-1 {
 		if d.data[i] != '"' {
 			return Value{}
@@ -41,11 +41,11 @@ func (v Value) Key(name string) Value {
 			match = ok && s == name
 		}
 
-		i = skipSpace(d.data, kend)
+		i = d.skip(kend)
 		if i >= v.end || d.data[i] != ':' {
 			return Value{}
 		}
-		i = skipSpace(d.data, i+1)
+		i = d.skip(i + 1)
 
 		val, next, err := d.value(i)
 		if err != nil {
@@ -54,9 +54,9 @@ func (v Value) Key(name string) Value {
 		if match {
 			return val
 		}
-		i = skipSpace(d.data, next)
+		i = d.skip(next)
 		if i < v.end-1 && d.data[i] == ',' {
-			i = skipSpace(d.data, i+1)
+			i = d.skip(i + 1)
 		}
 	}
 	return Value{}
@@ -68,7 +68,7 @@ func (v Value) Index(n int) Value {
 		return Value{}
 	}
 	d := v.d
-	i := skipSpace(d.data, v.start+1)
+	i := d.skip(v.start + 1)
 	for k := 0; i < v.end-1; k++ {
 		val, next, err := d.value(i)
 		if err != nil {
@@ -77,9 +77,9 @@ func (v Value) Index(n int) Value {
 		if k == n {
 			return val
 		}
-		i = skipSpace(d.data, next)
+		i = d.skip(next)
 		if i < v.end-1 && d.data[i] == ',' {
-			i = skipSpace(d.data, i+1)
+			i = d.skip(i + 1)
 		}
 	}
 	return Value{}
@@ -106,15 +106,15 @@ func (v Value) ForEach(fn func(Value) bool) {
 		return
 	}
 	d := v.d
-	i := skipSpace(d.data, v.start+1)
+	i := d.skip(v.start + 1)
 	for i < v.end-1 {
 		val, next, err := d.value(i)
 		if err != nil || !fn(val) {
 			return
 		}
-		i = skipSpace(d.data, next)
+		i = d.skip(next)
 		if i < v.end-1 && d.data[i] == ',' {
-			i = skipSpace(d.data, i+1)
+			i = d.skip(i + 1)
 		}
 	}
 }
@@ -125,7 +125,7 @@ func (v Value) ForEachKey(fn func(string, Value) bool) {
 		return
 	}
 	d := v.d
-	i := skipSpace(d.data, v.start+1)
+	i := d.skip(v.start + 1)
 	for i < v.end-1 {
 		if d.data[i] != '"' {
 			return
@@ -138,18 +138,18 @@ func (v Value) ForEachKey(fn func(string, Value) bool) {
 			}
 		}
 		key, _ := unquote(d.data[i:kend])
-		i = skipSpace(d.data, kend)
+		i = d.skip(kend)
 		if i >= v.end || d.data[i] != ':' {
 			return
 		}
-		i = skipSpace(d.data, i+1)
+		i = d.skip(i + 1)
 		val, next, err := d.value(i)
 		if err != nil || !fn(key, val) {
 			return
 		}
-		i = skipSpace(d.data, next)
+		i = d.skip(next)
 		if i < v.end-1 && d.data[i] == ',' {
-			i = skipSpace(d.data, i+1)
+			i = d.skip(i + 1)
 		}
 	}
 }

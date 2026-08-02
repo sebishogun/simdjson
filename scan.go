@@ -48,8 +48,8 @@ func (p *Parser) Scan(data []byte) (*Doc, error) {
 
 // scanRoot identifies the root value without descending into it.
 func scanRoot(data []byte, ix *index) (*Doc, error) {
-	d := &Doc{data: data, ix: ix, inStr: ix.inStr}
-	i := skipSpace(d.data, 0)
+	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS}
+	i := d.skip(0)
 	if i >= len(data) {
 		return nil, errSyntax("empty input")
 	}

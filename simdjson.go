@@ -94,6 +94,10 @@ type Doc struct {
 	// rather than a walk through the index struct. It is read once per string.
 	inStr []uint64
 
+	// noWS is ix.noWS: the document has no whitespace between its tokens, so
+	// every skip is the identity. See index.noWS.
+	noWS bool
+
 	// navigating is false during the initial pass, where containers are
 	// descended into and checked, and true afterwards, where their extent is
 	// taken from the index instead. Without it every Get and ForEach pays for
@@ -144,12 +148,12 @@ func finish(data []byte, ix *index) (*Doc, error) {
 	if err := ix.validateStrings(data); err != nil {
 		return nil, err
 	}
-	d := &Doc{data: data, ix: ix, inStr: ix.inStr}
-	v, end, err := d.value(skipSpace(d.data, 0))
+	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS}
+	v, end, err := d.value(d.skip(0))
 	if err != nil {
 		return nil, err
 	}
-	if p := skipSpace(d.data, end); p < len(data) {
+	if p := d.skip(end); p < len(data) {
 		return nil, errAt("trailing data", p)
 	}
 	d.root = v
@@ -203,6 +207,20 @@ func (v Value) Raw() []byte {
 //
 // Deriving this from the index instead — indexing every token start so the next
 // one is an array read — was tried and is slower; see docs/wrong.md.
+// skip is skipSpace, except that on a document with no whitespace outside its
+// strings — which is most JSON that travels over a wire — it is the identity
+// and stage one already proved it.
+//
+// The branch is on a field that never changes during a parse, so it predicts
+// perfectly, where the skip it replaces is a load of the byte and a dependent
+// load into a table.
+func (d *Doc) skip(i int) int {
+	if d.noWS {
+		return i
+	}
+	return skipSpace(d.data, i)
+}
+
 func skipSpace(b []byte, i int) int {
 	// Loop-free so it inlines. Most JSON in flight has no whitespace between
 	// tokens at all, and even indented JSON has none most of the time a token
@@ -214,8 +232,13 @@ func skipSpace(b []byte, i int) int {
 }
 
 func skipSpaceSlow(b []byte, i int) int {
-	for i < len(b) && spaceByte[b[i]] {
-		i++
+	for i < len(b) {
+		switch b[i] {
+		case ' ', '\t', '\n', '\r':
+			i++
+		default:
+			return i
+		}
 	}
 	return i
 }
@@ -345,9 +368,23 @@ func isHex(c byte) bool {
 // numberByte and spaceByte are lookup tables rather than comparison chains.
 //
 // isNumberByte was seven compares and is called once per byte of every number;
-// the whitespace test was four and is called several times per field. Both are
-// one load from a table that stays in L1, and the tables are 256 bytes each so
-// no bounds check is needed for a byte index.
+// the whitespace test was four and is called several times per field.
+//
+// The whitespace one looked wrong afterwards: a table lookup is a load that
+// *depends* on the byte just loaded, where four compares are register work with
+// no such chain, and skipSpace's flat time in the profile doubled. Reverting it
+// and measuring interleaved — table, chain, table, chain — says otherwise:
+
+//	table  952467 ns    chain  998914 ns
+//	table  947234 ns    chain  997093 ns
+//
+// The flat-time move was an artefact of what inlined where. Profiles locate
+// cost; they do not settle an A/B.
+var spaceByte = func() (t [256]bool) {
+	t[' '], t['\t'], t['\n'], t['\r'] = true, true, true, true
+	return
+}()
+
 var numberByte = func() (t [256]bool) {
 	for c := '0'; c <= '9'; c++ {
 		t[c] = true
@@ -355,11 +392,6 @@ var numberByte = func() (t [256]bool) {
 	for _, c := range []byte("-+.eE") {
 		t[c] = true
 	}
-	return
-}()
-
-var spaceByte = func() (t [256]bool) {
-	t[' '], t['\t'], t['\n'], t['\r'] = true, true, true, true
 	return
 }()
 
@@ -421,7 +453,7 @@ func (d *Doc) stringEndSlow(i int) (int, error) {
 // rejects a trailing comma, a missing colon and a non-string key — all of which
 // encoding/json rejects and all of which an index-only parse accepts.
 func (d *Doc) validateObject(i int) (int, error) {
-	j := skipSpace(d.data, i+1)
+	j := d.skip(i + 1)
 	if j < len(d.data) && d.data[j] == '}' {
 		return j + 1, nil
 	}
@@ -444,21 +476,21 @@ func (d *Doc) validateObject(i int) (int, error) {
 				return 0, err
 			}
 		}
-		j = skipSpace(d.data, kend)
+		j = d.skip(kend)
 		if j >= len(d.data) || d.data[j] != ':' {
 			return 0, errAt("expected ':' after object key", j)
 		}
-		_, next, err := d.value(skipSpace(d.data, j+1))
+		_, next, err := d.value(d.skip(j + 1))
 		if err != nil {
 			return 0, err
 		}
-		j = skipSpace(d.data, next)
+		j = d.skip(next)
 		if j >= len(d.data) {
 			return 0, errAt("unterminated object", i)
 		}
 		switch d.data[j] {
 		case ',':
-			j = skipSpace(d.data, j+1)
+			j = d.skip(j + 1)
 		case '}':
 			return j + 1, nil
 		default:
@@ -469,7 +501,7 @@ func (d *Doc) validateObject(i int) (int, error) {
 
 // validateArray is validateObject for arrays.
 func (d *Doc) validateArray(i int) (int, error) {
-	j := skipSpace(d.data, i+1)
+	j := d.skip(i + 1)
 	if j < len(d.data) && d.data[j] == ']' {
 		return j + 1, nil
 	}
@@ -478,13 +510,13 @@ func (d *Doc) validateArray(i int) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		j = skipSpace(d.data, next)
+		j = d.skip(next)
 		if j >= len(d.data) {
 			return 0, errAt("unterminated array", i)
 		}
 		switch d.data[j] {
 		case ',':
-			j = skipSpace(d.data, j+1)
+			j = d.skip(j + 1)
 		case ']':
 			return j + 1, nil
 		default:

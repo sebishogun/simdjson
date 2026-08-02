@@ -82,3 +82,48 @@ func TestIndexHoldsExactlyTheBracketsOutsideStrings(t *testing.T) {
 		}
 	}
 }
+
+// noWS is set by validateStrings, which only Parse calls. A Parser reused for
+// Scan after a Parse must not inherit the previous document's answer.
+func TestReusedParserDoesNotCarryNoWhitespace(t *testing.T) {
+	var p Parser
+	// A document with no whitespace at all: this sets noWS.
+	if _, err := p.Parse([]byte(`{"a":1}`)); err != nil {
+		t.Fatal(err)
+	}
+	if !p.ix.noWS {
+		t.Fatal("expected noWS on a document with no whitespace")
+	}
+	// Now Scan a document that does have whitespace, on the same Parser.
+	d, err := p.Scan([]byte(`{"a" : [1, 2] , "b" : 3}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.ix.noWS {
+		t.Fatal("Scan inherited noWS from the previous Parse")
+	}
+	if got := d.Get("b").Float(); got != 3 {
+		t.Fatalf(`Get("b") = %v, want 3 — whitespace was skipped wrongly`, got)
+	}
+	if got := d.Get("a").Index(1).Float(); got != 2 {
+		t.Fatalf(`Get("a").Index(1) = %v, want 2`, got)
+	}
+}
+
+// And the whitespace path itself has to work when whitespace is present.
+func TestWhitespaceHeavyDocument(t *testing.T) {
+	doc := "  {\n\t\"a\" :\r\n [ 1 , 2 ,\t3 ] ,\n \"b\" : { \"c\" : \"d\" }\n}  "
+	d, err := Parse([]byte(doc))
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", doc, err)
+	}
+	if d.ix.noWS {
+		t.Fatal("noWS set on a document full of whitespace")
+	}
+	if got := d.Get("a").Index(2).Float(); got != 3 {
+		t.Fatalf("Index(2) = %v, want 3", got)
+	}
+	if got := d.Get("b", "c").String(); got != "d" {
+		t.Fatalf(`Get("b","c") = %q, want "d"`, got)
+	}
+}
