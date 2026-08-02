@@ -227,6 +227,12 @@ func (d *Doc) skip(i int) int {
 // skipRun steps over a run of whitespace that has already been found to start
 // at i.
 //
+// The byte test in skip that gets here is not redundant work, though it looks
+// it: the mask alone answers both cases, since a non-whitespace byte's bit is
+// clear and the scan returns i. Doing that instead pushes skip past the inlining
+// budget, and losing the inline costs far more than the two loads it saves --
+// twitter 293 us against 243, citm 756 against 650, interleaved.
+//
 // A bit scan over the whitespace mask, so a run of any length costs the same as
 // a run of one — which matters more than it sounds: citm_catalog.json is 71%
 // whitespace, four spaces of indentation at a time, and the byte loop this
@@ -235,18 +241,20 @@ func (d *Doc) skip(i int) int {
 // The mask is only built by Parse. After Scan it is nil and the byte loop
 // stands in, which is the same trade Scan makes everywhere else.
 func (d *Doc) skipRun(i int) int {
-	if d.wsw == nil {
+	w := i >> 6
+	if w >= len(d.wsw) {
+		// Covers a Doc from Scan, which has no mask at all.
 		return skipSpaceSlow(d.data, i)
 	}
-	w := i >> 6
 	x := ^d.wsw[w] &^ (1<<uint(i&63) - 1)
-	if x != 0 {
-		if e := w<<6 + bits.TrailingZeros64(x); e < len(d.data) {
-			return e
-		}
-		return len(d.data)
+	if x == 0 {
+		return d.skipRunAcross(w + 1)
 	}
-	return d.skipRunAcross(w + 1)
+	// No clamp against len(data): the bits past the end of the document are
+	// cleared in the mask, so the first clear bit at or after i is at most
+	// len(data). A run that reaches the end of its word goes to skipRunAcross,
+	// which does clamp.
+	return w<<6 + bits.TrailingZeros64(x)
 }
 
 // skipRunAcross continues a whitespace run that filled the rest of its word.
