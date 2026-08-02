@@ -56,6 +56,28 @@ package, better of two for the others, at load under 2:
 is not the same operation — minio validates and `Scan` does not, so the table
 above is the comparison to read.
 
+### Every parser that parses, on the same document
+
+10,000 items, 1.17 MB, one field read out. Everything here walks and checks the
+whole document; the lazy scanners are the section below. Worse of two runs of
+six at load under 2:
+
+| | 10,000 items | |
+|---|---|---|
+| [valyala/fastjson](https://github.com/valyala/fastjson) | 1.335 ms | **1.09× faster than this** |
+| **this — `Parse`** | **1.455 ms** | |
+| [minio/simdjson-go](https://github.com/minio/simdjson-go) | 2.066 ms | 1.42× |
+| [bytedance/sonic](https://github.com/bytedance/sonic) | 5.773 ms | 3.97× |
+| `encoding/json` | 9.522 ms | 6.54× |
+| [goccy/go-json](https://github.com/goccy/go-json) | 11.788 ms | 8.10× |
+
+**fastjson is ahead**, by 9%, and it is the one to beat. It builds a value tree
+into a reusable arena rather than an index, so navigation afterwards is a
+pointer walk where this is a lookup into a position array — a different trade,
+and on this benchmark a slightly better one. It is also amd64-and-everything
+scalar Go, which is worth saying plainly: the vector passes here buy the
+structural index, and the index is not yet where most of `Parse` goes.
+
 ### Against lazy scanners, it still loses
 
 [gjson](https://github.com/tidwall/gjson) and
