@@ -133,12 +133,18 @@ func Parse(data []byte) (*Doc, error) {
 
 // finish validates the document and records its root.
 func finish(data []byte, ix *index) (*Doc, error) {
+	// Every string in the document, checked in one pass over the masks rather
+	// than a byte at a time as each one is met. Scan does not call this, which
+	// is part of what Scan gives up.
+	if err := ix.validateStrings(data); err != nil {
+		return nil, err
+	}
 	d := &Doc{data: data, ix: ix}
-	v, end, err := d.value(skipSpace(data, 0))
+	v, end, err := d.value(skipSpace(d.data, 0))
 	if err != nil {
 		return nil, err
 	}
-	if p := skipSpace(data, end); p < len(data) {
+	if p := skipSpace(d.data, end); p < len(data) {
 		return nil, errAt("trailing data", p)
 	}
 	d.root = v
@@ -187,6 +193,11 @@ func (v Value) Raw() []byte {
 	return v.d.data[v.start:v.end]
 }
 
+// skipSpace returns the offset of the first byte at or after i that is not
+// JSON whitespace.
+//
+// Deriving this from the index instead — indexing every token start so the next
+// one is an array read — was tried and is slower; see docs/wrong.md.
 func skipSpace(b []byte, i int) int {
 	for i < len(b) {
 		switch b[i] {
@@ -240,9 +251,8 @@ func (d *Doc) value(i int) (Value, int, error) {
 		if err != nil {
 			return Value{}, i, err
 		}
-		if err := validateString(d.data[i+1 : end-1]); err != nil {
-			return Value{}, i, err
-		}
+		// The body is not checked here. Parse checked every string in the
+		// document before the descent started; Scan checks none, by design.
 		return Value{d: d, kind: String, start: i, end: end}, end, nil
 	case c == 't':
 		return d.lit(i, "true", Bool)
@@ -261,49 +271,6 @@ func (d *Doc) value(i int) (Value, int, error) {
 		return Value{d: d, kind: Number, start: i, end: end}, end, nil
 	}
 	return Value{}, i, errAt("unexpected character", i)
-}
-
-// validateString checks a string body — the bytes between the quotes — without
-// decoding it.
-//
-// Two rules, both found by fuzzing against encoding/json rather than by reading
-// the grammar. A raw control character is not allowed and has to be escaped;
-// and only a fixed set of escapes exists, so \0 is invalid however reasonable
-// it looks. Both were accepted here and rejected by the standard library, which
-// means the two disagreed on documents only one of them would take.
-//
-// Nothing is built: this walks the escapes and checks them, where decoding
-// would allocate a string for every field of every document at parse time.
-func validateString(b []byte) error {
-	for i := 0; i < len(b); i++ {
-		c := b[i]
-		if c < 0x20 {
-			return errSyntax("control character in string")
-		}
-		if c != '\\' {
-			continue
-		}
-		i++
-		if i >= len(b) {
-			return errSyntax("string ends in a backslash")
-		}
-		switch b[i] {
-		case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
-		case 'u':
-			if i+4 >= len(b) {
-				return errSyntax("short \\u escape")
-			}
-			for k := 1; k <= 4; k++ {
-				if !isHex(b[i+k]) {
-					return errSyntax("invalid \\u escape")
-				}
-			}
-			i += 4
-		default:
-			return errSyntax("invalid escape")
-		}
-	}
-	return nil
 }
 
 // validNumber checks JSON's number grammar, which is narrower than what
@@ -373,28 +340,17 @@ func (d *Doc) lit(i int, want string, k Kind) (Value, int, error) {
 	return Value{d: d, kind: k, start: i, end: i + len(want)}, i + len(want), nil
 }
 
-// stringEnd returns the offset just past the string starting at i.
+// stringEnd returns the offset just past the string whose opening quote is at
+// i.
 //
-// Binary search, not a scan. The first version walked every string in the
-// document to find the one starting at i, which is O(strings) per string and so
-// quadratic overall: a document with 10,000 items took 2.5 seconds against
-// encoding/json's 10 milliseconds. The ranges are built in ascending order, so
-// the search is available for free.
+// One bit test and a trailing-zero count against the in-string mask; see
+// index.stringEndAt for the three versions it replaced.
 func (d *Doc) stringEnd(i int) (int, error) {
-	strs := d.ix.strs
-	lo, hi := 0, len(strs)
-	for lo < hi {
-		mid := int(uint(lo+hi) >> 1)
-		if int(strs[mid].open) < i {
-			lo = mid + 1
-		} else {
-			hi = mid
-		}
+	end, ok := d.ix.stringEndAt(i, len(d.data))
+	if !ok {
+		return 0, errAt("unterminated string", i)
 	}
-	if lo < len(strs) && int(strs[lo].open) == i {
-		return int(strs[lo].close) + 1, nil
-	}
-	return 0, errAt("unterminated string", i)
+	return end, nil
 }
 
 // validateObject checks the grammar of the object at i and returns the offset
@@ -413,12 +369,17 @@ func (d *Doc) validateObject(i int) (int, error) {
 		if j >= len(d.data) || d.data[j] != '"' {
 			return 0, errAt("expected a string key", j)
 		}
-		if _, _, err := d.value(j); err != nil {
-			return 0, err
-		}
-		kend, err := d.stringEnd(j)
+		// One call, not two. Validating the key and then asking for its end
+		// separately meant stringEnd ran twice per key at the same position —
+		// and the second time the cursor had already moved past it, so every
+		// key fell into the binary search the cursor exists to avoid. It was
+		// still a third of Parse after the cursor was added.
+		kv, kend, err := d.value(j)
 		if err != nil {
 			return 0, err
+		}
+		if kv.kind != String {
+			return 0, errAt("expected a string key", j)
 		}
 		j = skipSpace(d.data, kend)
 		if j >= len(d.data) || d.data[j] != ':' {
@@ -469,27 +430,19 @@ func (d *Doc) validateArray(i int) (int, error) {
 	}
 }
 
-// matchBracket finds the closing bracket for the one at i by walking the
-// structural index, not the bytes.
+// matchBracket returns the offset just past the bracket closing the one at i.
+//
+// A lookup, because buildMatches already paired every bracket in one stack pass
+// over the index. It used to walk the positions from i counting depth, which
+// made stepping over a nested value cost the size of that value — and Index(j)
+// the sum of everything before j.
 func (d *Doc) matchBracket(i int) (int, error) {
 	pos := d.ix.pos
 	lo := lowerBound(pos, int32(i))
 	if lo >= len(pos) || int(pos[lo]) != i {
 		return 0, errAt("internal: opening bracket is not in the index", i)
 	}
-	depth := 0
-	for j := lo; j < len(pos); j++ {
-		switch d.data[pos[j]] {
-		case '{', '[':
-			depth++
-		case '}', ']':
-			depth--
-			if depth == 0 {
-				return int(pos[j]) + 1, nil
-			}
-		}
-	}
-	return 0, errAt("unterminated container", i)
+	return int(pos[d.ix.match[lo]]) + 1, nil
 }
 
 func lowerBound(a []int32, target int32) int {

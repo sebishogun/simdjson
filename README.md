@@ -7,9 +7,12 @@ passes, then walks that instead of the bytes.** Built on
 **No cgo, and it runs the same on amd64, arm64, riscv64, s390x, ppc64le and
 loong64.** The established Go port,
 [minio/simdjson-go](https://github.com/minio/simdjson-go), is amd64 with AVX2
-and hand-written assembly — and on amd64 it is faster than this, by 1.3–1.8×.
-The trade this package makes is portability for speed, and
-[the numbers say so plainly](#against-miniosimdjson-go-which-is-faster).
+and hand-written assembly. This is 1.4–1.7× faster than it on amd64 and also
+runs on the other five architectures.
+
+It is still slower than [gjson](https://github.com/tidwall/gjson) at pulling a
+field out of a document, by about 2×, and
+[the numbers say so plainly](#against-lazy-scanners-it-still-loses).
 
 ```
 go get github.com/sebishogun/simdjson
@@ -35,15 +38,21 @@ doc.Get("items").ForEach(func(v simdjson.Value) bool {
 ### Against other index-building parsers, this wins
 
 [minio/simdjson-go](https://github.com/minio/simdjson-go), the established Go
-port, in hand-written AVX2. Worse of two runs of six at load under 2:
+port, in hand-written AVX2. Both validate. Worse of two runs of six for this
+package, better of two for the others, at load under 2:
 
-| get one field | encoding/json | minio | this | vs stdlib | vs minio |
+| get one field | encoding/json | minio | `Parse` | vs stdlib | vs minio |
 |---|---|---|---|---|---|
-| 100 items | 0.116 ms | 0.026 ms | 0.015 ms | **7.97×** | **1.78×** |
-| 1,000 items | 0.999 ms | 0.225 ms | 0.148 ms | **6.77×** | **1.52×** |
-| 10,000 items | 11.77 ms | 2.090 ms | 1.504 ms | **7.83×** | **1.39×** |
+| 100 items | 0.095 ms | 0.025 ms | 0.0145 ms | **6.57×** | **1.73×** |
+| 1,000 items | 0.951 ms | 0.221 ms | 0.142 ms | **6.68×** | **1.55×** |
+| 10,000 items | 9.62 ms | 2.030 ms | 1.449 ms | **6.64×** | **1.40×** |
 
-### Against lazy scanners, it loses
+`Scan`, which builds the same index and skips validation, is 3.8 µs / 36 µs /
+371 µs on the same three documents. That is 5.5× minio at 10,000 items, but it
+is not the same operation — minio validates and `Scan` does not, so the table
+above is the comparison to read.
+
+### Against lazy scanners, it still loses
 
 [gjson](https://github.com/tidwall/gjson) and
 [jsonparser](https://github.com/buger/jsonparser) do not parse the document.
@@ -59,54 +68,86 @@ from a document that is not JSON:
 | `{"a":1` — unterminated | `"1"` | no |
 | `{"a":01}` — invalid number | `"01"` | no |
 
-So the honest comparison puts validation on both sides. On a 10,000-item
+So the comparison has to put validation on both sides. On a 10,000-item
 document:
 
 | | gjson | this | |
 |---|---|---|---|
-| **both validating** — `gjson.Valid`+`Get` against `Parse`+`Get` | 704 µs | 9.79 ms | gjson **13.9×** |
-| neither validating — `gjson.Get` against `Scan`+`Get` | 53.7 ns | 1.47 ms | gjson 27,000× |
+| **both validating** — `gjson.Valid`+`Get` against `Parse`+`Get` | 694 µs | 1.449 ms | gjson **2.09×** |
+| neither validating — `gjson.Get` against `Scan`+`Get` | 53.3 ns | 371 µs | gjson 6,960× |
 
 **Correcting the comparison moves it by two orders of magnitude and does not
 reverse it.** gjson is faster at getting a field out of a document, whether or
 not either side checks the document first.
 
-Two separate reasons, and both are this package's rather than the approach's:
+The gap on the validating row was 13.9× and is now 2.09×. What closed it was
+stage one: bitmasks instead of offset lists, which took the scan from 1.76 ms to
+371 µs, and string validation done once over the whole document with masks
+instead of a byte walk per string. What is left is one thing:
 
-**Validation walks bytes.** `Parse` costs 9.79 ms where `Scan` costs 1.47 ms, so
-validating is 8.3 ms of it — and gjson validates the whole document in 704 µs.
-The recursive descent steps through the input one byte at a time with a
-whitespace skip, while the structural index beside it already records where
-every brace, colon and comma is. The index is built and then not used for the
-most expensive thing the package does.
+**The grammar walk still reads bytes.** `Parse` costs 1.449 ms where `Scan`
+costs 371 µs, so proving the document well-formed is 1.08 ms of it. The
+recursive descent steps through the input skipping whitespace a byte at a time,
+while the structural index beside it already records where every brace, colon
+and comma is.
 
-**Navigation has no tape.** A real simdjson emits a flat array in which every
-container records its own length, so stepping over a nested value is one jump
-and indexing an array is arithmetic. This re-derives the structure by walking
-positions, so `Index(j)` is linear in j.
+The obvious fix — index every token start, so stepping to the next token is an
+array read — was built and is 2.7× *slower*, because it makes the index bigger
+than the document. That is written up in [docs/wrong.md](docs/wrong.md); it is
+the second-most useful thing in this repository.
 
-Neither is fixed. Until they are, **use gjson or jsonparser** unless you need
-`encoding/json`-grade validation or an architecture minio does not support.
+Container extents no longer cost anything: stage one pairs every bracket in one
+stack pass over the class array, so finding where an object ends is a lookup
+rather than a depth-counting walk. `Index(j)` is still linear in j, but each
+step is now a lookup instead of a walk over the subtree it is skipping.
+
+**Use gjson or jsonparser** unless you need `encoding/json`-grade validation, an
+architecture minio does not support, or the whole document indexed once and
+queried many times.
 
 ## How it works
 
 Two stages, which is the design simdjson introduced.
 
-**Stage one** finds every structural character — `{ } [ ] : ,` — in one vector
-pass each, and works out which quotes really open and close strings rather than
-being escaped. A conventional parser reads a byte and branches on what it is,
-which is a dependent and unpredictable branch per byte. This makes a handful of
-branch-free passes instead.
+**Stage one** classifies the document with vector compares and answers
+everything that follows with bit arithmetic. Three passes produce a bitmask each
+— one bit per input byte — for the quotes, the backslashes and the six
+structural characters. A conventional parser reads a byte and branches on what
+it is, which is a dependent and unpredictable branch per byte. This has no
+per-byte branch at all.
 
-**Stage two** walks those positions. A megabyte document might have fifty
-thousand structural characters, so the second stage sees fifty thousand items
-rather than a million bytes.
+**Stage two** walks the surviving positions. A megabyte document might have
+fifty thousand structural characters, so the second stage sees fifty thousand
+items rather than a million bytes.
 
 The difficulty is entirely in stage one. A `{` inside a string is text, and a
 `"` preceded by an odd number of backslashes does not close anything — in
 `"a\\"` the quote follows two backslashes and does close the string, while in
 `"a\"` it follows one and does not. Both are resolved before any position is
-interpreted.
+interpreted, and both are resolved as arithmetic over sixty-four bytes at a
+time:
+
+- **which quotes are escaped** — adding the odd-length backslash-run starts back
+  into the backslash mask propagates a carry through each run and lands it one
+  past the run's end, which turns "the parity of this run" into a single add;
+- **which bytes are inside a string** — an inclusive prefix XOR of the surviving
+  quote mask, six shift-and-xor steps per word, with the parity carried into the
+  next word by sign-extending its top bit;
+- **which structural characters survive** — an and-not.
+
+None of that costs anything per match, which is the point. The version before
+it built *lists of offsets* instead, one per character class. That is the
+natural thing to build on a `simd.IndexAll` primitive and it is the wrong
+representation: this document is about 40% structural characters, so the offset
+list came out four times the size of the document it described, and every
+question asked afterwards cost a scalar step per entry.
+
+Replacing it was worth 4.8× on stage one. Two other things were tried first and
+are recorded in [docs/wrong.md](docs/wrong.md) — windowing the input to keep it
+in cache, which a sweep from 4 KiB to 64 MiB showed changed nothing, and
+indexing every token start the way C++ simdjson's pseudo-structural characters
+do, which is 2.7× slower here because it makes the index bigger than the
+document.
 
 ## Parse or Scan
 
@@ -123,10 +164,9 @@ Validation is most of the cost, and skipping work you did not ask for is the
 whole reason a structural index exists.
 
 **`Parser`** reuses its index between documents, which is what a server handling
-a stream of payloads wants. Reuse cuts allocation by about 625× — 999 KB to 1.6
-KB per parse — and about 4% of the time, because Go's allocator was already
-handing back warm memory. The allocation is worth removing; do not expect the
-clock to move much.
+a stream of payloads wants. Reuse cuts allocation by about 3,170× — 1,008 KB to
+318 B per parse — and 17% of the time: 345 µs against 286 µs on a 230 KB
+document. The allocation is the part worth removing.
 
 ## Correctness
 
@@ -185,7 +225,7 @@ sets — so none of these needs cgo, and none is amd64-only.
 
 | | |
 |---|---|
-| [**simd.go**](https://github.com/sebishogun/simd) | 463 operations over slices, bytes and text. The kernels everything else is built from. |
+| [**simd.go**](https://github.com/sebishogun/simd) | 467 operations over slices, bytes and text. The kernels everything else is built from. |
 | [**simdblas**](https://github.com/sebishogun/simdblas) | A BLAS backend for gonum. One `blas64.Use` call and `mat`, `stat` and `optimize` run on it. |
 | [**simdcsv**](https://github.com/sebishogun/simdcsv) | CSV reading on one vector scan per record. |
 | [**simdvec**](https://github.com/sebishogun/simdvec) | Embedding search whose whole index scan is one matrix-vector product. |
