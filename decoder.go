@@ -26,7 +26,16 @@ import (
 // a type with its own UnmarshalJSON, a field reached through an embedded
 // pointer — falls back to the reflect path, which is still correct and is what
 // the differential fuzz test covers.
-type decodeFn func(p unsafe.Pointer, v Value) error
+// The signature is (destination, document, offset) rather than taking a Value.
+//
+// A Value is five words — document pointer, kind, start, end — and building one
+// per field was the largest thing left in the decode. C++ simdjson's On-Demand
+// API is the same observation: it never materialises a value object either, it
+// walks the structural index and reads the bytes where they are.
+//
+// Each function returns the offset just past what it consumed, so the caller
+// steps on without asking anything a second time.
+type decodeFn func(p unsafe.Pointer, d *Doc, i int) (int, error)
 
 var decoderCache sync.Map // reflect.Type -> decodeFn
 
@@ -38,15 +47,15 @@ func decoderFor(t reflect.Type) decodeFn {
 	// the same type — terminates. The indirection is resolved on first use.
 	var self decodeFn
 	var once sync.Once
-	stub := decodeFn(func(p unsafe.Pointer, v Value) error {
+	stub := decodeFn(func(p unsafe.Pointer, d *Doc, i int) (int, error) {
 		once.Do(func() {
 			if f, ok := decoderCache.Load(t); ok {
-				if d, ok := f.(decodeFn); ok {
-					self = d
+				if g, ok := f.(decodeFn); ok {
+					self = g
 				}
 			}
 		})
-		return self(p, v)
+		return self(p, d, i)
 	})
 	decoderCache.Store(t, stub)
 	f := compile(t)
@@ -103,207 +112,159 @@ func compile(t reflect.Type) decodeFn {
 // general decoder. reflect.NewAt is the documented way back from a pointer to a
 // value of a known type.
 func reflectFallback(t reflect.Type) decodeFn {
-	return func(p unsafe.Pointer, v Value) error {
-		return v.decode(reflect.NewAt(t, p).Elem())
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		v, end, err := d.value(i)
+		if err != nil {
+			return 0, err
+		}
+		return end, v.decode(reflect.NewAt(t, p).Elem())
 	}
 }
 
 // ------------------------------------------------------------------- leaves
 
-func decString(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
+// nullAt reports whether the literal at i is null, and where it ends.
+func nullAt(d *Doc, i int) (int, bool) {
+	if i+4 <= len(d.data) && string(d.data[i:i+4]) == "null" {
+		return i + 4, true
 	}
-	if v.kind != String {
-		return v.typeErr(stringType)
+	return 0, false
+}
+
+func decString(p unsafe.Pointer, d *Doc, i int) (int, error) {
+	if d.data[i] != '"' {
+		if end, ok := nullAt(d, i); ok {
+			return end, nil
+		}
+		return 0, kindErr(d, i, stringType)
 	}
-	s, _ := v.str()
+	end, ok := d.stringEnd(i)
+	if !ok {
+		var err error
+		if end, err = d.stringEndSlow(i); err != nil {
+			return 0, err
+		}
+	}
+	s, _ := unquote(d.data[i:end])
 	*(*string)(p) = s
-	return nil
+	return end, nil
 }
 
-func decBool(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
+func decBool(p unsafe.Pointer, d *Doc, i int) (int, error) {
+	switch d.data[i] {
+	case 't':
+		if end, err := d.litEnd(i, "true"); err == nil {
+			*(*bool)(p) = true
+			return end, nil
+		}
+	case 'f':
+		if end, err := d.litEnd(i, "false"); err == nil {
+			*(*bool)(p) = false
+			return end, nil
+		}
+	case 'n':
+		if end, ok := nullAt(d, i); ok {
+			return end, nil
+		}
 	}
-	if v.kind != Bool {
-		return v.typeErr(boolType)
-	}
-	*(*bool)(p) = v.Bool()
-	return nil
+	return 0, kindErr(d, i, boolType)
 }
 
-func decFloat64(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
+// numAt returns the number literal at i and where it ends, or reports null.
+func numAt(d *Doc, i int, t reflect.Type) (raw []byte, end int, isNull bool, err error) {
+	if d.data[i] == 'n' {
+		if e, ok := nullAt(d, i); ok {
+			return nil, e, true, nil
+		}
 	}
-	if v.kind != Number {
-		return v.typeErr(float64Type)
+	e, ok := d.number(i)
+	if !ok {
+		return nil, 0, false, kindErr(d, i, t)
 	}
-	f, err := strconv.ParseFloat(bstr(v.Raw()), 64)
-	if err != nil {
-		return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: float64Type}
+	return d.data[i:e], e, false, nil
+}
+
+func numErr(raw []byte, t reflect.Type) error {
+	return &json.UnmarshalTypeError{Value: "number " + string(raw), Type: t}
+}
+
+func decFloat64(p unsafe.Pointer, d *Doc, i int) (int, error) {
+	raw, end, isNull, err := numAt(d, i, float64Type)
+	if err != nil || isNull {
+		return end, err
+	}
+	f, perr := strconv.ParseFloat(bstr(raw), 64)
+	if perr != nil {
+		return 0, numErr(raw, float64Type)
 	}
 	*(*float64)(p) = f
-	return nil
+	return end, nil
 }
 
-func decFloat32(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
+func decFloat32(p unsafe.Pointer, d *Doc, i int) (int, error) {
+	raw, end, isNull, err := numAt(d, i, float32Type)
+	if err != nil || isNull {
+		return end, err
 	}
-	if v.kind != Number {
-		return v.typeErr(float32Type)
-	}
-	f, err := strconv.ParseFloat(bstr(v.Raw()), 32)
-	if err != nil {
-		return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: float32Type}
+	f, perr := strconv.ParseFloat(bstr(raw), 32)
+	if perr != nil {
+		return 0, numErr(raw, float32Type)
 	}
 	*(*float32)(p) = float32(f)
-	return nil
+	return end, nil
 }
 
-// intVal parses a signed number and checks it fits in bits.
-func intVal(v Value, bits int, t reflect.Type) (int64, error) {
-	if v.kind != Number {
-		return 0, v.typeErr(t)
+// intFn and uintFn build the signed and unsigned leaves, which differ only in
+// their width and the store.
+func intFn(bits int, t reflect.Type, store func(unsafe.Pointer, int64)) decodeFn {
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		raw, end, isNull, err := numAt(d, i, t)
+		if err != nil || isNull {
+			return end, err
+		}
+		n, perr := strconv.ParseInt(bstr(raw), 10, bits)
+		if perr != nil {
+			return 0, numErr(raw, t)
+		}
+		store(p, n)
+		return end, nil
 	}
-	n, err := strconv.ParseInt(bstr(v.Raw()), 10, bits)
-	if err != nil {
-		return 0, &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: t}
-	}
-	return n, nil
 }
 
-func uintVal(v Value, bits int, t reflect.Type) (uint64, error) {
-	if v.kind != Number {
-		return 0, v.typeErr(t)
+func uintFn(bits int, t reflect.Type, store func(unsafe.Pointer, uint64)) decodeFn {
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		raw, end, isNull, err := numAt(d, i, t)
+		if err != nil || isNull {
+			return end, err
+		}
+		n, perr := strconv.ParseUint(bstr(raw), 10, bits)
+		if perr != nil {
+			return 0, numErr(raw, t)
+		}
+		store(p, n)
+		return end, nil
 	}
-	n, err := strconv.ParseUint(bstr(v.Raw()), 10, bits)
-	if err != nil {
-		return 0, &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: t}
-	}
-	return n, nil
 }
 
-func decInt(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := intVal(v, strconv.IntSize, intType)
-	if err != nil {
-		return err
-	}
-	*(*int)(p) = int(n)
-	return nil
-}
+var (
+	decInt    = intFn(strconv.IntSize, intType, func(p unsafe.Pointer, n int64) { *(*int)(p) = int(n) })
+	decInt8   = intFn(8, int8Type, func(p unsafe.Pointer, n int64) { *(*int8)(p) = int8(n) })
+	decInt16  = intFn(16, int16Type, func(p unsafe.Pointer, n int64) { *(*int16)(p) = int16(n) })
+	decInt32  = intFn(32, int32Type, func(p unsafe.Pointer, n int64) { *(*int32)(p) = int32(n) })
+	decInt64  = intFn(64, int64Type, func(p unsafe.Pointer, n int64) { *(*int64)(p) = n })
+	decUint   = uintFn(strconv.IntSize, uintType, func(p unsafe.Pointer, n uint64) { *(*uint)(p) = uint(n) })
+	decUint8  = uintFn(8, uint8Type, func(p unsafe.Pointer, n uint64) { *(*uint8)(p) = uint8(n) })
+	decUint16 = uintFn(16, uint16Type, func(p unsafe.Pointer, n uint64) { *(*uint16)(p) = uint16(n) })
+	decUint32 = uintFn(32, uint32Type, func(p unsafe.Pointer, n uint64) { *(*uint32)(p) = uint32(n) })
+	decUint64 = uintFn(64, uint64Type, func(p unsafe.Pointer, n uint64) { *(*uint64)(p) = n })
+)
 
-func decInt8(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := intVal(v, 8, int8Type)
-	if err != nil {
-		return err
-	}
-	*(*int8)(p) = int8(n)
-	return nil
-}
-
-func decInt16(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := intVal(v, 16, int16Type)
+func kindErr(d *Doc, i int, t reflect.Type) error {
+	v, _, err := d.value(i)
 	if err != nil {
 		return err
 	}
-	*(*int16)(p) = int16(n)
-	return nil
-}
-
-func decInt32(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := intVal(v, 32, int32Type)
-	if err != nil {
-		return err
-	}
-	*(*int32)(p) = int32(n)
-	return nil
-}
-
-func decInt64(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := intVal(v, 64, int64Type)
-	if err != nil {
-		return err
-	}
-	*(*int64)(p) = n
-	return nil
-}
-
-func decUint(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := uintVal(v, strconv.IntSize, uintType)
-	if err != nil {
-		return err
-	}
-	*(*uint)(p) = uint(n)
-	return nil
-}
-
-func decUint8(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := uintVal(v, 8, uint8Type)
-	if err != nil {
-		return err
-	}
-	*(*uint8)(p) = uint8(n)
-	return nil
-}
-
-func decUint16(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := uintVal(v, 16, uint16Type)
-	if err != nil {
-		return err
-	}
-	*(*uint16)(p) = uint16(n)
-	return nil
-}
-
-func decUint32(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := uintVal(v, 32, uint32Type)
-	if err != nil {
-		return err
-	}
-	*(*uint32)(p) = uint32(n)
-	return nil
-}
-
-func decUint64(p unsafe.Pointer, v Value) error {
-	if v.kind == Null {
-		return nil
-	}
-	n, err := uintVal(v, 64, uint64Type)
-	if err != nil {
-		return err
-	}
-	*(*uint64)(p) = n
-	return nil
+	return v.typeErr(t)
 }
 
 // ---------------------------------------------------------------- composites
@@ -311,19 +272,20 @@ func decUint64(p unsafe.Pointer, v Value) error {
 func compilePointer(t reflect.Type) decodeFn {
 	elem := t.Elem()
 	inner := decoderFor(elem)
-	return func(p unsafe.Pointer, v Value) error {
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
 		pp := (*unsafe.Pointer)(p)
-		if v.kind == Null {
-			*pp = nil
-			return nil
+		if d.data[i] == 'n' {
+			if end, ok := nullAt(d, i); ok {
+				*(*unsafe.Pointer)(p) = nil
+				return end, nil
+			}
 		}
 		if *pp == nil {
 			// Allocated through reflect so the pointer the collector sees is
 			// one it handed out.
-			np := reflect.New(elem)
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(np.Pointer())
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(reflect.New(elem).Pointer())
 		}
-		return inner(*pp, v)
+		return inner(*pp, d, i)
 	}
 }
 
@@ -336,44 +298,85 @@ func compileSlice(t reflect.Type) decodeFn {
 	}
 	inner := decoderFor(elem)
 	esize := elem.Size()
-	return func(p unsafe.Pointer, v Value) error {
-		if v.kind == Null {
-			reflect.NewAt(t, p).Elem().SetZero()
-			return nil
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		if d.data[i] == 'n' {
+			if end, ok := nullAt(d, i); ok {
+				reflect.NewAt(t, p).Elem().SetZero()
+				return end, nil
+			}
 		}
-		if v.kind != Array {
-			return v.typeErr(t)
+		if d.data[i] != '[' {
+			return 0, kindErr(d, i, t)
+		}
+		end, err := d.matchBracket(i)
+		if err != nil {
+			return 0, err
 		}
 		rv := reflect.NewAt(t, p).Elem()
-		n := v.Len()
+		n, err := countElems(d, i, end)
+		if err != nil {
+			return 0, err
+		}
 		if rv.IsNil() || rv.Cap() < n {
 			rv.Set(reflect.MakeSlice(t, n, n))
 		} else {
 			rv.SetLen(n)
 		}
 		if n == 0 {
-			return nil
+			return end, nil
 		}
 		base := unsafe.Pointer(rv.Pointer())
-		d := v.d
-		i := d.skip(v.start + 1)
+		j := d.skip(i + 1)
 		k := 0
-		for i < v.end-1 && k < n {
-			e, next, err := d.value(i)
+		for j < end-1 && k < n {
+			next, err := inner(unsafe.Add(base, uintptr(k)*esize), d, j)
 			if err != nil {
-				return err
-			}
-			if err := inner(unsafe.Add(base, uintptr(k)*esize), e); err != nil {
-				return err
+				return 0, err
 			}
 			k++
-			i = d.skip(next)
-			if i < v.end-1 && d.data[i] == ',' {
-				i = d.skip(i + 1)
+			j = d.skip(next)
+			if j >= end-1 {
+				break
+			}
+			if d.data[j] != ',' {
+				return 0, errAt("expected ',' or ']'", j)
+			}
+			j = d.skip(j + 1)
+			if j >= end-1 {
+				return 0, errAt("expected a value after ','", j)
 			}
 		}
-		return nil
+		return end, nil
 	}
+}
+
+// countElems counts an array's elements by stepping over them, which for a
+// container is a bracket lookup rather than a walk of its contents.
+func countElems(d *Doc, start, end int) (int, error) {
+	n := 0
+	i := d.skip(start + 1)
+	for i < end-1 {
+		// The error is returned, not swallowed. Returning the count so far
+		// made `[A]` look like an empty array, so the decode loop never ran and
+		// nothing ever saw the A.
+		next, err := d.skipValue(i)
+		if err != nil {
+			return 0, err
+		}
+		n++
+		i = d.skip(next)
+		if i >= end-1 {
+			break
+		}
+		if d.data[i] != ',' {
+			return 0, errAt("expected ',' or ']'", i)
+		}
+		i = d.skip(i + 1)
+		if i >= end-1 {
+			return 0, errAt("expected a value after ','", i)
+		}
+	}
+	return n, nil
 }
 
 // compiledField is one struct field: where it is and how to fill it.
@@ -437,6 +440,17 @@ func (cs *compiledStruct) lookup(key []byte) (*compiledField, bool) {
 		}
 	}
 	return nil, false
+}
+
+// hasEscape reports whether a key's raw bytes contain a backslash, which is the
+// only reason the bytes could differ from the name they stand for.
+func hasEscape(b []byte) bool {
+	for i := 0; i < len(b); i++ {
+		if b[i] == '\\' {
+			return true
+		}
+	}
+	return false
 }
 
 // foldEqualASCII compares case-insensitively without allocating. Keys outside
@@ -503,30 +517,42 @@ func compileStruct(t reflect.Type) decodeFn {
 		cs.byFold[name] = build(f)
 	}
 
-	return func(p unsafe.Pointer, v Value) error {
-		if v.kind == Null {
-			return nil
+	return func(p unsafe.Pointer, d *Doc, at int) (int, error) {
+		if d.data[at] == 'n' {
+			if end, ok := nullAt(d, at); ok {
+				return end, nil
+			}
 		}
-		if v.kind != Object {
-			return v.typeErr(t)
+		if d.data[at] != '{' {
+			return 0, kindErr(d, at, t)
 		}
-		d := v.d
-		i := d.skip(v.start + 1)
-		for i < v.end-1 {
+		vEnd, err := d.matchBracket(at)
+		if err != nil {
+			return 0, err
+		}
+		i := d.skip(at + 1)
+		for i < vEnd-1 {
 			if d.data[i] != '"' {
-				return errAt("expected a string key", i)
+				return 0, errAt("expected a string key", i)
 			}
 			kend, ok := d.stringEnd(i)
 			if !ok {
 				var err error
 				if kend, err = d.stringEndSlow(i); err != nil {
-					return err
+					return 0, err
 				}
 			}
 			// Go elides the allocation for a string conversion used only to
 			// index a map, so an exact match on an unescaped key costs nothing.
-			cf, found := cs.lookup(d.data[i+1 : kend-1])
-			if !found {
+			raw := d.data[i+1 : kend-1]
+			cf, found := cs.lookup(raw)
+			// The fallback is only for a key carrying an escape, where the
+			// bytes in the document are not the name being matched. Without
+			// that guard every unknown field paid an unquote and two map
+			// lookups to learn what the bucket had already decided — 17% of
+			// the decode, on a document whose keys are mostly ones the struct
+			// does not name.
+			if !found && hasEscape(raw) {
 				key, _ := unquote(d.data[i:kend])
 				if cf, found = cs.byName[key]; !found {
 					cf, found = cs.byFold[toLowerASCII(key)]
@@ -534,32 +560,61 @@ func compileStruct(t reflect.Type) decodeFn {
 			}
 
 			i = d.skip(kend)
-			if i >= v.end || d.data[i] != ':' {
-				return errAt("expected ':' after object key", i)
+			if i >= vEnd || d.data[i] != ':' {
+				return 0, errAt("expected ':' after object key", i)
 			}
 			i = d.skip(i + 1)
-			e, next, err := d.value(i)
-			if err != nil {
-				return err
-			}
-			if found {
-				fp := unsafe.Add(p, cf.offset)
-				if cf.asString && e.kind != Null {
-					err = decodeQuoted(e, reflect.NewAt(cf.typ, fp).Elem())
+
+			var next int
+			var err error
+			switch {
+			case !found:
+				// An unknown field is stepped over, not decoded — a bracket
+				// lookup rather than a walk, unless this decode is the thing
+				// proving the document well-formed.
+				if d.strictSkip {
+					next, err = d.validateValue(i)
 				} else {
-					err = cf.fn(fp, e)
+					next, err = d.skipValue(i)
 				}
-				if err != nil {
-					return err
+			case cf.asString:
+				var e Value
+				e, next, err = d.value(i)
+				if err == nil {
+					fp := unsafe.Add(p, cf.offset)
+					if e.kind == Null {
+						err = e.decode(reflect.NewAt(cf.typ, fp).Elem())
+					} else {
+						err = decodeQuoted(e, reflect.NewAt(cf.typ, fp).Elem())
+					}
 				}
+			default:
+				next, err = cf.fn(unsafe.Add(p, cf.offset), d, i)
+			}
+			if err != nil {
+				return 0, err
 			}
 
+			// The separator is checked here rather than left to a grammar
+			// pass. When this decode is the only walk of the document, nothing
+			// else is going to notice that `{"a":1"b":2}` has no comma in it —
+			// the loop would simply read the next key. The fuzzer found that
+			// within a second of the descent being removed.
 			i = d.skip(next)
-			if i < v.end-1 && d.data[i] == ',' {
-				i = d.skip(i + 1)
+			if i >= vEnd-1 {
+				break
+			}
+			if d.data[i] != ',' {
+				return 0, errAt("expected ',' or '}'", i)
+			}
+			i = d.skip(i + 1)
+			// A comma promises another member. Without this the loop condition
+			// would take `{"a":1,}` as a clean exit.
+			if i >= vEnd-1 {
+				return 0, errAt("expected a string key", i)
 			}
 		}
-		return nil
+		return vEnd, nil
 	}
 }
 

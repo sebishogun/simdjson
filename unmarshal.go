@@ -25,11 +25,27 @@ import (
 //
 // v must be a non-nil pointer.
 func Unmarshal(data []byte, v any) error {
-	d, err := Parse(data)
+	// The index, then one walk that both decodes and validates — not Parse,
+	// whose grammar descent would walk the whole document before the decoder
+	// walked it again. On twitter.json that second walk was 218 us of 559.
+	ix, err := buildIndex(data, nil, true)
 	if err != nil {
 		return err
 	}
-	return d.Root().Decode(v)
+	d, err := scanRoot(data, ix)
+	if err != nil {
+		return err
+	}
+	d.strictSkip = true
+	if err := d.Root().Decode(v); err != nil {
+		return err
+	}
+	// Nothing may follow the top-level value. Parse's descent used to prove
+	// this; the decode does not reach past the root, so it is checked here.
+	if p := d.skip(d.root.end); p < len(data) {
+		return errAt("trailing data", p)
+	}
+	return nil
 }
 
 // Unmarshal decodes an already-parsed document into v.
@@ -55,7 +71,8 @@ func (v Value) Decode(out any) error {
 	// it is for every pointer that gets here. See decoder.go.
 	el := rv.Elem()
 	if el.CanAddr() {
-		return decoderFor(el.Type())(unsafe.Pointer(el.UnsafeAddr()), v)
+		_, err := decoderFor(el.Type())(unsafe.Pointer(el.UnsafeAddr()), v.d, v.start)
+		return err
 	}
 	return v.decode(el)
 }
@@ -227,41 +244,109 @@ func (v Value) decodeSlice(rv reflect.Value) error {
 	} else {
 		rv.SetLen(n)
 	}
-	i := 0
-	var err error
-	v.ForEach(func(e Value) bool {
-		if err = e.decode(rv.Index(i)); err != nil {
-			return false
+	// Walked here rather than through ForEach, which returns silently when a
+	// value does not parse. That swallowed the error for `[A]` and made the
+	// document look valid.
+	return v.eachValue(func(k int, e Value) error {
+		if k >= rv.Len() {
+			return nil
 		}
-		i++
-		return true
+		return e.decode(rv.Index(k))
 	})
-	return err
+}
+
+// eachValue calls fn for each element of an array, propagating both the walk's
+// errors and fn's.
+func (v Value) eachValue(fn func(int, Value) error) error {
+	d := v.d
+	i := d.skip(v.start + 1)
+	k := 0
+	for i < v.end-1 {
+		e, next, err := d.value(i)
+		if err != nil {
+			return err
+		}
+		if err := fn(k, e); err != nil {
+			return err
+		}
+		k++
+		i = d.skip(next)
+		if i >= v.end-1 {
+			break
+		}
+		if d.data[i] != ',' {
+			return errAt("expected ',' or ']'", i)
+		}
+		i = d.skip(i + 1)
+		if i >= v.end-1 {
+			return errAt("expected a value after ','", i)
+		}
+	}
+	return nil
+}
+
+// eachField is eachValue for an object.
+func (v Value) eachField(fn func(string, Value) error) error {
+	d := v.d
+	i := d.skip(v.start + 1)
+	for i < v.end-1 {
+		if d.data[i] != '"' {
+			return errAt("expected a string key", i)
+		}
+		kend, ok := d.stringEnd(i)
+		if !ok {
+			var err error
+			if kend, err = d.stringEndSlow(i); err != nil {
+				return err
+			}
+		}
+		key, _ := unquote(d.data[i:kend])
+		i = d.skip(kend)
+		if i >= v.end || d.data[i] != ':' {
+			return errAt("expected ':' after object key", i)
+		}
+		i = d.skip(i + 1)
+		e, next, err := d.value(i)
+		if err != nil {
+			return err
+		}
+		if err := fn(key, e); err != nil {
+			return err
+		}
+		i = d.skip(next)
+		if i >= v.end-1 {
+			break
+		}
+		if d.data[i] != ',' {
+			return errAt("expected ',' or '}'", i)
+		}
+		i = d.skip(i + 1)
+		if i >= v.end-1 {
+			return errAt("expected a string key", i)
+		}
+	}
+	return nil
 }
 
 func (v Value) decodeArray(rv reflect.Value) error {
 	if v.kind != Array {
 		return v.typeErr(rv.Type())
 	}
-	i := 0
-	var err error
-	v.ForEach(func(e Value) bool {
-		if i >= rv.Len() {
-			// Extra elements are discarded, which is what encoding/json does.
-			return false
+	n := 0
+	// Extra elements are discarded, which is what encoding/json does — but they
+	// are still walked, because they still have to be well-formed.
+	if err := v.eachValue(func(k int, e Value) error {
+		n = k + 1
+		if k >= rv.Len() {
+			return nil
 		}
-		if err = e.decode(rv.Index(i)); err != nil {
-			return false
-		}
-		i++
-		return true
-	})
-	if err != nil {
+		return e.decode(rv.Index(k))
+	}); err != nil {
 		return err
 	}
 	// Elements the document did not supply are zeroed.
-	for ; i < rv.Len(); i++ {
-		rv.Index(i).SetZero()
+	for ; n < rv.Len(); n++ {
+		rv.Index(n).SetZero()
 	}
 	return nil
 }
@@ -285,20 +370,18 @@ func (v Value) decodeMap(rv reflect.Value) error {
 		rv.Set(reflect.MakeMap(t))
 	}
 	elemT := t.Elem()
-	var err error
-	v.ForEachKey(func(k string, e Value) bool {
+	return v.eachField(func(k string, e Value) error {
 		kv := reflect.New(kt).Elem()
-		if err = setMapKey(kv, k); err != nil {
-			return false
+		if err := setMapKey(kv, k); err != nil {
+			return err
 		}
 		ev := reflect.New(elemT).Elem()
-		if err = e.decode(ev); err != nil {
-			return false
+		if err := e.decode(ev); err != nil {
+			return err
 		}
 		rv.SetMapIndex(kv, ev)
-		return true
+		return nil
 	})
-	return err
 }
 
 func setMapKey(kv reflect.Value, k string) error {
@@ -514,69 +597,37 @@ func (v Value) any() (any, error) {
 		s, _ := v.str()
 		return s, nil
 	case Array:
-		return v.d.anyArray(v.start, v.end)
+		return v.anyArray()
 	case Object:
-		return v.d.anyObject(v.start, v.end)
+		return v.anyObject()
 	}
 	return nil, errSyntax("decoding an invalid value")
 }
 
-func (d *Doc) anyArray(start, end int) (any, error) {
+func (v Value) anyArray() (any, error) {
 	out := []any{}
-	i := d.skip(start + 1)
-	for i < end-1 {
-		e, next, err := d.value(i)
-		if err != nil {
-			return nil, err
-		}
+	err := v.eachValue(func(_ int, e Value) error {
 		a, err := e.any()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		out = append(out, a)
-		i = d.skip(next)
-		if i < end-1 && d.data[i] == ',' {
-			i = d.skip(i + 1)
-		}
-	}
-	return out, nil
+		return nil
+	})
+	return out, err
 }
 
-func (d *Doc) anyObject(start, end int) (any, error) {
+func (v Value) anyObject() (any, error) {
 	out := map[string]any{}
-	i := d.skip(start + 1)
-	for i < end-1 {
-		if d.data[i] != '"' {
-			return nil, errAt("expected a string key", i)
-		}
-		kend, ok := d.stringEnd(i)
-		if !ok {
-			var err error
-			if kend, err = d.stringEndSlow(i); err != nil {
-				return nil, err
-			}
-		}
-		key, _ := unquote(d.data[i:kend])
-		i = d.skip(kend)
-		if i >= end || d.data[i] != ':' {
-			return nil, errAt("expected ':' after object key", i)
-		}
-		i = d.skip(i + 1)
-		e, next, err := d.value(i)
-		if err != nil {
-			return nil, err
-		}
+	err := v.eachField(func(k string, e Value) error {
 		a, err := e.any()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		out[key] = a
-		i = d.skip(next)
-		if i < end-1 && d.data[i] == ',' {
-			i = d.skip(i + 1)
-		}
-	}
-	return out, nil
+		out[k] = a
+		return nil
+	})
+	return out, err
 }
 
 // ---------------------------------------------------------------- type plans

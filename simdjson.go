@@ -100,6 +100,20 @@ type Doc struct {
 	// binary search behind it is only for navigation that jumps.
 	brAt int
 
+	// strictSkip makes the decoder validate the values it steps over rather
+	// than jumping past them.
+	//
+	// Unmarshal needs the whole document proven well-formed, including the
+	// fields the destination type does not name — that is encoding/json's
+	// contract. Doing it as a separate descent before decoding means walking
+	// the document twice, and the second walk is the decode. So the decoder
+	// does both in one pass: it validates what it decodes anyway, and this
+	// tells it to validate what it skips too.
+	//
+	// Off after Parse, which has already proven everything, and off after Scan,
+	// which is documented not to.
+	strictSkip bool
+
 	// noWS is ix.noWS: the document has no whitespace between its tokens, so
 	// every skip is the identity. wsw is ix.wsw, the whitespace mask, which
 	// turns skipping a run of it into a bit scan; it is nil after Scan, which
@@ -531,6 +545,43 @@ func (d *Doc) validateValue(i int) (int, error) {
 			return d.stringEndSlow(i)
 		}
 		return end, nil
+	case c == 't':
+		return d.litEnd(i, "true")
+	case c == 'f':
+		return d.litEnd(i, "false")
+	case c == 'n':
+		return d.litEnd(i, "null")
+	case c == '-' || (c >= '0' && c <= '9'):
+		end, ok := d.number(i)
+		if !ok {
+			return 0, errAt("invalid number", i)
+		}
+		return end, nil
+	}
+	return 0, errAt("unexpected character", i)
+}
+
+// skipValue returns the offset just past the value at i without looking inside
+// it.
+//
+// The document has already been validated by the time anything calls this, so a
+// container's extent is the bracket paired with its opening one — a lookup, not
+// a walk. validateValue would descend and check the whole subtree again, which
+// is right during the initial pass and wrong afterwards: on twitter.json, where
+// a struct names twelve of the thirty keys each status carries, skipping the
+// other eighteen by re-validating them was 35% of the decode.
+func (d *Doc) skipValue(i int) (int, error) {
+	if i >= len(d.data) {
+		return 0, errAt("unexpected end of input", i)
+	}
+	switch c := d.data[i]; {
+	case c == '{' || c == '[':
+		return d.matchBracket(i)
+	case c == '"':
+		if end, ok := d.stringEnd(i); ok {
+			return end, nil
+		}
+		return d.stringEndSlow(i)
 	case c == 't':
 		return d.litEnd(i, "true")
 	case c == 'f':

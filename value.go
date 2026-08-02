@@ -1,6 +1,8 @@
 package simdjson
 
 import (
+	"bytes"
+	"encoding/binary"
 	"strconv"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -207,7 +209,14 @@ func unquote(b []byte) (string, bool) {
 		return "", false
 	}
 	in := b[1 : len(b)-1]
-	if simd.IndexByte(in, '\\') < 0 {
+	if indexEscape(in) < 0 {
+		// Checked before the copy, not after. sanitize took a string, so the
+		// bytes were allocated and then examined, and for the overwhelming
+		// case — an ASCII string with nothing to fix — the copy is all that is
+		// needed.
+		if asciiBytes(in) {
+			return string(in), true
+		}
 		return sanitize(string(in)), true
 	}
 	out := make([]byte, 0, len(in))
@@ -280,10 +289,52 @@ func unquote(b []byte) (string, bool) {
 //
 // The check is the common path and costs one pass; the rebuild only happens for
 // input that was already malformed.
+// asciiBytes reports whether b is all ASCII, eight bytes at a time.
+//
+// Everything below 0x80 is valid UTF-8 by itself, so this answers the whole
+// question for nearly every string in nearly every document. It is a word loop
+// rather than a call into a vector kernel because the strings are short — keys
+// and field values, tens of bytes — and a non-inlinable call costs ~1.4ns
+// before it does anything. Byte at a time it was 8.5% of decoding twitter.json.
+func asciiBytes(b []byte) bool {
+	const high = 0x8080808080808080
+	i := 0
+	for ; i+8 <= len(b); i += 8 {
+		if binary.LittleEndian.Uint64(b[i:])&high != 0 {
+			return false
+		}
+	}
+	for ; i < len(b); i++ {
+		if b[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// indexEscape finds the first backslash, or -1.
+//
+// Not simd.IndexByte: its threshold is 1024 bytes on amd64 because the standard
+// library's own IndexByte is assembly and inlinable below that, and the strings
+// reaching here are tens of bytes.
+func indexEscape(b []byte) int { return bytes.IndexByte(b, '\\') }
+
 func sanitize(s string) string {
-	// simd.ValidUTF8 rather than utf8.ValidString: this runs on every string a
-	// document contains, and it was 7.3% of decoding twitter.json into a
-	// struct. Same answer, a vector pass instead of a byte loop.
+	// ASCII first, by hand. Nearly every string in nearly every document is
+	// ASCII, and for the short ones a call into a vector kernel costs more than
+	// the check: the strings here are keys and field values, tens of bytes, and
+	// a non-inlinable call is ~1.4ns before it does anything. Between them
+	// simd.ValidUTF8 and utf8.Valid were 10% of decoding twitter.json.
+	ascii := true
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			ascii = false
+			break
+		}
+	}
+	if ascii {
+		return s
+	}
 	if simd.ValidUTF8(s) {
 		return s
 	}
