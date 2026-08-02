@@ -209,17 +209,24 @@ func unquote(b []byte) (string, bool) {
 		return "", false
 	}
 	in := b[1 : len(b)-1]
+	// One pass answers both questions. A string needs work only if it carries
+	// a backslash or a byte above ASCII, and a word loop can look for both at
+	// once — so the overwhelming case, a plain ASCII string, is one scan and
+	// one copy instead of a scan for the backslash, a scan for the high bit and
+	// then the copy.
+	if plainASCII(in) {
+		return string(in), true
+	}
 	if indexEscape(in) < 0 {
-		// Checked before the copy, not after. sanitize took a string, so the
-		// bytes were allocated and then examined, and for the overwhelming
-		// case — an ASCII string with nothing to fix — the copy is all that is
-		// needed.
-		if asciiBytes(in) {
-			return string(in), true
-		}
 		return sanitize(string(in)), true
 	}
-	out := make([]byte, 0, len(in))
+	return string(unescapeInto(make([]byte, 0, len(in)), in)), true
+}
+
+// unescapeInto appends in's contents to dst with escapes undone and invalid
+// UTF-8 replaced, and returns the result.
+func unescapeInto(dst, in []byte) []byte {
+	out := dst
 	for i := 0; i < len(in); {
 		c := in[i]
 		if c != '\\' {
@@ -229,7 +236,7 @@ func unquote(b []byte) (string, bool) {
 		}
 		i++
 		if i >= len(in) {
-			return "", false
+			return out
 		}
 		switch in[i] {
 		case '"', '\\', '/':
@@ -252,11 +259,11 @@ func unquote(b []byte) (string, bool) {
 			i++
 		case 'u':
 			if i+5 > len(in) {
-				return "", false
+				return out
 			}
 			r, err := strconv.ParseUint(string(in[i+1:i+5]), 16, 32)
 			if err != nil {
-				return "", false
+				return out
 			}
 			i += 5
 			cp := rune(r)
@@ -273,10 +280,13 @@ func unquote(b []byte) (string, bool) {
 			}
 			out = utf8.AppendRune(out, cp)
 		default:
-			return "", false
+			return out
 		}
 	}
-	return sanitize(string(out)), true
+	if utf8.Valid(out) {
+		return out
+	}
+	return []byte(sanitize(string(out)))
 }
 
 // sanitize replaces invalid UTF-8 with the replacement character, which is what
@@ -289,6 +299,36 @@ func unquote(b []byte) (string, bool) {
 //
 // The check is the common path and costs one pass; the rebuild only happens for
 // input that was already malformed.
+// plainASCII reports whether b is all ASCII and carries no backslash — the
+// string that needs neither unescaping nor a UTF-8 check.
+//
+// Both questions are one word apiece. The high bits give the first; the second
+// is the standard has-a-zero-byte test applied to the word XOR'd with repeated
+// backslashes, which turns "is this byte 0x5C" into "is this byte zero".
+func plainASCII(b []byte) bool {
+	const (
+		lo    = 0x0101010101010101
+		hi    = 0x8080808080808080
+		slash = 0x5c5c5c5c5c5c5c5c
+	)
+	i := 0
+	for ; i+8 <= len(b); i += 8 {
+		w := binary.LittleEndian.Uint64(b[i:])
+		if w&hi != 0 {
+			return false
+		}
+		if x := w ^ slash; (x-lo)&^x&hi != 0 {
+			return false
+		}
+	}
+	for ; i < len(b); i++ {
+		if c := b[i]; c >= 0x80 || c == '\\' {
+			return false
+		}
+	}
+	return true
+}
+
 // asciiBytes reports whether b is all ASCII, eight bytes at a time.
 //
 // Everything below 0x80 is valid UTF-8 by itself, so this answers the whole

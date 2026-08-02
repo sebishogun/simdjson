@@ -40,6 +40,8 @@ package simdjson
 import (
 	"fmt"
 	"math/bits"
+	"unicode/utf8"
+	"unsafe"
 )
 
 type syntaxError struct{ msg string }
@@ -99,6 +101,29 @@ type Doc struct {
 	// bracket wanted is almost always the next one in the array, and the
 	// binary search behind it is only for navigation that jumps.
 	brAt int
+
+	// strbuf carries the bytes of every string this document has decoded.
+	//
+	// A decoded string has to own its bytes — the caller may outlive the
+	// document — so each one was its own allocation, and twitter.json into a
+	// struct made 1,309 of them against goccy's 105 for the same 707 KB. The
+	// bytes are the same either way; what differs is how many times the
+	// allocator is asked.
+	//
+	// So they are carved out of one growing buffer. When it fills, a new one is
+	// started and the old is left behind: the strings already pointing into it
+	// keep it alive, which is exactly the guarantee needed and costs nothing to
+	// arrange. The buffer is only ever appended to, so a string handed out
+	// earlier can never be overwritten.
+	//
+	// It lives on the Doc, which is fresh for every parse. Reusing it across
+	// parses would hand the next document's bytes to the previous document's
+	// strings.
+	strbuf []byte
+
+	// scratch holds one string's bytes while its escapes are undone, before it
+	// is copied into strbuf. Reused, because only one string is in flight.
+	scratch []byte
 
 	// strictSkip makes the decoder validate the values it steps over rather
 	// than jumping past them.
@@ -559,6 +584,53 @@ func (d *Doc) validateValue(i int) (int, error) {
 		return end, nil
 	}
 	return 0, errAt("unexpected character", i)
+}
+
+// intern copies b into the document's string buffer and returns it as a string
+// without a second copy.
+//
+// unsafe.String over bytes this package owns and never mutates. The buffer is
+// append-only and a fresh backing array is started rather than growing in
+// place, so the bytes behind a returned string are immutable for its lifetime.
+func (d *Doc) intern(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	if len(d.strbuf)+len(b) > cap(d.strbuf) {
+		// A new buffer rather than append's growth, because append would copy
+		// the old contents and the strings pointing at them do not need moving.
+		n := 2 * cap(d.strbuf)
+		if n < len(b)+4096 {
+			n = len(b) + 4096
+		}
+		d.strbuf = make([]byte, 0, n)
+	}
+	start := len(d.strbuf)
+	d.strbuf = append(d.strbuf, b...)
+	return unsafe.String(&d.strbuf[start], len(b))
+}
+
+// decodeStr returns the contents of the string whose quotes are at [start,end),
+// carved out of the document's string buffer.
+//
+// Three cases, in the order they occur. Plain ASCII is copied straight in.
+// Valid UTF-8 with no escape is the same — being non-ASCII is not a reason to
+// allocate, and on a document of tweets it is the common case, which is why the
+// first version of this went through unquote and left 92% of every decode's
+// allocations there. Only a string that needs bytes changed builds them first.
+func (d *Doc) decodeStr(start, end int) string {
+	in := d.data[start+1 : end-1]
+	if plainASCII(in) {
+		return d.intern(in)
+	}
+	if indexEscape(in) < 0 {
+		if utf8.Valid(in) {
+			return d.intern(in)
+		}
+		return d.intern([]byte(sanitize(string(in))))
+	}
+	d.scratch = unescapeInto(d.scratch[:0], in)
+	return d.intern(d.scratch)
 }
 
 // skipValue returns the offset just past the value at i without looking inside

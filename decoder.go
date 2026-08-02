@@ -145,8 +145,7 @@ func decString(p unsafe.Pointer, d *Doc, i int) (int, error) {
 			return 0, err
 		}
 	}
-	s, _ := unquote(d.data[i:end])
-	*(*string)(p) = s
+	*(*string)(p) = d.decodeStr(i, end)
 	return end, nil
 }
 
@@ -402,8 +401,12 @@ type compiledStruct struct {
 }
 
 type namedField struct {
-	name string
-	f    *compiledField
+	// first is name[0], checked before the string compare. A miss is the
+	// common case — a document carries keys the struct does not name — and one
+	// byte rejects most of them without a call into memequal.
+	first byte
+	name  string
+	f     *compiledField
 }
 
 // maxFieldName bounds the length table. A longer name falls back to the map,
@@ -411,13 +414,14 @@ type namedField struct {
 const maxFieldName = 64
 
 func (cs *compiledStruct) lookup(key []byte) (*compiledField, bool) {
-	if len(key) >= len(cs.byLen) {
+	if len(key) == 0 || len(key) >= len(cs.byLen) {
 		f, ok := cs.byName[string(key)]
 		return f, ok
 	}
 	b := cs.byLen[len(key)]
+	c := key[0]
 	for i := range b {
-		if b[i].name == string(key) {
+		if b[i].first == c && b[i].name == string(key) {
 			return b[i].f, true
 		}
 	}
@@ -510,7 +514,7 @@ func compileStruct(t reflect.Type) decodeFn {
 	cs.byLen = make([][]namedField, maxLen+1)
 	for name, cf := range cs.byName {
 		if len(name) <= maxFieldName {
-			cs.byLen[len(name)] = append(cs.byLen[len(name)], namedField{name, cf})
+			cs.byLen[len(name)] = append(cs.byLen[len(name)], namedField{name[0], name, cf})
 		}
 	}
 	for name, f := range plan.byFold {
