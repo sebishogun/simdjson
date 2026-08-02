@@ -24,11 +24,27 @@ import (
 // than by reading the documentation.
 //
 // v must be a non-nil pointer.
+// indexPool recycles the scratch an Unmarshal needs.
+//
+// The masks, the bracket array and the in-string words are a megabyte of
+// buffers for a megabyte of document, and a caller decoding a stream of
+// payloads was allocating all of it again for each one. Nothing the caller
+// keeps points into them — decoded strings live in the Doc's own buffer — so
+// they can go straight back.
+var indexPool sync.Pool
+
 func Unmarshal(data []byte, v any) error {
+	ix, _ := indexPool.Get().(*index)
+	defer func() {
+		if ix != nil {
+			indexPool.Put(ix)
+		}
+	}()
+
 	// The index, then one walk that both decodes and validates — not Parse,
 	// whose grammar descent would walk the whole document before the decoder
 	// walked it again. On twitter.json that second walk was 218 us of 559.
-	ix, err := buildIndex(data, nil, true)
+	ix, err := buildIndex(data, ix, true)
 	if err != nil {
 		return err
 	}

@@ -311,6 +311,13 @@ func unescapeInto(dst, in []byte) []byte {
 //
 // The check is the common path and costs one pass; the rebuild only happens for
 // input that was already malformed.
+// Three cheap passes, not one clever one. Folding the ASCII check, the
+// backslash search and the UTF-8 validation into a single loop that decodes
+// runes where it has to is obviously less work and measured 7% SLOWER: these
+// are straight word loops with early exits that the compiler does well by, and
+// utf8.Valid is tuned stdlib. Interleaved ratios against goccy, 1.112/1.119 for
+// the fused version against 1.047/1.014 for these.
+//
 // plainASCII reports whether b is all ASCII and carries no backslash — the
 // string that needs neither unescaping nor a UTF-8 check.
 //

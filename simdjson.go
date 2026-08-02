@@ -562,10 +562,11 @@ func (d *Doc) stringEndSlow(i int) (int, error) {
 // fits on a screen. The two must agree, and TestValidateValueMatchesValue holds
 // them to it.
 func (d *Doc) validateValue(i int) (int, error) {
-	if i >= len(d.data) {
+	data := d.data
+	if i >= len(data) {
 		return 0, errAt("unexpected end of input", i)
 	}
-	switch c := d.data[i]; {
+	switch c := data[i]; {
 	case c == '{':
 		return d.validateObject(i)
 	case c == '[':
@@ -698,12 +699,13 @@ func (d *Doc) litEnd(i int, want string) (int, error) {
 // rejects a trailing comma, a missing colon and a non-string key — all of which
 // encoding/json rejects and all of which an index-only parse accepts.
 func (d *Doc) validateObject(i int) (int, error) {
+	data := d.data
 	j := d.skip(i + 1)
-	if j < len(d.data) && d.data[j] == '}' {
+	if j < len(data) && data[j] == '}' {
 		return j + 1, nil
 	}
 	for {
-		if j >= len(d.data) || d.data[j] != '"' {
+		if j >= len(data) || data[j] != '"' {
 			return 0, errAt("expected a string key", j)
 		}
 		// Straight to the string, not through value(). The byte at j has just
@@ -722,7 +724,7 @@ func (d *Doc) validateObject(i int) (int, error) {
 			}
 		}
 		j = d.skip(kend)
-		if j >= len(d.data) || d.data[j] != ':' {
+		if j >= len(data) || data[j] != ':' {
 			return 0, errAt("expected ':' after object key", j)
 		}
 		next, err := d.validateValue(d.skip(j + 1))
@@ -730,10 +732,10 @@ func (d *Doc) validateObject(i int) (int, error) {
 			return 0, err
 		}
 		j = d.skip(next)
-		if j >= len(d.data) {
+		if j >= len(data) {
 			return 0, errAt("unterminated object", i)
 		}
-		switch d.data[j] {
+		switch data[j] {
 		case ',':
 			j = d.skip(j + 1)
 		case '}':
@@ -746,8 +748,9 @@ func (d *Doc) validateObject(i int) (int, error) {
 
 // validateArray is validateObject for arrays.
 func (d *Doc) validateArray(i int) (int, error) {
+	data := d.data
 	j := d.skip(i + 1)
-	if j < len(d.data) && d.data[j] == ']' {
+	if j < len(data) && data[j] == ']' {
 		return j + 1, nil
 	}
 	for {
@@ -756,10 +759,10 @@ func (d *Doc) validateArray(i int) (int, error) {
 			return 0, err
 		}
 		j = d.skip(next)
-		if j >= len(d.data) {
+		if j >= len(data) {
 			return 0, errAt("unterminated array", i)
 		}
-		switch d.data[j] {
+		switch data[j] {
 		case ',':
 			j = d.skip(j + 1)
 		case ']':

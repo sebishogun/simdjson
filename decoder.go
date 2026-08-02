@@ -379,10 +379,50 @@ func countElems(d *Doc, start, end int) (int, error) {
 }
 
 // compiledField is one struct field: where it is and how to fill it.
+// Leaf kinds handled inline by the struct loop.
+//
+// The loop used to call cf.fn for every field, and a call through a function
+// value is an indirect branch whose target changes with the field's type. perf
+// put us at 57 million branch misses against goccy's 21 million on the same
+// work — more than one per field. A switch over a small dense code is a jump
+// table, and the sequence of codes is fixed for a given struct type, so it
+// repeats identically for every object of that type and the predictor can learn
+// it. The bodies are inline as well, so there is no return to predict either.
+const (
+	kOther = iota
+	kString
+	kBool
+	kInt
+	kInt64
+	kFloat64
+)
+
+// leafKind maps a type to its inline code, or kOther for everything the loop
+// does not special-case.
+func leafKind(t reflect.Type) uint8 {
+	if implementsUnmarshaler(t) || reflect.PointerTo(t).Implements(textUnmarshalerType) {
+		return kOther
+	}
+	switch t.Kind() {
+	case reflect.String:
+		return kString
+	case reflect.Bool:
+		return kBool
+	case reflect.Int:
+		return kInt
+	case reflect.Int64:
+		return kInt64
+	case reflect.Float64:
+		return kFloat64
+	}
+	return kOther
+}
+
 type compiledField struct {
 	offset   uintptr
 	fn       decodeFn
 	typ      reflect.Type
+	kind     uint8
 	asString bool
 }
 
@@ -501,7 +541,8 @@ func compileStruct(t reflect.Type) decodeFn {
 			off += sf.Offset
 			ft = sf.Type
 		}
-		return &compiledField{offset: off, fn: decoderFor(ft), typ: ft, asString: f.asString}
+		return &compiledField{offset: off, fn: decoderFor(ft), typ: ft,
+			kind: leafKind(ft), asString: f.asString}
 	}
 	maxLen := 0
 	for name, f := range plan.byName {
@@ -522,12 +563,17 @@ func compileStruct(t reflect.Type) decodeFn {
 	}
 
 	return func(p unsafe.Pointer, d *Doc, at int) (int, error) {
-		if d.data[at] == 'n' {
+		// Hoisted so the compiler can track its length. d.data is a field, and
+		// across a bounds test and the access that follows it the compiler will
+		// not assume the field has not changed — so every access in this loop
+		// carried its own check.
+		data := d.data
+		if data[at] == 'n' {
 			if end, ok := nullAt(d, at); ok {
 				return end, nil
 			}
 		}
-		if d.data[at] != '{' {
+		if data[at] != '{' {
 			return 0, kindErr(d, at, t)
 		}
 		vEnd, err := d.matchBracket(at)
@@ -536,7 +582,7 @@ func compileStruct(t reflect.Type) decodeFn {
 		}
 		i := d.skip(at + 1)
 		for i < vEnd-1 {
-			if d.data[i] != '"' {
+			if data[i] != '"' {
 				return 0, errAt("expected a string key", i)
 			}
 			kend, ok := d.stringEnd(i)
@@ -548,7 +594,7 @@ func compileStruct(t reflect.Type) decodeFn {
 			}
 			// Go elides the allocation for a string conversion used only to
 			// index a map, so an exact match on an unescaped key costs nothing.
-			raw := d.data[i+1 : kend-1]
+			raw := data[i+1 : kend-1]
 			cf, found := cs.lookup(raw)
 			// The fallback is only for a key carrying an escape, where the
 			// bytes in the document are not the name being matched. Without
@@ -557,14 +603,14 @@ func compileStruct(t reflect.Type) decodeFn {
 			// the decode, on a document whose keys are mostly ones the struct
 			// does not name.
 			if !found && hasEscape(raw) {
-				key, _ := unquote(d.data[i:kend])
+				key, _ := unquote(data[i:kend])
 				if cf, found = cs.byName[key]; !found {
 					cf, found = cs.byFold[toLowerASCII(key)]
 				}
 			}
 
 			i = d.skip(kend)
-			if i >= vEnd || d.data[i] != ':' {
+			if i >= vEnd || data[i] != ':' {
 				return 0, errAt("expected ':' after object key", i)
 			}
 			i = d.skip(i + 1)
@@ -593,7 +639,21 @@ func compileStruct(t reflect.Type) decodeFn {
 					}
 				}
 			default:
-				next, err = cf.fn(unsafe.Add(p, cf.offset), d, i)
+				fp := unsafe.Add(p, cf.offset)
+				switch cf.kind {
+				case kString:
+					next, err = decString(fp, d, i)
+				case kBool:
+					next, err = decBool(fp, d, i)
+				case kInt:
+					next, err = decInt(fp, d, i)
+				case kInt64:
+					next, err = decInt64(fp, d, i)
+				case kFloat64:
+					next, err = decFloat64(fp, d, i)
+				default:
+					next, err = cf.fn(fp, d, i)
+				}
 			}
 			if err != nil {
 				return 0, err
@@ -608,7 +668,7 @@ func compileStruct(t reflect.Type) decodeFn {
 			if i >= vEnd-1 {
 				break
 			}
-			if d.data[i] != ',' {
+			if data[i] != ',' {
 				return 0, errAt("expected ',' or '}'", i)
 			}
 			i = d.skip(i + 1)
