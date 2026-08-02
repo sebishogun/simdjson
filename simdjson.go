@@ -94,6 +94,12 @@ type Doc struct {
 	// rather than a walk through the index struct. It is read once per string.
 	inStr []uint64
 
+	// brAt is where matchBracket last looked. Containers are met in ascending
+	// order by every walk that matters — validation, ForEach, Decode — so the
+	// bracket wanted is almost always the next one in the array, and the
+	// binary search behind it is only for navigation that jumps.
+	brAt int
+
 	// noWS is ix.noWS: the document has no whitespace between its tokens, so
 	// every skip is the identity. wsw is ix.wsw, the whitespace mask, which
 	// turns skipping a run of it into a bit scan; it is nil after Scan, which
@@ -637,10 +643,18 @@ func (d *Doc) validateArray(i int) (int, error) {
 // the sum of everything before j.
 func (d *Doc) matchBracket(i int) (int, error) {
 	pos := d.ix.pos
+	// A cursor first. Decoding canada.json, which is a couple of hundred
+	// thousand nested arrays, spent 9.6% of its time in the binary search this
+	// skips.
+	if k := d.brAt; k < len(pos) && int(pos[k]) == i {
+		d.brAt = k + 1
+		return int(pos[d.ix.match[k]]) + 1, nil
+	}
 	lo := lowerBound(pos, int32(i))
 	if lo >= len(pos) || int(pos[lo]) != i {
 		return 0, errAt("internal: opening bracket is not in the index", i)
 	}
+	d.brAt = lo + 1
 	return int(pos[d.ix.match[lo]]) + 1, nil
 }
 
