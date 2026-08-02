@@ -43,35 +43,50 @@ port, in hand-written AVX2. Worse of two runs of six at load under 2:
 | 1,000 items | 0.999 ms | 0.225 ms | 0.148 ms | **6.77×** | **1.52×** |
 | 10,000 items | 11.77 ms | 2.090 ms | 1.504 ms | **7.83×** | **1.39×** |
 
-### Against lazy scanners, it loses, and by a lot
+### Against lazy scanners, it loses
 
 [gjson](https://github.com/tidwall/gjson) and
-[jsonparser](https://github.com/buger/jsonparser) do not parse the document at
-all. They scan for the path and stop at the first match. On a 10,000-item
+[jsonparser](https://github.com/buger/jsonparser) do not parse the document.
+They scan for the path and stop at the first match.
+
+That makes the obvious comparison unfair in gjson's favour, because `gjson.Get`
+is not the same operation as `Parse`. It does not validate, and it will answer
+from a document that is not JSON:
+
+| input | `gjson.Get` returns | actually valid |
+|---|---|---|
+| `{"a" 1}` — no colon | `"1"` | no |
+| `{"a":1` — unterminated | `"1"` | no |
+| `{"a":01}` — invalid number | `"01"` | no |
+
+So the honest comparison puts validation on both sides. On a 10,000-item
 document:
 
-| | gjson | jsonparser | this |
+| | gjson | this | |
 |---|---|---|---|
-| one field at the front | **55 ns** | **47 ns** | 1.52 ms |
-| one field at the back | **358 µs** | 788 µs | 2.14 ms |
-| every item's score | **1.39 ms** | 1.47 ms | 4.17 ms |
-| 1,000 random lookups | **174 ms** | — | 245 ms |
+| **both validating** — `gjson.Valid`+`Get` against `Parse`+`Get` | 704 µs | 9.79 ms | gjson **13.9×** |
+| neither validating — `gjson.Get` against `Scan`+`Get` | 53.7 ns | 1.47 ms | gjson 27,000× |
 
-**A field at the front costs gjson fifty-five nanoseconds because it reads about
-thirty bytes and stops.** This reads the whole document to build an index before
-it answers anything. There is no arrangement of that trade where the index wins
-a single early lookup, and the last row shows it does not win a thousand
-scattered ones either.
+**Correcting the comparison moves it by two orders of magnitude and does not
+reverse it.** gjson is faster at getting a field out of a document, whether or
+not either side checks the document first.
 
-The reason is architectural and is not fixed. A real simdjson builds a *tape* —
-a flat array where every container records its own length, so stepping over a
-nested value is one jump and indexing an array is arithmetic. This builds
-positions and then re-derives the structure by walking them on every access, so
-`Index(j)` is linear in j. Building the tape is the work that would close it.
+Two separate reasons, and both are this package's rather than the approach's:
 
-**So: use gjson or jsonparser** unless you need something they do not do. What
-this has is that it validates to `encoding/json`'s standard, and that it runs on
-six architectures rather than being amd64-only like minio.
+**Validation walks bytes.** `Parse` costs 9.79 ms where `Scan` costs 1.47 ms, so
+validating is 8.3 ms of it — and gjson validates the whole document in 704 µs.
+The recursive descent steps through the input one byte at a time with a
+whitespace skip, while the structural index beside it already records where
+every brace, colon and comma is. The index is built and then not used for the
+most expensive thing the package does.
+
+**Navigation has no tape.** A real simdjson emits a flat array in which every
+container records its own length, so stepping over a nested value is one jump
+and indexing an array is arithmetic. This re-derives the structure by walking
+positions, so `Index(j)` is linear in j.
+
+Neither is fixed. Until they are, **use gjson or jsonparser** unless you need
+`encoding/json`-grade validation or an architecture minio does not support.
 
 ## How it works
 
