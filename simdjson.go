@@ -788,7 +788,27 @@ func (d *Doc) matchBracket(i int) (int, error) {
 		d.brAt = k + 1
 		return int(pos[d.ix.match[k]]) + 1, nil
 	}
-	lo := lowerBound(pos, int32(i))
+	// Galloping from the cursor, not a search over the whole array.
+	//
+	// The cursor misses whenever a subtree was validated rather than decoded:
+	// those brackets are stepped over without the cursor moving, so the next
+	// container wanted is some distance ahead. Doubling out from the cursor and
+	// then bisecting costs the logarithm of that distance instead of the
+	// logarithm of the index, and the distance is a subtree rather than a
+	// document.
+	lo := d.brAt
+	if lo >= len(pos) || int(pos[lo]) > i {
+		lo = 0
+	}
+	hi := len(pos)
+	for step := 1; lo+step < len(pos); step *= 2 {
+		if int(pos[lo+step]) > i {
+			hi = lo + step
+			break
+		}
+		lo += step
+	}
+	lo += lowerBound(pos[lo:hi], int32(i))
 	if lo >= len(pos) || int(pos[lo]) != i {
 		return 0, errAt("internal: opening bracket is not in the index", i)
 	}
