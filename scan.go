@@ -74,5 +74,6 @@ func scanRoot(data []byte, ix *index) (*Doc, error) {
 		}
 		d.root = v
 	}
+	d.navigating = true
 	return d, nil
 }

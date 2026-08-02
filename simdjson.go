@@ -88,6 +88,12 @@ type Doc struct {
 	data []byte
 	ix   *index
 	root Value
+
+	// navigating is false during the initial pass, where containers are
+	// descended into and checked, and true afterwards, where their extent is
+	// taken from the index instead. Without it every Get and ForEach pays for
+	// the validation again on everything it steps over.
+	navigating bool
 }
 
 // Parser parses documents, reusing its index buffers between them.
@@ -136,6 +142,7 @@ func finish(data []byte, ix *index) (*Doc, error) {
 		return nil, errAt("trailing data", p)
 	}
 	d.root = v
+	d.navigating = true
 	return d, nil
 }
 
@@ -204,18 +211,30 @@ func (d *Doc) value(i int) (Value, int, error) {
 		return Value{}, i, errAt("unexpected end of input", i)
 	}
 	switch c := d.data[i]; {
-	case c == '{':
-		end, err := d.validateObject(i)
+	case c == '{' || c == '[':
+		// Once the document has been through its initial pass, the extent of a
+		// container comes from matching brackets over the structural index —
+		// a walk over a handful of positions. Descending into it again would
+		// re-validate a subtree that navigation is only stepping past, which
+		// made ForEach over ten thousand items quadratic: 20 ms against the
+		// 0.3 ms the index itself costs.
+		var end int
+		var err error
+		if d.navigating {
+			end, err = d.matchBracket(i)
+		} else if c == '{' {
+			end, err = d.validateObject(i)
+		} else {
+			end, err = d.validateArray(i)
+		}
 		if err != nil {
 			return Value{}, i, err
 		}
-		return Value{d: d, kind: Object, start: i, end: end}, end, nil
-	case c == '[':
-		end, err := d.validateArray(i)
-		if err != nil {
-			return Value{}, i, err
+		k := Object
+		if c == '[' {
+			k = Array
 		}
-		return Value{d: d, kind: Array, start: i, end: end}, end, nil
+		return Value{d: d, kind: k, start: i, end: end}, end, nil
 	case c == '"':
 		end, err := d.stringEnd(i)
 		if err != nil {

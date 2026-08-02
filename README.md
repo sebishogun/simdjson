@@ -30,22 +30,12 @@ doc.Get("items").ForEach(func(v simdjson.Value) bool {
 })
 ```
 
-## Numbers
+## Numbers, including the ones that are bad
 
-Zen 5, worse of two runs of six, against `encoding/json` unmarshalling into
-`map[string]any` and reading the same field:
+### Against other index-building parsers, this wins
 
-| | encoding/json | `Scan` |
-|---|---|---|
-| get 1 field, 100 items | 0.116 ms | **7.97×** |
-| get 1 field, 1,000 items | 0.999 ms | **6.77×** |
-| get 1 field, 10,000 items | 11.77 ms | **7.83×** |
-
-### Against minio/simdjson-go
-
-[minio/simdjson-go](https://github.com/minio/simdjson-go) is the established Go
-port of this idea, in hand-written AVX2 assembly. Same machine, same documents,
-worse of two runs of six at a load average under 2:
+[minio/simdjson-go](https://github.com/minio/simdjson-go), the established Go
+port, in hand-written AVX2. Worse of two runs of six at load under 2:
 
 | get one field | encoding/json | minio | this | vs stdlib | vs minio |
 |---|---|---|---|---|---|
@@ -53,37 +43,35 @@ worse of two runs of six at a load average under 2:
 | 1,000 items | 0.999 ms | 0.225 ms | 0.148 ms | **6.77×** | **1.52×** |
 | 10,000 items | 11.77 ms | 2.090 ms | 1.504 ms | **7.83×** | **1.39×** |
 
-Parse alone, 2,000 items: minio 0.425 ms, `Scan` 0.298 ms — **1.43×**.
+### Against lazy scanners, it loses, and by a lot
 
-**It was the other way round until v0.2.0.** The first release made one vector
-pass per structural character — six of them — plus quotes and backslashes, then
-merged eight ascending lists. minio computes the same thing in one fused pass
-over 64-byte chunks, using a carry-less multiply to turn quote parity into a
-prefix-XOR, and it was 1.3–1.8× faster.
+[gjson](https://github.com/tidwall/gjson) and
+[jsonparser](https://github.com/buger/jsonparser) do not parse the document at
+all. They scan for the path and stop at the first match. On a 10,000-item
+document:
 
-Measuring that is what produced the fix. `simd.IndexAll` takes a single byte, so
-six delimiters meant six reads of the document; simd.go v1.3.0 added
-`IndexAllAny`, which takes a set and is 2.6–2.9× six separate calls. Eight
-passes and a merge became one pass and a filter.
+| | gjson | jsonparser | this |
+|---|---|---|---|
+| one field at the front | **55 ns** | **47 ns** | 1.52 ms |
+| one field at the back | **358 µs** | 788 µs | 2.14 ms |
+| every item's score | **1.39 ms** | 1.47 ms | 4.17 ms |
+| 1,000 random lookups | **174 ms** | — | 245 ms |
 
-**minio is still amd64-only.** It requires AVX2 and refuses to run without it.
-This runs on amd64, arm64, riscv64, s390x, ppc64le and loong64 from one source,
-because the kernels are generated per target rather than written by hand — and
-it is now faster on the architecture minio was written for.
+**A field at the front costs gjson fifty-five nanoseconds because it reads about
+thirty bytes and stops.** This reads the whole document to build an index before
+it answers anything. There is no arrangement of that trade where the index wins
+a single early lookup, and the last row shows it does not win a thousand
+scattered ones either.
 
-Two things in that table are worth reading carefully.
+The reason is architectural and is not fixed. A real simdjson builds a *tape* —
+a flat array where every container records its own length, so stepping over a
+nested value is one jump and indexing an array is arithmetic. This builds
+positions and then re-derives the structure by walking them on every access, so
+`Index(j)` is linear in j. Building the tape is the work that would close it.
 
-**`Scan` is 6.8–8.0×** the standard library across every size, which is the case
-this package is for: values out of a document without decoding the rest.
-
-**`Parse` is not faster at all.** Validating every value costs about what
-`encoding/json` costs, and this does it *and* builds an index. If you need the
-validation you are better off with the standard library; if you produced the
-bytes, `Scan` is the point.
-
-**Walking everything is 0.45×.** The standard library decodes in one fused pass;
-this indexes and then navigates. Reaching into a document is what an index buys,
-and reading all of it is what it does not.
+**So: use gjson or jsonparser** unless you need something they do not do. What
+this has is that it validates to `encoding/json`'s standard, and that it runs on
+six architectures rather than being amd64-only like minio.
 
 ## How it works
 
