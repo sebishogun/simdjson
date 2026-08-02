@@ -23,9 +23,12 @@ func (v Value) Key(name string) Value {
 		if d.data[i] != '"' {
 			return Value{}
 		}
-		kend, err := d.stringEnd(i)
-		if err != nil {
-			return Value{}
+		kend, ok := d.stringEnd(i)
+		if !ok {
+			var err error
+			if kend, err = d.stringEndSlow(i); err != nil {
+				return Value{}
+			}
 		}
 		// Compare against the raw bytes when the key has no escape, which is
 		// almost always, and only unescape when it does.
@@ -127,9 +130,12 @@ func (v Value) ForEachKey(fn func(string, Value) bool) {
 		if d.data[i] != '"' {
 			return
 		}
-		kend, err := d.stringEnd(i)
-		if err != nil {
-			return
+		kend, ok := d.stringEnd(i)
+		if !ok {
+			var err error
+			if kend, err = d.stringEndSlow(i); err != nil {
+				return
+			}
 		}
 		key, _ := unquote(d.data[i:kend])
 		i = skipSpace(d.data, kend)

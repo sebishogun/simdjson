@@ -7,14 +7,20 @@ import (
 	"github.com/sebishogun/simd"
 )
 
-// Stage one: find every structural character in the document.
+// Stage one: classify the document with vector compares, and answer everything
+// that follows with bit arithmetic.
 //
 // This is the idea simdjson is built on. A conventional parser reads a byte,
 // branches on what it is, reads the next — a dependent branch per byte, and the
-// branch is unpredictable because JSON is not predictable. Stage one instead
-// classifies the document with vector compares and answers the questions that
-// follow with bitwise arithmetic, so that stage two walks a few thousand
-// positions instead of a few million bytes.
+// branch is unpredictable because JSON is not predictable. Stage one has no
+// per-byte branch at all: three vector passes produce a bitmask each, and the
+// questions after them are shifts, adds and and-nots over sixty-four bytes at a
+// time.
+//
+// What it emits is deliberately small: the position of every bracket outside a
+// string, and each bracket paired with its partner. Not every structural
+// character, and not every token — both were tried and both are slower here.
+// See structSet and docs/wrong.md.
 //
 // The whole difficulty is strings. A '{' inside a string is text, not
 // structure, and a '"' preceded by an odd number of backslashes is text rather
@@ -48,38 +54,23 @@ import (
 // predicate is two instructions per sixty-four bytes and a compress-store is
 // not.
 
-// The structural characters, as a set for one pass.
-const structSet = "{}[]:,"
-
-// Byte classes, recorded while stage one walks the token positions so that
-// nothing downstream has to read the document again. The first four are laid
-// out so the low bit is set on a closing bracket and the second bit
-// distinguishes a square bracket from a brace, which is what lets buildMatches
-// check that a bracket closes its own kind with a compare rather than a
-// lookback into the input.
-const (
-	clsOpenBrace  = 0 // {
-	clsCloseBrace = 1 // }
-	clsOpenBrack  = 2 // [
-	clsCloseBrack = 3 // ]
-	clsOther      = 4 // : and ,
-)
-
-// classOf maps a byte to its class. Only the six structural characters are ever
-// looked up, but the table covers 256 so the lookup needs no guard.
-var classOf = func() (t [256]uint8) {
-	for i := range t {
-		t[i] = clsOther
-	}
-	t['{'], t['}'] = clsOpenBrace, clsCloseBrace
-	t['['], t[']'] = clsOpenBrack, clsCloseBrack
-	return
-}()
+// The characters stage one indexes.
+//
+// Brackets only, not the full `{}[]:,`. The index has exactly one consumer —
+// matchBracket, which is only ever asked about the offset of an opening
+// bracket — so the colons and commas were 190,000 of the 230,000 positions
+// extracted from a 10,000-item document and none of them was ever read. The
+// mask pass costs the same either way, since MaskBitsAny compares eight bytes
+// whether or not the caller supplies eight; what changes is how many bits the
+// extraction loop has to walk.
+//
+// If stage two ever needs to step token by token, this is where that starts —
+// and see docs/wrong.md for why indexing every token start was worse.
+const structSet = "{}[]"
 
 // index holds the positions of everything stage two needs.
 type index struct {
-	pos []int32 // structural positions, ascending, outside strings
-	cls []uint8 // class of pos[i], parallel
+	pos []int32 // bracket positions, ascending, outside strings
 
 	// inStr is one bit per byte of the document, set where that byte is inside
 	// a string literal. The opening quote of a string is set and the closing
@@ -95,27 +86,26 @@ type index struct {
 	ctl, escOK, uEsc []byte
 
 	match []int32 // for each entry of pos, the index of its partner bracket
-	stack []int32 // reused by buildMatches
+	stack []int32 // bracket stack, reused between parses
 }
 
-// buildIndex scans data and returns the structural positions outside strings.
+// buildIndex scans data and returns the bracket positions outside strings,
 //
 // Three vector passes and one word-at-a-time pass. The vector passes are
 // simd.MaskBits, which is a compare and a predicate store; the word pass is the
 // escape and string arithmetic plus the extraction of the surviving positions.
 //
-// Only the six structural characters are indexed. Indexing every *token* start
-// as well — the opening quote of each string and the first byte of each number,
-// which is what C++ simdjson's pseudo-structural characters are — was tried and
-// is slower here; see docs/wrong.md.
+// Only the brackets are indexed — see structSet for why the colons and commas
+// are not, and docs/wrong.md for why indexing every *token* start, which is
+// what C++ simdjson's pseudo-structural characters are, is slower here.
 func buildIndex(data []byte, ix *index) (*index, error) {
 	if ix == nil {
 		ix = &index{}
 	}
-	ix.pos, ix.cls = ix.pos[:0], ix.cls[:0]
+	ix.pos = ix.pos[:0]
 	if len(data) == 0 {
-		ix.inStr = ix.inStr[:0]
-		return ix, ix.buildMatches()
+		ix.inStr, ix.match = ix.inStr[:0], ix.match[:0]
+		return ix, nil
 	}
 
 	// Whole words, so the arithmetic below never has to special-case the last
@@ -134,16 +124,12 @@ func buildIndex(data []byte, ix *index) (*index, error) {
 	}
 	ix.inStr = ix.inStr[:nw]
 
-	// Reserve for the usual density rather than growing from nothing. A
-	// structural character every eight bytes is a low guess for real JSON, so
-	// this is one allocation in the common case and append handles the rest.
-	if cap(ix.pos) < len(data)/8 {
-		ix.pos = make([]int32, 0, len(data)/8)
-		ix.cls = make([]uint8, 0, len(data)/8)
-	}
-	pos, cls := ix.pos, ix.cls
-
+	// Two passes over the words: the first resolves strings and counts what
+	// survives, the second writes it. Counting first is what lets the second
+	// pass write by index into an exactly-sized array instead of appending —
+	// no capacity check per position, and no growth.
 	var prevEsc, strCarry uint64
+	total := 0
 	for w := 0; w < nw; w++ {
 		off := w * 8
 		escaped := escapedMask(binary.LittleEndian.Uint64(ix.esc[off:]), &prevEsc)
@@ -168,25 +154,70 @@ func buildIndex(data []byte, ix *index) (*index, error) {
 		strCarry = uint64(int64(in) >> 63)
 		ix.inStr[w] = in
 
-		st := binary.LittleEndian.Uint64(ix.structural[off:]) &^ in
-		base := int32(w * 64)
-		for st != 0 {
-			p := base + int32(bits.TrailingZeros64(st))
-			pos = append(pos, p)
-			// Ascending and roughly one every few bytes, so this streams
-			// through the document rather than jumping around it.
-			cls = append(cls, classOf[data[p]])
-			st &= st - 1
-		}
+		total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in)
 	}
 	if strCarry != 0 {
 		return nil, errSyntax("unterminated string")
 	}
-	ix.pos, ix.cls = pos, cls
 
-	if err := ix.buildMatches(); err != nil {
-		return nil, err
+	// Checked separately: they are grown together here, but tying match's
+	// capacity to pos's is the kind of coupling that survives one refactor and
+	// then panics on the slice below.
+	if cap(ix.pos) < total {
+		ix.pos = make([]int32, total)
 	}
+	if cap(ix.match) < total {
+		ix.match = make([]int32, total)
+	}
+	pos, match := ix.pos[:total], ix.match[:total]
+	stack := ix.stack[:0]
+
+	// Second pass: extract the bracket positions and pair them in the same
+	// step.
+	//
+	// Pairing used to be its own pass over a parallel array of byte classes,
+	// which meant writing a class per position and reading it back. Doing both
+	// here reads data[p] once and uses it twice, and the class array is gone
+	// entirely — that array's append was 120 ms of a 1.21 s profile, more than
+	// half of stage one.
+	k := 0
+	for w := 0; w < nw; w++ {
+		st := binary.LittleEndian.Uint64(ix.structural[w*8:]) &^ ix.inStr[w]
+		base := int32(w * 64)
+		for st != 0 {
+			p := base + int32(bits.TrailingZeros64(st))
+			pos[k] = p
+			// Ascending and roughly one every few bytes, so this streams
+			// through the document rather than jumping around it.
+			switch data[p] {
+			case '{':
+				stack = append(stack, int32(k)<<1)
+			case '[':
+				stack = append(stack, int32(k)<<1|1)
+			case '}', ']':
+				if len(stack) == 0 {
+					return nil, errSyntax("unbalanced brackets")
+				}
+				o := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				// A brace must close a brace and a bracket a bracket. The
+				// opening kind rode along in the stack entry's low bit, so
+				// this needs no second look at the input.
+				if (o&1 == 1) != (data[p] == ']') {
+					return nil, errSyntax("mismatched brackets")
+				}
+				oi := o >> 1
+				match[oi] = int32(k)
+				match[k] = oi
+			}
+			k++
+			st &= st - 1
+		}
+	}
+	if len(stack) != 0 {
+		return nil, errSyntax("unterminated container")
+	}
+	ix.pos, ix.match, ix.stack = pos, match, stack
 	return ix, nil
 }
 
@@ -236,53 +267,6 @@ func escapedMask(bs uint64, prev *uint64) uint64 {
 	seq, carry := bits.Add64(oddStarts, bs, 0)
 	*prev = carry
 	return (even ^ (seq << 1)) & follows
-}
-
-// buildMatches records, for every opening bracket, the index in pos of the
-// bracket that closes it — and the reverse.
-//
-// This is the part of a simdjson tape that matters most here. Without it,
-// finding where a container ends means walking the structural positions from it
-// and counting depth, so stepping over a nested value costs the size of that
-// value and Index(j) costs the sum of everything before j. With it both are a
-// lookup.
-//
-// It reads the class array rather than the document, so the whole pass is two
-// sequential streams and a stack. The stack entry packs the opening bracket's
-// kind into its low bit, which is what makes the matching check a compare
-// against the closing class instead of a random read back into the input.
-func (ix *index) buildMatches() error {
-	if cap(ix.match) < len(ix.pos) {
-		ix.match = make([]int32, len(ix.pos))
-	}
-	ix.match = ix.match[:len(ix.pos)]
-	stack := ix.stack[:0]
-	for i, c := range ix.cls {
-		if c >= clsOther {
-			continue
-		}
-		kind := int32(c) >> 1
-		if c&1 == 0 {
-			stack = append(stack, int32(i)<<1|kind)
-			continue
-		}
-		if len(stack) == 0 {
-			return errSyntax("unbalanced brackets")
-		}
-		o := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		if o&1 != kind {
-			return errSyntax("mismatched brackets")
-		}
-		oi := o >> 1
-		ix.match[oi] = int32(i)
-		ix.match[i] = oi
-	}
-	if len(stack) != 0 {
-		return errSyntax("unterminated container")
-	}
-	ix.stack = stack
-	return nil
 }
 
 // stringEndAt returns the offset just past the string whose opening quote is at

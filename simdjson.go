@@ -39,6 +39,7 @@ package simdjson
 
 import (
 	"fmt"
+	"math/bits"
 )
 
 type syntaxError struct{ msg string }
@@ -88,6 +89,10 @@ type Doc struct {
 	data []byte
 	ix   *index
 	root Value
+
+	// inStr is ix.inStr, copied here so the hot path is one slice index
+	// rather than a walk through the index struct. It is read once per string.
+	inStr []uint64
 
 	// navigating is false during the initial pass, where containers are
 	// descended into and checked, and true afterwards, where their extent is
@@ -139,7 +144,7 @@ func finish(data []byte, ix *index) (*Doc, error) {
 	if err := ix.validateStrings(data); err != nil {
 		return nil, err
 	}
-	d := &Doc{data: data, ix: ix}
+	d := &Doc{data: data, ix: ix, inStr: ix.inStr}
 	v, end, err := d.value(skipSpace(d.data, 0))
 	if err != nil {
 		return nil, err
@@ -199,13 +204,18 @@ func (v Value) Raw() []byte {
 // Deriving this from the index instead — indexing every token start so the next
 // one is an array read — was tried and is slower; see docs/wrong.md.
 func skipSpace(b []byte, i int) int {
-	for i < len(b) {
-		switch b[i] {
-		case ' ', '\t', '\n', '\r':
-			i++
-		default:
-			return i
-		}
+	// Loop-free so it inlines. Most JSON in flight has no whitespace between
+	// tokens at all, and even indented JSON has none most of the time a token
+	// ends, so the first byte answers it and the call disappears.
+	if i < len(b) && !spaceByte[b[i]] {
+		return i
+	}
+	return skipSpaceSlow(b, i)
+}
+
+func skipSpaceSlow(b []byte, i int) int {
+	for i < len(b) && spaceByte[b[i]] {
+		i++
 	}
 	return i
 }
@@ -247,9 +257,12 @@ func (d *Doc) value(i int) (Value, int, error) {
 		}
 		return Value{d: d, kind: k, start: i, end: end}, end, nil
 	case c == '"':
-		end, err := d.stringEnd(i)
-		if err != nil {
-			return Value{}, i, err
+		end, ok := d.stringEnd(i)
+		if !ok {
+			var err error
+			if end, err = d.stringEndSlow(i); err != nil {
+				return Value{}, i, err
+			}
 		}
 		// The body is not checked here. Parse checked every string in the
 		// document before the descent started; Scan checks none, by design.
@@ -329,9 +342,28 @@ func isHex(c byte) bool {
 	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }
 
-func isNumberByte(c byte) bool {
-	return c >= '0' && c <= '9' || c == '-' || c == '+' || c == '.' || c == 'e' || c == 'E'
-}
+// numberByte and spaceByte are lookup tables rather than comparison chains.
+//
+// isNumberByte was seven compares and is called once per byte of every number;
+// the whitespace test was four and is called several times per field. Both are
+// one load from a table that stays in L1, and the tables are 256 bytes each so
+// no bounds check is needed for a byte index.
+var numberByte = func() (t [256]bool) {
+	for c := '0'; c <= '9'; c++ {
+		t[c] = true
+	}
+	for _, c := range []byte("-+.eE") {
+		t[c] = true
+	}
+	return
+}()
+
+var spaceByte = func() (t [256]bool) {
+	t[' '], t['\t'], t['\n'], t['\r'] = true, true, true, true
+	return
+}()
+
+func isNumberByte(c byte) bool { return numberByte[c] }
 
 func (d *Doc) lit(i int, want string, k Kind) (Value, int, error) {
 	if i+len(want) > len(d.data) || string(d.data[i:i+len(want)]) != want {
@@ -341,11 +373,39 @@ func (d *Doc) lit(i int, want string, k Kind) (Value, int, error) {
 }
 
 // stringEnd returns the offset just past the string whose opening quote is at
-// i.
+// i, and whether it is terminated inside its own word of the mask.
 //
-// One bit test and a trailing-zero count against the in-string mask; see
-// index.stringEndAt for the three versions it replaced.
-func (d *Doc) stringEnd(i int) (int, error) {
+// Small and loop-free on purpose: it has to inline, because it is called once
+// per string and the surrounding work is a handful of instructions. The version
+// before this one returned an error and carried its own fallback, which cost
+// 317 against an inlining budget of 80 — so every string paid a call, and the
+// call was most of what the function cost.
+//
+// The in-string mask marks the opening quote and the body and clears the
+// closing quote, so the answer is the first clear bit at or after i+1.
+func (d *Doc) stringEnd(i int) (int, bool) {
+	j := i + 1
+	if j >= len(d.data) {
+		return 0, false
+	}
+	w := j >> 6
+	x := ^d.inStr[w] &^ (1<<uint(j&63) - 1)
+	if x == 0 {
+		return 0, false
+	}
+	end := w<<6 + bits.TrailingZeros64(x)
+	if end >= len(d.data) {
+		return 0, false
+	}
+	return end + 1, true
+}
+
+// stringEndSlow handles a string that runs past the end of its mask word, and
+// turns a genuine failure into the error.
+//
+// See index.stringEndAt for the versions this whole thing replaced and why
+// each of them was worse.
+func (d *Doc) stringEndSlow(i int) (int, error) {
 	end, ok := d.ix.stringEndAt(i, len(d.data))
 	if !ok {
 		return 0, errAt("unterminated string", i)
@@ -369,17 +429,20 @@ func (d *Doc) validateObject(i int) (int, error) {
 		if j >= len(d.data) || d.data[j] != '"' {
 			return 0, errAt("expected a string key", j)
 		}
-		// One call, not two. Validating the key and then asking for its end
-		// separately meant stringEnd ran twice per key at the same position —
-		// and the second time the cursor had already moved past it, so every
-		// key fell into the binary search the cursor exists to avoid. It was
-		// still a third of Parse after the cursor was added.
-		kv, kend, err := d.value(j)
-		if err != nil {
-			return 0, err
-		}
-		if kv.kind != String {
-			return 0, errAt("expected a string key", j)
+		// Straight to the string, not through value(). The byte at j has just
+		// been checked to be a quote, so the dispatch would re-derive what is
+		// already known, and the Value it builds is five words that nothing
+		// reads — only the key's end is wanted here. Keys are about half of
+		// every value() call on an object-heavy document.
+		//
+		// The string's body is not checked here either: Parse validated every
+		// string in the document before the descent started.
+		kend, ok := d.stringEnd(j)
+		if !ok {
+			var err error
+			if kend, err = d.stringEndSlow(j); err != nil {
+				return 0, err
+			}
 		}
 		j = skipSpace(d.data, kend)
 		if j >= len(d.data) || d.data[j] != ':' {
@@ -432,7 +495,7 @@ func (d *Doc) validateArray(i int) (int, error) {
 
 // matchBracket returns the offset just past the bracket closing the one at i.
 //
-// A lookup, because buildMatches already paired every bracket in one stack pass
+// A lookup, because stage one paired every bracket as it extracted them
 // over the index. It used to walk the positions from i counting depth, which
 // made stepping over a nested value cost the size of that value — and Index(j)
 // the sum of everything before j.

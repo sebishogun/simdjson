@@ -61,10 +61,6 @@ func refValidateStrings(t *testing.T, data []byte) error {
 	if err != nil {
 		return err
 	}
-	for k, c := range ix.cls {
-		_ = k
-		_ = c
-	}
 	// Walk the in-string mask for string bodies.
 	for i := 0; i < len(data); i++ {
 		if ix.inStr[i/64]&(1<<uint(i%64)) == 0 || data[i] != '"' {
