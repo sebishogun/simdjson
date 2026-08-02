@@ -228,11 +228,23 @@ func unquote(b []byte) (string, bool) {
 func unescapeInto(dst, in []byte) []byte {
 	out := dst
 	for i := 0; i < len(in); {
-		c := in[i]
-		if c != '\\' {
-			out = append(out, c)
-			i++
-			continue
+		// The run up to the next backslash is copied whole. Appending it a byte
+		// at a time was 10.6% of a struct decode on twitter.json, where the
+		// escapes are mostly \/ inside URLs — a handful per string, with tens
+		// of ordinary bytes between them.
+		//
+		// The tail falls out of the loop rather than returning from inside it:
+		// the UTF-8 check below applies to the whole result, and returning here
+		// skipped it. The fuzzer found that immediately — a lone 0x9b after an
+		// escape came back unreplaced.
+		n := bytes.IndexByte(in[i:], '\\')
+		if n < 0 {
+			out = append(out, in[i:]...)
+			break
+		}
+		if n > 0 {
+			out = append(out, in[i:i+n]...)
+			i += n
 		}
 		i++
 		if i >= len(in) {

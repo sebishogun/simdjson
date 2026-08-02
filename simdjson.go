@@ -257,7 +257,13 @@ func (v Value) Raw() []byte {
 // perfectly, where the skip it replaces is a load of the byte and a dependent
 // load into a table.
 func (d *Doc) skip(i int) int {
-	if d.noWS || i >= len(d.data) || !spaceByte[d.data[i]] {
+	// One comparison, not a table lookup. Every byte JSON allows as whitespace
+	// is at or below 0x20, so anything above it ends the run — and the table
+	// version was a load that depended on the byte just loaded. A control
+	// character below 0x20 that is not whitespace falls through to skipRun,
+	// whose mask marks only the real four, so it returns immediately and the
+	// grammar rejects the byte where it stands.
+	if d.noWS || i >= len(d.data) || d.data[i] > ' ' {
 		return i
 	}
 	return d.skipRun(i)
@@ -624,6 +630,12 @@ func (d *Doc) decodeStr(start, end int) string {
 		return d.intern(in)
 	}
 	if indexEscape(in) < 0 {
+		// Per string, not once for the document. Validating the whole input in
+		// one vector pass is correct — a string's boundaries are quotes, and
+		// cutting valid UTF-8 at an ASCII byte cannot make it invalid — and it
+		// is 17% slower: the strings actually decoded are a small fraction of
+		// the document, so it checks about ten times more bytes than it saves.
+		// Interleaved: 587/582 us against 496/502.
 		if utf8.Valid(in) {
 			return d.intern(in)
 		}
