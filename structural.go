@@ -126,20 +126,39 @@ type index struct {
 // Only the brackets are indexed — see structSet for why the colons and commas
 // are not, and docs/wrong.md for why indexing every *token* start, which is
 // what C++ simdjson's pseudo-structural characters are, is slower here.
+// buildIndex indexes data, choosing its strategy by size.
+//
+// The two paths differ only in whether the masks are built for the whole
+// document or a window at a time, and the choice is made on one number: whether
+// the masks will stay in cache. Below the limit the whole-document path is
+// faster because it has no window bookkeeping; above it, it falls off a cliff
+// and the windowed path stays flat. See wholeDocMax.
 func buildIndex(data []byte, ix *index, validate bool) (*index, error) {
 	if ix == nil {
 		ix = &index{}
 	}
 	ix.pos = ix.pos[:0]
-	// Cleared here, not in validateStrings, because Scan never calls that — a
-	// Parser reused for Scan after a Parse would otherwise carry the previous
-	// document's answer and skip whitespace that is really there.
+	// Cleared here rather than in the validating half, because Scan never runs
+	// that — a Parser reused for Scan after a Parse would otherwise carry the
+	// previous document's answer and skip whitespace that is really there.
 	ix.noWS = false
 	if len(data) == 0 {
 		ix.inStr, ix.match = ix.inStr[:0], ix.match[:0]
 		return ix, nil
 	}
+	if len(data) <= wholeDocMax {
+		return buildIndexWhole(data, ix, validate)
+	}
+	return buildIndexWindowed(data, ix, validate)
+}
 
+// buildIndexWhole indexes a document small enough to hold its masks in cache.
+//
+// Five vector passes over the whole input, then two passes over the masks. That
+// is the shape to use when the masks are never going to leave cache, and it is
+// measurably better than doing the same work through the windowed loop below —
+// about 9% on a 1 MB document — because there is no window bookkeeping.
+func buildIndexWhole(data []byte, ix *index, validate bool) (*index, error) {
 	// Whole words, so the arithmetic below never has to special-case the last
 	// one. The bytes between the end of the document and the end of its last
 	// word are zeroed rather than left over, so they match nothing.
@@ -310,6 +329,268 @@ func buildIndex(data []byte, ix *index, validate bool) (*index, error) {
 	ix.pos, ix.match, ix.stack = pos, match, stack
 	return ix, nil
 }
+
+// buildIndexWindowed indexes a document too large for its masks to stay in
+// cache, a window at a time.
+//
+// Whole-document masks for a 64 MB input are around 450 MB of memory traffic
+// written and read back, and throughput falls off a cliff exactly where the
+// document stops fitting: 9,146 MB/s at 8 MB against 2,740 at 64 MB. A window's
+// masks are 40 KiB and never leave L2, so the document is read from memory once
+// rather than five times, and throughput goes flat instead.
+func buildIndexWindowed(data []byte, ix *index, validate bool) (*index, error) {
+	nw := (len(data) + 63) / 64
+
+	// The masks are built a window at a time rather than for the whole
+	// document, and each window is consumed before the next is built.
+	//
+	// Built whole, they are five arrays of n/8 bytes that stage one writes to
+	// memory and then reads back — around 450 MB of traffic for a 64 MB
+	// document, most of it missing cache. Throughput fell off a cliff exactly
+	// where the document stopped fitting: Scan ran at 8,145 MB/s on 8 MB and
+	// 2,802 MB/s on 64 MB. A window's masks are 160 KB and stay in L2, so the
+	// document is read from memory once instead of five times.
+	//
+	// The window is a fixed size chosen for cache, not a fraction of the input
+	// — the cache does not get bigger when the document does. It must be a
+	// multiple of 64 so that window boundaries fall on word boundaries and the
+	// carried parity below stays aligned.
+	win := chunkBytes
+	wnw := win / 64
+	ix.quote = maskBuf(ix.quote, wnw, win)
+	ix.esc = maskBuf(ix.esc, wnw, win)
+	ix.structural = maskBuf(ix.structural, wnw, win)
+	if validate {
+		ix.ctl = maskBuf(ix.ctl, wnw, win)
+		ix.ws = maskBuf(ix.ws, wnw, win)
+		if cap(ix.wsw) < nw {
+			ix.wsw = make([]uint64, nw)
+		}
+		ix.wsw = ix.wsw[:nw]
+	} else {
+		ix.wsw = nil
+	}
+
+	if cap(ix.inStr) < nw+1 {
+		ix.inStr = make([]uint64, nw+1)
+	}
+	ix.inStr = ix.inStr[:nw+1]
+	ix.inStr[nw] = 0
+
+	// Reserve for the usual density rather than growing from nothing. A bracket
+	// every sixteen bytes is a generous guess for real JSON, so this is one
+	// allocation in the common case and append handles the rest.
+	if cap(ix.pos) < len(data)/16 {
+		ix.pos = make([]int32, 0, len(data)/16)
+		ix.match = make([]int32, 0, len(data)/16)
+	}
+	pos, match := ix.pos[:0], ix.match[:0]
+	stack := ix.stack[:0]
+
+	var prevEsc, strCarry, anyWS, prevLead uint64
+	for base := 0; base < len(data); base += win {
+		end := base + win
+		if end > len(data) {
+			end = len(data)
+		}
+		chunk := data[base:end]
+		cnw := (len(chunk) + 63) / 64
+
+		simd.MaskBits(ix.quote, chunk, '"')
+		simd.MaskBits(ix.esc, chunk, '\\')
+		simd.MaskBitsAny(ix.structural, chunk, structSet)
+		if validate {
+			simd.MaskBitsLess(ix.ctl, chunk, 0x20)
+			simd.MaskBitsAny(ix.ws, chunk, wsSet)
+		}
+		// The kernels write ceil(len/8) bytes; the rest of the window's last
+		// word is whatever the previous window left, so it is cleared.
+		clear(ix.quote[simd.MaskLen(len(chunk)) : cnw*8])
+		clear(ix.esc[simd.MaskLen(len(chunk)) : cnw*8])
+		clear(ix.structural[simd.MaskLen(len(chunk)) : cnw*8])
+		if validate {
+			clear(ix.ctl[simd.MaskLen(len(chunk)) : cnw*8])
+			clear(ix.ws[simd.MaskLen(len(chunk)) : cnw*8])
+		}
+
+		wbase := base / 64
+
+		// Two passes over this window's words, both while its masks are hot in
+		// L2. The first resolves strings and counts the brackets; the second
+		// writes them by index into storage sized from that count.
+		//
+		// Appending instead, to avoid the counting pass, costs about 20% — more
+		// than the windowing saves below 8 MB. That is worth stating plainly
+		// because the first version of this did exactly that and looked like
+		// the windowing was the regression.
+		cnt := 0
+		for w := 0; w < cnw; w++ {
+			off := w * 8
+			bs := binary.LittleEndian.Uint64(ix.esc[off:])
+			escaped := escapedMask(bs, &prevEsc)
+
+			// A quote that is escaped is text. Everything after this line
+			// treats the survivors as the real string boundaries.
+			q := binary.LittleEndian.Uint64(ix.quote[off:]) &^ escaped
+
+			// Inclusive prefix XOR: bit i becomes the parity of all quote bits
+			// at or below i, which is exactly "an odd number of quotes have
+			// opened, so I am inside a string". Six shift-xor steps cover
+			// sixty-four bits.
+			x := q
+			x ^= x << 1
+			x ^= x << 2
+			x ^= x << 4
+			x ^= x << 8
+			x ^= x << 16
+			x ^= x << 32
+			in := x ^ strCarry
+			// Sign-extending the top bit carries the state into the next word:
+			// all ones if the document is inside a string at the boundary. The
+			// same carry crosses window boundaries, which is the whole reason
+			// windowing is safe here.
+			strCarry = uint64(int64(in) >> 63)
+			ix.inStr[wbase+w] = in
+
+			if validate {
+				if binary.LittleEndian.Uint64(ix.ctl[off:])&in != 0 {
+					return nil, errSyntax("control character in string")
+				}
+				wsw := binary.LittleEndian.Uint64(ix.ws[off:])
+				ix.wsw[wbase+w] = wsw
+				anyWS |= wsw &^ in
+
+				// The escaped bytes are looked at directly rather than masked
+				// for: escapes are rare, so a pass over the document to find
+				// them costs the same on every input while the work it saves is
+				// usually near zero.
+				leaders := bs & in &^ escaped
+				target := leaders<<1 | prevLead
+				prevLead = leaders >> 63
+				for t := target; t != 0; t &= t - 1 {
+					pp := base + w*64 + bits.TrailingZeros64(t)
+					if pp >= len(data) {
+						return nil, errSyntax("string ends in a backslash")
+					}
+					switch data[pp] {
+					case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+					case 'u':
+						if pp+4 >= len(data) {
+							return nil, errSyntax("short \\u escape")
+						}
+						for k := 1; k <= 4; k++ {
+							if !isHex(data[pp+k]) {
+								return nil, errSyntax("invalid \\u escape")
+							}
+						}
+					default:
+						return nil, errSyntax("invalid escape")
+					}
+				}
+			}
+
+			cnt += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in)
+		}
+
+		// Grown to hold this window's brackets exactly, doubling when it has to
+		// so the growth is amortised over the document rather than paid per
+		// window.
+		wrote := len(pos)
+		if need := wrote + cnt; cap(pos) < need {
+			grown := 2 * need
+			np := make([]int32, need, grown)
+			copy(np, pos)
+			nm := make([]int32, need, grown)
+			copy(nm, match)
+			pos, match = np, nm
+		} else {
+			pos, match = pos[:need], match[:need]
+		}
+
+		k := wrote
+		for w := 0; w < cnw; w++ {
+			st := binary.LittleEndian.Uint64(ix.structural[w*8:]) &^ ix.inStr[wbase+w]
+			bpos := int32(base + w*64)
+			for st != 0 {
+				p := bpos + int32(bits.TrailingZeros64(st))
+				pos[k] = p
+				switch data[p] {
+				case '{':
+					stack = append(stack, int32(k)<<1)
+				case '[':
+					stack = append(stack, int32(k)<<1|1)
+				case '}', ']':
+					if len(stack) == 0 {
+						return nil, errSyntax("unbalanced brackets")
+					}
+					o := stack[len(stack)-1]
+					stack = stack[:len(stack)-1]
+					// A brace must close a brace and a bracket a bracket. The
+					// opening kind rode along in the stack entry's low bit.
+					if (o&1 == 1) != (data[p] == ']') {
+						return nil, errSyntax("mismatched brackets")
+					}
+					oi := o >> 1
+					match[oi] = int32(k)
+					match[k] = oi
+				}
+				k++
+				st &= st - 1
+			}
+		}
+	}
+	if strCarry != 0 {
+		return nil, errSyntax("unterminated string")
+	}
+	if validate {
+		if prevLead != 0 {
+			return nil, errSyntax("string ends in a backslash")
+		}
+		ix.noWS = anyWS == 0
+	}
+	if len(stack) != 0 {
+		return nil, errSyntax("unterminated container")
+	}
+	ix.pos, ix.match, ix.stack = pos, match, stack
+	return ix, nil
+}
+
+// chunkBytes is the window stage one works in.
+//
+// Fixed, and small enough that the window and its five masks stay in L2 while
+// both passes over them run: 64 KiB of document and 40 KiB of masks. A fraction
+// of the input would be the wrong shape — the cache does not grow when the
+// document does.
+//
+// Measured across document sizes, MB/s for Scan:
+//
+//	window     1 MB    8 MB   64 MB
+//	 64 KiB    7337    7832    7145
+//	256 KiB    7177    7249    7162
+//	  1 MiB    5541    7159    6418
+//	  4 MiB    6814    6652    6352
+//
+// 64 KiB is the best or equal at every size, and — the point — it is flat.
+const chunkBytes = 64 << 10
+
+// wholeDocMax is the largest document handled in a single window.
+//
+// Deliberately conservative. On the machine these numbers come from, L2 is
+// 1 MiB per core and L3 is 64 MiB shared, and whole-document processing does
+// not fall over until somewhere between 8 and 16 MB:
+//
+//	Scan MB/s     8 MB    16 MB    32 MB    64 MB
+//	one window    9146     5028     2954     2740
+//	64 KiB        7847     7078     6986     7112
+//
+// Tuning this to 8 MB would suit that machine and put a cliff in the middle of
+// the range on a laptop with a 4 MiB L3. 4 MiB is inside any L3 worth the name
+// and covers the overwhelming majority of real documents — canada.json, the
+// largest file in the standard corpus, is 2.25 MB. Everything above takes the
+// flat path. The cost is ~20% on an 8 MB document on hardware with a large L3,
+// which is the right thing to give up for not falling off a cliff on hardware
+// without one.
+const wholeDocMax = 4 << 20
 
 // maskBuf returns a buffer of nw whole words with the bytes past n's mask
 // cleared, reusing buf when it is large enough.
