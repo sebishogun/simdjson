@@ -347,12 +347,29 @@ func (d *Decoder) valueEnd(b []byte, i int) (int, bool) {
 	case '{', '[':
 		st := d.vstack[:0]
 		for i < len(b) {
-			j := indexAnyFrom(b, i, &frameSet, `"{}[]`)
-			if j < 0 {
+			// The hop is written out rather than called, because it is short
+			// and there are a dozen of them per record: a structured document
+			// has a quote or a bracket every few bytes. Only when the scalar
+			// run comes up empty -- a long run of numbers, which has nothing in
+			// this set until the array closes -- is the call worth making.
+			n := i + shortHop
+			if n > len(b) {
+				n = len(b)
+			}
+			for i < n && !frameSet[b[i]] {
+				i++
+			}
+			if i == n && n < len(b) {
+				k := simd.IndexAny(b[i:], `"{}[]`)
+				if k < 0 {
+					d.vstack = st
+					return len(b), false
+				}
+				i += k
+			} else if i >= len(b) {
 				d.vstack = st
 				return len(b), false
 			}
-			i = j
 			switch c := b[i]; c {
 			case '"':
 				e, ok := plainStringEnd(b, i)
