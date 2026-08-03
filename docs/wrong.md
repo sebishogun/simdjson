@@ -301,10 +301,20 @@ It was 3.5% slower, three runs, consistently. The likely cause is the slice
 bound the caller guarantees and the compiler cannot see, checked once per
 iteration where the previous form's checks were folded away.
 
-**What did transfer** is a fact rather than a technique: sonic's `Valid` says in
-its own source that it "does not check for the invalid UTF-8 characters", and it
-is a hand-written assembly state machine on amd64 and arm64 only. It is 1.25x
-this one and it is not doing the same work or running in the same places.
+**What did transfer** is a fact rather than a technique, and half of what was
+first written here about it was wrong.
+
+sonic's `Valid` says in its own source that it "does not check for the invalid
+UTF-8 characters". That reads like an admission of doing less work, and it is
+not: `encoding/json.Valid` does not check either, and neither does this one,
+because this one is checked against `encoding/json` for the same answer on the
+same input. Asked directly — a lone continuation byte, a truncated sequence, an
+overlong form, a surrogate, all inside a string — sonic, `encoding/json` and
+this package return `true` for every one of them. Same work.
+
+What is left of the difference is real and is enough: sonic's is a hand-written
+assembly state machine, built for amd64 and arm64 and nothing else. It is 1.25x
+this one, which is portable Go running on six architectures.
 
 **The rule.** Three changes, each fewer instructions than what it replaced, each
 slower. Instruction counts do not predict this code any more; branch behaviour
