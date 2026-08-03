@@ -75,9 +75,9 @@ same three — 4.1× fastjson on twitter. It is not the same operation; see belo
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
 | `Unmarshal` → struct | **390 µs** | 398 µs | 443 µs | 2,705 µs |
-| `Marshal` | **87 µs** | 107 µs | — | 123 µs |
-| `MarshalTo`, caller's buffer | 67 µs | — | 37 µs | — |
-| `Fast` options | 45 µs | — | 28 µs | — |
+| `Marshal` | **84 µs** | 109 µs | — | 127 µs |
+| `MarshalTo`, caller's buffer | 65 µs | — | 37 µs | — |
+| `Fast` options | 43 µs | — | 30 µs | — |
 
 **`MarshalTo` is the one operation measured here where another library is
 faster, and it is not close: sonic's `ConfigStd` is 1.8× this.** It is the same
@@ -92,7 +92,7 @@ one operation.
 
 | | twitter | citm | canada | vs stdlib |
 |---|---|---|---|---|
-| `Valid` | 2,834 | 3,166 | 1,902 | **5.3–6.0×** |
+| `Valid` | 2,964 | 3,293 | 1,710 | **5.3–6.3×** |
 | `Compact` | 1,457 | 1,895 | 1,702 | **3.9–5.2×** |
 | `Indent` | 1,046 | 1,074 | 612 | **2.2–3.1×** |
 
@@ -103,7 +103,7 @@ one operation.
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
 | `Decoder` | **11.7 ms** | 12.6 ms | 13.1 ms | 37.8 ms |
-| `Encoder` | **6.6 ms** | 6.8 ms | 9.2 ms | 10.0 ms |
+| `Encoder` | **6.7 ms** | 7.0 ms | 10.7 ms | 10.0 ms |
 
 The index is built per buffer rather than per value — per value it was 54 ms,
 slower than everything here — and the buffer is indexed in **partial mode**,
