@@ -266,3 +266,48 @@ that predicts the next one. This one explained the first result and failed the
 experiment it suggested; the word loop stays, and the reason it stays is the
 measurement, not the story about `0xE2`.
 
+## Three techniques taken from the fast libraries, none of which transferred
+
+Read sonic and goccy to find what they do that this does not. Three things,
+each tried and each measured worse here.
+
+**One mask instead of six tests.** goccy's escape scan, which it took from
+segmentio/encoding, folds every check into a single word and takes one branch:
+
+	mask := n | (n - lo*0x20) | ((n^lo*'"')-lo) | ((n^lo*'\\')-lo) |
+	        ((n^lo*'<')-lo) | ((n^lo*'>')-lo) | ((n^lo*'&')-lo)
+	if mask & msb != 0 { ... }
+
+The terms are deliberately inexact -- the `&^ n` that makes a has-a-byte test
+exact is left out -- because a false positive only falls into a byte loop that
+gives the exact answer. Fewer operations, one branch instead of seven.
+
+In `cleanRun` it was 2.5% slower. The reason is the ASCII fast path in
+`appendQuoted`, which already answers for 95% of strings: what reaches
+`cleanRun` is the strings with something above ASCII in them, where the first
+term breaks immediately and computing the other six is waste. Folding tests
+helps when they must all be evaluated; short-circuiting helps when the first
+one usually fires. Our population had already been sorted into the second kind.
+
+**The same mask in the fast path**, where the words really are almost all
+clean, was 3% slower. The median string in these documents is eleven bytes, so
+one word iteration runs and the loop setup is the cost; a table lookup per byte
+has no setup.
+
+**One load instead of eight.** `le64str` compiled to 139 bytes -- eight loads,
+seven shifts and a bounds check per byte. Slicing to a provable eight bytes
+first makes the load-combining rule fire and the function drops to 43 bytes.
+It was 3.5% slower, three runs, consistently. The likely cause is the slice
+bound the caller guarantees and the compiler cannot see, checked once per
+iteration where the previous form's checks were folded away.
+
+**What did transfer** is a fact rather than a technique: sonic's `Valid` says in
+its own source that it "does not check for the invalid UTF-8 characters", and it
+is a hand-written assembly state machine on amd64 and arm64 only. It is 1.25x
+this one and it is not doing the same work or running in the same places.
+
+**The rule.** Three changes, each fewer instructions than what it replaced, each
+slower. Instruction counts do not predict this code any more; branch behaviour
+and the length distribution of real strings do. Measure, interleaved, or do not
+change it.
+
