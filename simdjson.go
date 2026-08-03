@@ -298,11 +298,21 @@ func (d *Doc) skip(i int) int {
 // stands in, which is the same trade Scan makes everywhere else.
 func (d *Doc) skipRun(i int) int {
 	w := i >> 6
-	if w >= len(d.wsw) {
-		// Covers a Doc from Scan, which has no mask at all.
-		return skipSpaceSlow(d.data, i)
+	ix := d.ix
+	var word uint64
+	if ix != nil && w == ix.wsW {
+		word = ix.wsX
+	} else {
+		if w >= len(d.wsw) {
+			// Covers a Doc from Scan, which has no mask at all.
+			return skipSpaceSlow(d.data, i)
+		}
+		word = ^d.wsw[w]
+		if ix != nil {
+			ix.wsW, ix.wsX = w, word
+		}
 	}
-	x := ^d.wsw[w] &^ (1<<uint(i&63) - 1)
+	x := word &^ (1<<uint(i&63) - 1)
 	if x == 0 {
 		return d.skipRunAcross(w + 1)
 	}

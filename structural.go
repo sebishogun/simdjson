@@ -117,6 +117,26 @@ type index struct {
 	// validate.go. It is a popcount per word in a loop that already runs.
 	wsCount int
 
+	// wsW and wsX are the last word of ws skipRun looked at, already inverted,
+	// and which word it was.
+	//
+	// A word covers 64 bytes of document and tokens are far closer together
+	// than that -- citm_catalog.json averages about nine bytes between them --
+	// so six or seven consecutive skips land in the same word, and without this
+	// each of them re-loads it. For a 1.7 MB document the mask is 216 KB, too
+	// big for L1: an L2 access per token for a value already in a register.
+	//
+	// They live here rather than on Doc, where they belong logically, because
+	// Doc is read by everything and sixteen more bytes of it cost Valid/citm
+	// 4.8% -- measured by adding them and not using them, which was just as
+	// slow, and unchanged by moving them to the end of the struct. An index is
+	// one allocation per Parser and nothing reads it in a hot loop.
+	//
+	// wsW is reset to -1 for every document, because an index is reused between
+	// them and word zero of the last one is not word zero of this one.
+	wsW int
+	wsX uint64
+
 	match []int32 // for each entry of pos, the index of its partner bracket
 	stack []int32 // bracket stack, reused between parses
 
@@ -177,6 +197,7 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 		ix = &index{}
 	}
 	ix.pos = ix.pos[:0]
+	ix.wsW, ix.wsX = -1, 0
 	ix.safeEnd, ix.partErr, ix.partErrAt = 0, nil, 0
 	// Cleared here rather than in the validating half, because Scan never runs
 	// that — a Parser reused for Scan after a Parse would otherwise carry the
