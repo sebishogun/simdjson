@@ -99,7 +99,7 @@ through raw, so it does not produce what `encoding/json` produces.
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
 | `Decoder` | **11.7 ms** | 12.6 ms | 13.1 ms | 37.8 ms |
-| `Encoder` | 7.3 ms | **6.6 ms** | 9.8 ms | 10.2 ms |
+| `Encoder` | **6.6 ms** | 6.8 ms | 9.2 ms | 10.0 ms |
 
 The index is built per buffer rather than per value — per value it was 54 ms,
 slower than everything here — and the buffer is indexed in **partial mode**,

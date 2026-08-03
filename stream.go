@@ -613,6 +613,12 @@ type Encoder struct {
 
 	prefix, indent string
 	ibuf           bytes.Buffer
+
+	// The Encoder keeps its own encoder rather than borrowing one per call.
+	// An Encoder is a stateful object owned by one goroutine for its whole
+	// life, which is exactly what a pool is a substitute for when you do not
+	// have one; sync.Pool.Get and Put were 2.4% of a stream.
+	es encodeState
 }
 
 // NewEncoder returns an Encoder writing to w, matching encoding/json's defaults:
@@ -643,18 +649,15 @@ func (e *Encoder) Encode(v any) error {
 	// which encodes into a pooled buffer and then copies the result into the
 	// caller's. For a stream that copy is the whole record, once per record,
 	// to no purpose: what the buffer is for is being written.
-	es := encoderPool.Get().(*encodeState)
+	es := &e.es
 	es.buf, es.opts = es.buf[:0], e.opts
 	if err := es.marshal(v); err != nil {
-		encoderPool.Put(es)
 		return err
 	}
 	b := es.buf
 	if e.indent != "" || e.prefix != "" {
 		e.ibuf.Reset()
-		err := Indent(&e.ibuf, b, e.prefix, e.indent)
-		encoderPool.Put(es)
-		if err != nil {
+		if err := Indent(&e.ibuf, b, e.prefix, e.indent); err != nil {
 			return err
 		}
 		e.ibuf.WriteByte('\n')
@@ -668,9 +671,6 @@ func (e *Encoder) Encode(v any) error {
 		es.buf = b
 	}
 	_, err := e.w.Write(b)
-	if e.indent == "" && e.prefix == "" {
-		encoderPool.Put(es)
-	}
 	if err != nil {
 		e.err = err
 	}
