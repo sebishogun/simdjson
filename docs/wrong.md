@@ -172,3 +172,42 @@ kmovq    %k0, (%rdi,%r10,8)
 ```
 
 Both variants were compiled and read before either was committed to.
+
+## The set decides whether a vector scan pays, not the length
+
+The escape scan is the encode: 45% of a `MarshalTo` once UTF-8 validation stopped
+being 42% of it. `simd.IndexAnyOrLess` does that scan 3.9x faster at 64 bytes
+and 8.7x at 4096, measured on a string with nothing to escape. Putting it behind
+a length threshold on both paths gave:
+
+	           Fast          MarshalTo
+	before     65.9 - 69.0   81.0 - 82.3
+	after      47.0 - 47.7   83.7 - 84.5
+
+Half of it a 30% win and the other half a 4% loss, from the same call.
+
+The two paths differ only in their set. `Fast` looks for `"` and `\`, which
+almost never appear, so one call covers the whole string. The stdlib-compatible
+path adds `<`, `>`, `&` and `0xE2` -- `0xE2` because it leads U+2028 and U+2029,
+which encoding/json escapes. But `0xE2` also leads U+2014 and U+2026, the em
+dash and the ellipsis, and the whole of the U+2000 punctuation block. On a
+document of tweets the scan stops every few bytes, no run is long enough to
+cover the call, and the fixed cost is paid over and over.
+
+The obvious repair does not work either. Take `0xE2` out of the set and rule out
+the two line terminators once per string with two substring searches, which are
+fast and almost always fail:
+
+	           Fast          MarshalTo
+	v10        46.1 - 46.6   95.1 - 95.6
+
+Two extra passes over every string cost far more than the stops they avoid --
+17% worse than doing nothing. Shipped is the split: the kernel on the two-byte
+set, the word loop on the six-byte one. Fast 66-69 to 46-48, MarshalTo 81-82 to
+77-78.
+
+**The rule.** A vector scan's cost is per call, and a set whose members are
+common turns one call into many. Judge a scan kernel by how long its runs are
+on real data, not by its throughput on a string with no matches in it -- that
+benchmark measures the one case the caller does not have.
+

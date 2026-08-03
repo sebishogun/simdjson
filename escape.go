@@ -63,6 +63,44 @@ var needsEscape = func() (t [256]bool) {
 //
 // Eight bytes at a time: the standard has-a-zero-byte trick once per byte value
 // that matters, plus one masked comparison for the control range.
+// escSet is the set cleanRun stops on that is not a control byte. 0xE2 leads
+// U+2028 and U+2029; see needsEscape.
+const escSet = "\"\\<>&\xE2"
+
+// scan is cleanRun with the vector kernel taking over once the string is long
+// enough to pay for the call. It is here rather than inside cleanRun because a
+// function holding a call cannot be inlined, and cleanRun is small enough to be
+// — putting the branch here keeps the short-string path exactly as it was.
+func scan(s string) int { return cleanRun(s) }
+
+// scanOpts is scan for a caller that may have HTML escaping turned off, which
+// takes four bytes out of the set and the U+2028 check with them.
+func scanOpts(s string, html bool) int {
+	if html {
+		return scan(s)
+	}
+	if len(s) >= kernelScanMin {
+		if n := simd.IndexAnyOrLess(s, `"\`, 0x20); n >= 0 {
+			return n
+		}
+		return len(s)
+	}
+	return cleanRunOpts(s, false)
+}
+
+// kernelScanMin is where the vector scan starts winning, and it is not a number
+// chosen here: it is simd.go's own dispatch threshold, below which the call
+// lands on a portable path that rebuilds a set table per call. Measured on a
+// string with nothing to escape, so the whole length is scanned:
+//
+//	bytes      word    kernel
+//	   32      13.6      22.3
+//	   48      20.0      28.3
+//	   64      26.5       6.7
+//	  256     104.8      14.9
+//	 4096      1652     190.8
+const kernelScanMin = 64
+
 func cleanRun(s string) int {
 	const (
 		lo = 0x0101010101010101
@@ -124,7 +162,7 @@ func appendQuotedOpts(dst []byte, s string, o Options) []byte {
 	}
 	dst = append(dst, '"')
 	for {
-		n := cleanRunOpts(s, o.EscapeHTML)
+		n := scanOpts(s, o.EscapeHTML)
 		if n == len(s) {
 			dst = append(dst, s...)
 			break
@@ -222,7 +260,7 @@ func appendQuoted(dst []byte, s string) []byte {
 // appendBody writes the contents of a valid-UTF-8 string, without quotes.
 func appendBody(dst []byte, s string) []byte {
 	for {
-		n := cleanRun(s)
+		n := scan(s)
 		if n == len(s) {
 			return append(dst, s...)
 		}
