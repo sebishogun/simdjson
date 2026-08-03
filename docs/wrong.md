@@ -388,6 +388,20 @@ rescanning the prefix that pass had already proved clean (3%). And what worked
 outside the scan was removing calls: leaf kinds written in the struct loop
 instead of dispatched to (3%), and again for slice elements.
 
-**The rule.** When six attempts at making an inner loop faster all lose, the
-inner loop is not the problem. Count what it is called on before optimising what
-it does.
+An eighth, in the other inner loop, came out the same way. `number` is 47% of
+validating canada.json and scans digits one byte at a time; canada's numbers are
+nineteen bytes and mostly digits, so eight-at-a-time should halve it:
+
+	digits = below(0x3A) &^ below(0x30), all eight or break
+
+	                byte loop   SWAR
+	canada Valid     1,339 us   1,417   6% slower
+	canada Parse     1,568      1,671   7% slower
+
+A short, perfectly predicted byte loop that the compiler already understands is
+hard to beat with anything that has setup.
+
+**The rule.** Eight attempts at making an inner loop faster, eight losses, in
+two different loops. The loops are not the problem. Count what they are called
+on before optimising what they do — and when the answer is "eleven bytes, a few
+hundred thousand times", the work to remove is the call, not the loop.
