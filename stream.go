@@ -55,6 +55,9 @@ type Decoder struct {
 	// out to hold something the index rejects.
 	single bool
 
+	useNumber       bool
+	disallowUnknown bool
+
 	// vstack holds the open brackets the framing scan has seen, so a closer can
 	// be checked against its opener. Reused across calls; a stack allocated per
 	// value would cost more than the scan.
@@ -68,6 +71,14 @@ type Decoder struct {
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
+
+// UseNumber makes Decode store a number in an any as a [Number] -- the digits
+// as they were written -- rather than a float64, which cannot hold all of them.
+func (d *Decoder) UseNumber() { d.useNumber = true }
+
+// DisallowUnknownFields makes Decode report an error when the input names a
+// field the destination struct does not.
+func (d *Decoder) DisallowUnknownFields() { d.disallowUnknown = true }
 
 // InputOffset returns the position in the stream just after the most recently
 // decoded value.
@@ -175,6 +186,7 @@ func (d *Decoder) load() error {
 				return err
 			}
 			doc.strictSkip = true
+			doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
 			d.doc, d.data, d.base, d.cur = doc, d.buf[d.off:limit], d.off, 0
 			return nil
 		}

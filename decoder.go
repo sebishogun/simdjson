@@ -585,6 +585,7 @@ func compileStruct(t reflect.Type) decodeFn {
 			if data[i] != '"' {
 				return 0, errAt("expected a string key", i)
 			}
+			kstart := i
 			kend, ok := d.stringEnd(i)
 			if !ok {
 				var err error
@@ -619,6 +620,9 @@ func compileStruct(t reflect.Type) decodeFn {
 			var err error
 			switch {
 			case !found:
+				if d.disallowUnknown {
+					return 0, unknownFieldErr(data, kstart, kend)
+				}
 				// An unknown field is stepped over, not decoded — a bracket
 				// lookup rather than a walk, unless this decode is the thing
 				// proving the document well-formed.

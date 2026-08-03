@@ -139,6 +139,12 @@ type Doc struct {
 	// which is documented not to.
 	strictSkip bool
 
+	// useNumber and disallowUnknown are the two things encoding/json lets a
+	// Decoder ask for that change what a decode means rather than how fast it
+	// is. They live on the Doc because that is what the decode walks.
+	useNumber       bool
+	disallowUnknown bool
+
 	// noWS is ix.noWS: the document has no whitespace between its tokens, so
 	// every skip is the identity. wsw is ix.wsw, the whitespace mask, which
 	// turns skipping a run of it into a bit scan; it is nil after Scan, which

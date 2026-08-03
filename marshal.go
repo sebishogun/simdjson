@@ -462,8 +462,12 @@ type encField struct {
 	typ       reflect.Type
 	index     []int
 	omitEmpty bool
-	quoted    bool
-	ptrPath   bool
+	omitZero  bool
+	// isZero is the type's own IsZero method, when it has one. omitzero asks
+	// the type first and falls back to comparing against the zero value.
+	isZero  func(unsafe.Pointer) bool
+	quoted  bool
+	ptrPath bool
 }
 
 func compileStructEncoder(t reflect.Type) encodeFn {
@@ -510,6 +514,8 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				typ:       sf.Type,
 				index:     append(append([]int{}, index...), i),
 				omitEmpty: containsOpt(opts, "omitempty"),
+				omitZero:  containsOpt(opts, "omitzero"),
+				isZero:    isZeroMethod(sf.Type),
 				quoted:    containsOpt(opts, "string"),
 				ptrPath:   viaPtr,
 			})
@@ -550,6 +556,9 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				fp = unsafe.Add(p, f.offset)
 			}
 			if f.omitEmpty && isEmptyPtr(f.typ, fp) {
+				continue
+			}
+			if f.omitZero && isZeroPtr(f, fp) {
 				continue
 			}
 			if first {
@@ -619,6 +628,43 @@ func cutComma(s string) (before, after string, found bool) {
 	}
 	return s, "", false
 }
+
+// isZeroPtr reports whether the field at fp is the zero value for its type.
+//
+// omitzero is not omitempty with a different name. omitempty drops what looks
+// empty -- a length of nothing, a false, a zero -- and omitzero drops only what
+// *is* the zero value, so an empty but non-nil slice survives omitzero and does
+// not survive omitempty. A type may also decide for itself by having IsZero,
+// which is how time.Time gets to say that the zero instant is zero when its
+// struct fields say nothing of the kind.
+func isZeroPtr(f *encField, fp unsafe.Pointer) bool {
+	if f.isZero != nil {
+		return f.isZero(fp)
+	}
+	return reflect.NewAt(f.typ, fp).Elem().IsZero()
+}
+
+// isZeroMethod returns a call into t's IsZero, if it has one with the right
+// shape. Resolved once at compile time rather than per value.
+func isZeroMethod(t reflect.Type) func(unsafe.Pointer) bool {
+	m, ok := t.MethodByName("IsZero")
+	if !ok {
+		if pt := reflect.PointerTo(t); pt.Implements(isZeroerType) {
+			return func(p unsafe.Pointer) bool {
+				return reflect.NewAt(t, p).Interface().(interface{ IsZero() bool }).IsZero()
+			}
+		}
+		return nil
+	}
+	if m.Type.NumIn() != 1 || m.Type.NumOut() != 1 || m.Type.Out(0).Kind() != reflect.Bool {
+		return nil
+	}
+	return func(p unsafe.Pointer) bool {
+		return reflect.NewAt(t, p).Elem().Interface().(interface{ IsZero() bool }).IsZero()
+	}
+}
+
+var isZeroerType = reflect.TypeOf((*interface{ IsZero() bool })(nil)).Elem()
 
 func containsOpt(opts, want string) bool {
 	for len(opts) > 0 {

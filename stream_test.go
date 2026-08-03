@@ -266,3 +266,70 @@ func FuzzDecoderAgainstStdlib(f *testing.F) {
 		}
 	})
 }
+
+func TestDecoderUseNumberMatchesStdlib(t *testing.T) {
+	const in = `{"a":1,"b":2.5,"c":1e400,"d":[3,4.0],"e":12345678901234567890}`
+	for _, use := range []bool{false, true} {
+		g := NewDecoder(strings.NewReader(in))
+		w := stdjson.NewDecoder(strings.NewReader(in))
+		if use {
+			g.UseNumber()
+			w.UseNumber()
+		}
+		var gv, wv any
+		gErr := g.Decode(&gv)
+		wErr := w.Decode(&wv)
+		if (gErr != nil) != (wErr != nil) {
+			t.Fatalf("UseNumber=%v: error %v, stdlib %v", use, gErr, wErr)
+		}
+		if wErr != nil {
+			continue
+		}
+		gb, _ := stdjson.Marshal(gv)
+		wb, _ := stdjson.Marshal(wv)
+		if !bytes.Equal(gb, wb) {
+			t.Errorf("UseNumber=%v:\n got %s\nwant %s", use, gb, wb)
+		}
+	}
+}
+
+func TestDecoderDisallowUnknownFieldsMatchesStdlib(t *testing.T) {
+	type small struct {
+		A int `json:"a"`
+		B int `json:"b"`
+	}
+	inputs := []string{
+		`{"a":1,"b":2}`,
+		`{"a":1,"c":3}`,
+		`{"c":3}`,
+		`{"A":1}`,
+		`{"a":1,"\u0063":3}`,
+		`{}`,
+	}
+	for _, disallow := range []bool{false, true} {
+		for _, in := range inputs {
+			var gv, wv small
+			g := NewDecoder(strings.NewReader(in))
+			w := stdjson.NewDecoder(strings.NewReader(in))
+			if disallow {
+				g.DisallowUnknownFields()
+				w.DisallowUnknownFields()
+			}
+			gErr := g.Decode(&gv)
+			wErr := w.Decode(&wv)
+			if (gErr != nil) != (wErr != nil) {
+				t.Errorf("disallow=%v %s: error %v, stdlib %v", disallow, in, gErr, wErr)
+				continue
+			}
+			if gErr != nil {
+				if gErr.Error() != wErr.Error() {
+					t.Errorf("disallow=%v %s: %q, stdlib %q", disallow, in, gErr, wErr)
+				}
+				continue
+			}
+			if gv != wv {
+				t.Errorf("disallow=%v %s: got %+v, want %+v", disallow, in, gv, wv)
+			}
+		}
+	}
+}

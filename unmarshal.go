@@ -236,6 +236,16 @@ func (v Value) decode(rv reflect.Value) error {
 	return v.typeErr(rv.Type())
 }
 
+// unknownFieldErr reports a field the destination struct does not name, in the
+// words encoding/json uses -- callers match on this string.
+func unknownFieldErr(data []byte, start, end int) error {
+	key, ok := unquote(data[start:end])
+	if !ok {
+		key = string(data[start:end])
+	}
+	return fmt.Errorf("json: unknown field %q", key)
+}
+
 // bstr views b as a string without copying it.
 //
 // Only for callees that do not retain the string. strconv's parsers do not, and
@@ -486,6 +496,7 @@ func (v Value) decodeStruct(rv reflect.Value) error {
 		if d.data[i] != '"' {
 			return errAt("expected a string key", i)
 		}
+		i0 := i
 		kend, ok := d.stringEnd(i)
 		if !ok {
 			var err error
@@ -515,6 +526,9 @@ func (v Value) decodeStruct(rv reflect.Value) error {
 			return errAt("expected ':' after object key", i)
 		}
 		i = d.skip(i + 1)
+		if !found && d.disallowUnknown {
+			return unknownFieldErr(d.data, i0, kend)
+		}
 		e, next, err := d.value(i)
 		if err != nil {
 			return err
@@ -650,6 +664,12 @@ func (v Value) any() (any, error) {
 	case Bool:
 		return v.Bool(), nil
 	case Number:
+		if v.d.useNumber {
+			// The exact text, interned rather than allocated: a document of
+			// numbers would otherwise be one allocation per number, and the
+			// point of UseNumber is to keep digits that a float64 would lose.
+			return json.Number(v.d.intern(v.Raw())), nil
+		}
 		f, err := strconv.ParseFloat(bstr(v.Raw()), 64)
 		if err != nil || math.IsInf(f, 0) {
 			return nil, &json.UnmarshalTypeError{
