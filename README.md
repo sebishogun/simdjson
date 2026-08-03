@@ -135,6 +135,35 @@ The crossover is between 200 bytes and 2 KB. Below it, use `encoding/json`; it
 is what that package is good at, and reaching for a vector unit to read a
 64-byte config file is not a trade that pays.
 
+**At a gigabyte and past it.** Real documents — twitter, citm and canada —
+repeated to size, with a deliberate best and worst case for the range:
+
+| 1 GB, one piece | `Scan` | `Valid` | `Parse` | `encoding/json.Valid` |
+|---|---|---|---|---|
+| best case: minified ASCII, long values | 7,302 MB/s | 5,859 | 5,143 | 583 |
+| worst case: nothing but brackets and escapes | 1,166 | 1,497 | 707 | 471 |
+
+Six times between the two for `Scan`, which is the honest spread — a single
+number for a JSON parser is an average over shapes that differ by that much.
+
+**Past 2 GiB, one piece does not work at all.** A bracket position is an
+`int32`, so the index cannot describe a larger document, and `Parse` now says so
+instead of panicking with a negative index — which is what it did until a 10 GB
+file was put through it. `int64` positions would take the index from 0.93× the
+document to past 1.4× and cost every ordinary parse to serve a size that has a
+better answer.
+
+That answer is `Decoder`, and it has no limit:
+
+| 10 GB, line-delimited | time | throughput | peak heap |
+|---|---|---|---|
+| `Decoder` over the file | 9.97 s | 956 MB/s | **19 MB** |
+
+Nineteen megabytes for ten gigabytes, because nothing is ever held whole. The
+one shape still unsupported at that size is a single enormous *array* — the
+decoder buffers until it has a complete value, and one 10 GB value is 10 GB.
+Splitting it needs `Token`, which is not implemented.
+
 **Nine shapes, not three files.** twitter, citm and canada cover
 strings-and-objects, objects-and-whitespace and numbers, and nothing else.
 `shapes_test.go` adds deep nesting, wide objects, long strings, escape-heavy

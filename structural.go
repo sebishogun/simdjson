@@ -186,6 +186,18 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 		ix.inStr, ix.match = ix.inStr[:0], ix.match[:0]
 		return ix, nil
 	}
+	// A bracket position is an int32, so the index cannot describe a document
+	// larger than one will hold. Found by running a 10 GB file through it,
+	// which panicked in the windowed path with a negative index rather than
+	// saying anything useful.
+	//
+	// int32 is not a mistake to be corrected. The index is already 0.93x the
+	// document; int64 positions would take it past 1.4x and cost every ordinary
+	// parse to serve a size that has a better answer. That answer is Decoder,
+	// which reads a stream in 64 KiB buffers and has no limit at all.
+	if len(data) > maxDocument {
+		return ix, errSyntax("document larger than 2 GiB; use a Decoder, which streams and has no limit")
+	}
 	if len(data) <= wholeDocMax {
 		return buildIndexWhole(data, ix, validate, noBrackets, partial)
 	}
@@ -688,6 +700,10 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 //	  4 MiB    6814    6652    6352
 //
 // 64 KiB is the best or equal at every size, and — the point — it is flat.
+// maxDocument is the largest document Parse and Scan can index in one piece,
+// set by the int32 the bracket positions are stored in. Streaming is unbounded.
+const maxDocument = 1<<31 - 1
+
 const chunkBytes = 64 << 10
 
 // wholeDocMax is the largest document handled in a single window.
