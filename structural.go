@@ -204,6 +204,100 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 	return buildIndexWindowed(data, ix, validate, noBrackets, partial)
 }
 
+// indexWordsPlain resolves the in-string mask for a document that is being
+// indexed and not validated — Scan's path, and the only one that reaches here.
+//
+// It returns where it stopped and the three running values the tail loop needs
+// to carry on: the escape carry, the string carry, and how many bracket bits
+// survived outside strings.
+//
+// It is a function of its own rather than a branch inside buildIndexWhole
+// because the validating body is forty lines longer and the two do not belong
+// in one instruction stream. Both other arrangements were measured: one loop
+// with `if !validate { continue }` in it cost Scan 3.7% to 6.1%, and two loops
+// in the same function still cost it 0.6% to 1.8% with the loop itself
+// unchanged.
+func indexWordsPlain(ix *index, nw int, noBrackets bool) (int, uint64, uint64, int) {
+	var prevEsc, strCarry uint64
+	total := 0
+	w0 := 0
+	for ; w0+2 <= nw; w0 += 2 {
+		off := w0 * 8
+		e0 := escapedMask(binary.LittleEndian.Uint64(ix.esc[off:]), &prevEsc)
+		e1 := escapedMask(binary.LittleEndian.Uint64(ix.esc[off+8:]), &prevEsc)
+		x0 := binary.LittleEndian.Uint64(ix.quote[off:]) &^ e0
+		x1 := binary.LittleEndian.Uint64(ix.quote[off+8:]) &^ e1
+		x0 ^= x0 << 1
+		x1 ^= x1 << 1
+		x0 ^= x0 << 2
+		x1 ^= x1 << 2
+		x0 ^= x0 << 4
+		x1 ^= x1 << 4
+		x0 ^= x0 << 8
+		x1 ^= x1 << 8
+		x0 ^= x0 << 16
+		x1 ^= x1 << 16
+		x0 ^= x0 << 32
+		x1 ^= x1 << 32
+		in0 := x0 ^ strCarry
+		in1 := x1 ^ uint64(int64(in0)>>63)
+		strCarry = uint64(int64(in1) >> 63)
+		ix.inStr[w0], ix.inStr[w0+1] = in0, in1
+		if !noBrackets {
+			total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in0)
+			total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off+8:]) &^ in1)
+		}
+	}
+	return w0, prevEsc, strCarry, total
+}
+
+// checkEscapes validates the escape sequences whose backslashes are marked in
+// target, which are the ones inside strings in the word starting at base.
+//
+// It is a function rather than the loop it used to be inline because the word
+// loop is unrolled two at a time and this is the one part too long to duplicate.
+// The call costs nothing worth measuring: target is zero for every word of a
+// document with no escapes in its strings, which is most words of most
+// documents, and the caller does not call at all in that case.
+func (ix *index) checkEscapes(data []byte, base int, target uint64, partial bool) error {
+	for t := target; t != 0; t &= t - 1 {
+		p := base + bits.TrailingZeros64(t)
+		if p >= len(data) {
+			if !partial {
+				return errSyntax("string ends in a backslash")
+			}
+			ix.note(p, "string ends in a backslash")
+			continue
+		}
+		switch data[p] {
+		case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+		case 'u':
+			if p+4 >= len(data) {
+				if !partial {
+					return errSyntax("short \\u escape")
+				}
+				ix.note(p, "short \\u escape")
+				continue
+			}
+			for k := 1; k <= 4; k++ {
+				if !isHex(data[p+k]) {
+					if !partial {
+						return errSyntax("invalid \\u escape")
+					}
+					ix.note(p, "invalid \\u escape")
+					break
+				}
+			}
+		default:
+			if !partial {
+				return errSyntax("invalid escape")
+			}
+			ix.note(p, "invalid escape")
+		}
+	}
+	return nil
+}
+
 // note records a syntax error found while indexing a prefix, keeping the first.
 //
 // It is not returned unless it turns out to lie before safeEnd. A bad escape in
@@ -264,49 +358,115 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 	var prevEsc, strCarry, anyWS, prevLead uint64
 	wsCount := 0
 	total := 0
+	// Two words at a time. The six shift-XOR steps below are a twelve-operation
+	// dependency chain, and the chains for two different words do not depend on
+	// each other — only the one-bit carry between them does, and that is one
+	// XOR. Interleaving two of them keeps the shifters busy where one leaves
+	// them waiting.
+	//
+	// Two, not four or eight. Measured on 27,000 words in isolation:
+	// one 26,928 ns, two 21,933, four 22,087, eight 22,404. All of the gain is
+	// there at two, and it unwinds slowly after.
+	//
+	// The per-word work after the chain is written out twice rather than looped,
+	// which is the price of the unroll. Only the escape check is factored out,
+	// because it is the one part long enough to be worth a call and it is
+	// skipped entirely for any word whose strings hold no backslash.
+	//
+	// There are two of these loops and not one with a branch in it, which was
+	// tried and cost Scan between 3.7% and 6.1%. A single loop carrying the
+	// validating body behind `if !validate { continue }` still has to be
+	// fetched, and Scan pays for forty lines it never runs. The duplication
+	// here is the prefix XOR, which is a dozen lines and has not changed since
+	// it was written; the alternative was making the path that does the least
+	// work carry the code for the path that does the most.
+	// And they are two *functions*, not two loops in one, for the same reason
+	// one step further out. Sharing a function cost Scan another 0.6% to 1.8%
+	// with its loop byte-for-byte unchanged — a function that holds both bodies
+	// is a bigger function, and where its code lands is not something either
+	// path chose. Given a body of its own, the plain path is small again.
 	w0 := 0
 	if !validate {
-		// Scan's path, and the one where the prefix XOR below is the largest
-		// single item: two words at a time, because the six shift-XOR steps are
-		// a twelve-operation dependency chain and the chains for two different
-		// words do not depend on each other. Only the one-bit carry between
-		// them is sequential, and that is one XOR.
-		//
-		// Two, not four or eight. Measured on 27,000 words in isolation:
-		// one 26,928 ns, two 21,933, four 22,087, eight 22,404. The gain is
-		// entirely there at two and unwinds slowly after.
-		//
-		// Not applied to the validating path: that body is another forty lines
-		// per word, and duplicating it to unroll would trade a delicate
-		// correctness check for a few percent.
-		for ; w0+2 <= nw; w0 += 2 {
-			off := w0 * 8
-			e0 := escapedMask(binary.LittleEndian.Uint64(ix.esc[off:]), &prevEsc)
-			e1 := escapedMask(binary.LittleEndian.Uint64(ix.esc[off+8:]), &prevEsc)
-			x0 := binary.LittleEndian.Uint64(ix.quote[off:]) &^ e0
-			x1 := binary.LittleEndian.Uint64(ix.quote[off+8:]) &^ e1
-			x0 ^= x0 << 1
-			x1 ^= x1 << 1
-			x0 ^= x0 << 2
-			x1 ^= x1 << 2
-			x0 ^= x0 << 4
-			x1 ^= x1 << 4
-			x0 ^= x0 << 8
-			x1 ^= x1 << 8
-			x0 ^= x0 << 16
-			x1 ^= x1 << 16
-			x0 ^= x0 << 32
-			x1 ^= x1 << 32
-			in0 := x0 ^ strCarry
-			in1 := x1 ^ uint64(int64(in0)>>63)
-			strCarry = uint64(int64(in1) >> 63)
-			ix.inStr[w0], ix.inStr[w0+1] = in0, in1
-			if !noBrackets {
-				total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in0)
-				total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off+8:]) &^ in1)
+		w0, prevEsc, strCarry, total = indexWordsPlain(ix, nw, noBrackets)
+		goto tail
+	}
+	for ; w0+2 <= nw; w0 += 2 {
+		off := w0 * 8
+		bs0 := binary.LittleEndian.Uint64(ix.esc[off:])
+		bs1 := binary.LittleEndian.Uint64(ix.esc[off+8:])
+		e0 := escapedMask(bs0, &prevEsc)
+		e1 := escapedMask(bs1, &prevEsc)
+		x0 := binary.LittleEndian.Uint64(ix.quote[off:]) &^ e0
+		x1 := binary.LittleEndian.Uint64(ix.quote[off+8:]) &^ e1
+		x0 ^= x0 << 1
+		x1 ^= x1 << 1
+		x0 ^= x0 << 2
+		x1 ^= x1 << 2
+		x0 ^= x0 << 4
+		x1 ^= x1 << 4
+		x0 ^= x0 << 8
+		x1 ^= x1 << 8
+		x0 ^= x0 << 16
+		x1 ^= x1 << 16
+		x0 ^= x0 << 32
+		x1 ^= x1 << 32
+		in0 := x0 ^ strCarry
+		in1 := x1 ^ uint64(int64(in0)>>63)
+		strCarry = uint64(int64(in1) >> 63)
+		ix.inStr[w0], ix.inStr[w0+1] = in0, in1
+
+		if !noBrackets {
+			total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in0)
+			total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off+8:]) &^ in1)
+		}
+		// The string checks ride along here rather than in a pass of their own.
+		// They need the escape mask and the in-string mask, and both are in
+		// registers at this point — a separate pass recomputed escapedMask for
+		// every word of the document to get back what this loop had already
+		// worked out.
+		if c := binary.LittleEndian.Uint64(ix.ctl[off:]) & in0; c != 0 {
+			if !partial {
+				return nil, errSyntax("control character in string")
+			}
+			ix.note(w0*64+bits.TrailingZeros64(c), "control character in string")
+		}
+		wsw0 := binary.LittleEndian.Uint64(ix.ws[off:])
+		ix.wsw[w0] = wsw0
+		outWS0 := wsw0 &^ in0
+		anyWS |= outWS0
+		wsCount += bits.OnesCount64(outWS0)
+		leaders0 := bs0 & in0 &^ e0
+		target0 := leaders0<<1 | prevLead
+		prevLead = leaders0 >> 63
+		if target0 != 0 {
+			if err := ix.checkEscapes(data, w0*64, target0, partial); err != nil {
+				return nil, err
+			}
+		}
+
+		if c := binary.LittleEndian.Uint64(ix.ctl[off+8:]) & in1; c != 0 {
+			if !partial {
+				return nil, errSyntax("control character in string")
+			}
+			ix.note((w0+1)*64+bits.TrailingZeros64(c), "control character in string")
+		}
+		wsw1 := binary.LittleEndian.Uint64(ix.ws[off+8:])
+		ix.wsw[w0+1] = wsw1
+		outWS1 := wsw1 &^ in1
+		anyWS |= outWS1
+		wsCount += bits.OnesCount64(outWS1)
+		leaders1 := bs1 & in1 &^ e1
+		target1 := leaders1<<1 | prevLead
+		prevLead = leaders1 >> 63
+		if target1 != 0 {
+			if err := ix.checkEscapes(data, (w0+1)*64, target1, partial); err != nil {
+				return nil, err
 			}
 		}
 	}
+tail:
+	// Whatever the unrolled loop above could not take in pairs: at most one
+	// word, and every word when the document is smaller than two.
 	for w := w0; w < nw; w++ {
 		off := w * 8
 		bs := binary.LittleEndian.Uint64(ix.esc[off:])
@@ -359,39 +519,9 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 		leaders := bs & in &^ escaped
 		target := leaders<<1 | prevLead
 		prevLead = leaders >> 63
-		for t := target; t != 0; t &= t - 1 {
-			p := w*64 + bits.TrailingZeros64(t)
-			if p >= len(data) {
-				if !partial {
-					return nil, errSyntax("string ends in a backslash")
-				}
-				ix.note(p, "string ends in a backslash")
-				continue
-			}
-			switch data[p] {
-			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
-			case 'u':
-				if p+4 >= len(data) {
-					if !partial {
-						return nil, errSyntax("short \\u escape")
-					}
-					ix.note(p, "short \\u escape")
-					continue
-				}
-				for k := 1; k <= 4; k++ {
-					if !isHex(data[p+k]) {
-						if !partial {
-							return nil, errSyntax("invalid \\u escape")
-						}
-						ix.note(p, "invalid \\u escape")
-						break
-					}
-				}
-			default:
-				if !partial {
-					return nil, errSyntax("invalid escape")
-				}
-				ix.note(p, "invalid escape")
+		if target != 0 {
+			if err := ix.checkEscapes(data, w*64, target, partial); err != nil {
+				return nil, err
 			}
 		}
 	}
