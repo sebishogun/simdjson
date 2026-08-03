@@ -9,6 +9,24 @@ import "unicode/utf8"
 // output can be embedded in HTML without becoming script. It also rewrites the
 // two Unicode line terminators U+2028 and U+2029 for the same reason.
 //
+// One thing measured and rejected: doing the scan with the vector kernels for
+// strings past some length. On the scan alone the kernels look decisive —
+//
+//	bytes      word    kernel
+//	   64      37.5       7.9
+//	  128      73.6      10.9
+//	 1024     585.5      54.9
+//
+// — and in the encoder it is 46% SLOWER. Two reasons, both invisible in that
+// table. The strings a document actually contains are mostly short, so the
+// threshold rarely fires and the branch is paid every time. And a real scan
+// usually stops early at the first byte needing an escape, where the
+// microbenchmark scanned to the end of a string with none: the word loop is
+// rarely running to completion, which is the only case the kernel wins.
+//
+// Restructuring the scan into methods so it could reach the mask buffers cost a
+// further 21% on its own, by putting the hot functions past the inliner.
+//
 // Nearly every string needs none of that. So the question asked first is not
 // "what does this byte need" but "does this run need anything at all", and that
 // is answered eight bytes at a time. A string needing nothing is one memmove.
@@ -142,14 +160,33 @@ func appendQuotedOpts(dst []byte, s string, o Options) []byte {
 }
 
 // cleanRunOpts is cleanRun with the HTML bytes optionally left alone.
+//
+// Both paths go eight bytes at a time. The first version of the non-HTML one
+// was a byte loop — the checks are fewer, so it looked like it did not need the
+// word treatment — and it was 50% of the encode in Fast mode. Fewer conditions
+// per byte is not the same as fewer bytes.
 func cleanRunOpts(s string, html bool) int {
 	if html {
 		return cleanRun(s)
 	}
+	const (
+		lo = 0x0101010101010101
+		hi = 0x8080808080808080
+	)
 	i := 0
+	for ; i+8 <= len(s); i += 8 {
+		w := le64str(s, i)
+		// Anything below 0x20, with the high bits masked off first so a byte
+		// above ASCII cannot borrow into its neighbour.
+		if a := w &^ hi; (a-lo*0x20)&^a&hi != 0 {
+			break
+		}
+		if hasByte(w, '"') || hasByte(w, '\\') {
+			break
+		}
+	}
 	for ; i < len(s); i++ {
-		c := s[i]
-		if c < 0x20 || c == '"' || c == '\\' {
+		if c := s[i]; c < 0x20 || c == '"' || c == '\\' {
 			break
 		}
 	}
