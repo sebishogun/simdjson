@@ -92,11 +92,14 @@ one operation.
 
 | | twitter | citm | canada | vs stdlib |
 |---|---|---|---|---|
-| `Valid` | 2,964 | 3,293 | 1,710 | **5.3–6.3×** |
+| `Valid` | 3,637 | 3,779 | 1,673 | **3.0–7.7×** |
 | `Compact` | 1,457 | 1,895 | 1,702 | **3.9–5.2×** |
 | `Indent` | 1,046 | 1,074 | 612 | **2.2–3.1×** |
 
-`Valid` is 15× goccy's and 1.25× behind sonic's.
+`Valid` is 15–24× goccy's. Against sonic's it is ahead on twitter, level on
+citm and 1.34× behind on canada — which is 2.25 MB of floating-point numbers
+and 24 bytes of whitespace, and is the shape that gets the least out of an
+index.
 
 **Streaming**, 50,000 newline-delimited records, 6.5 MB:
 

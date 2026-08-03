@@ -112,6 +112,10 @@ type index struct {
 	ws   []byte
 	wsw  []uint64
 	noWS bool
+	// wsCount is how many bytes of whitespace lie outside the strings. Valid
+	// uses it to choose between walking the mask and walking the document; see
+	// validate.go. It is a popcount per word in a loop that already runs.
+	wsCount int
 
 	match []int32 // for each entry of pos, the index of its partner bracket
 	stack []int32 // bracket stack, reused between parses
@@ -246,6 +250,7 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 	// pass write by index into an exactly-sized array instead of appending —
 	// no capacity check per position, and no growth.
 	var prevEsc, strCarry, anyWS, prevLead uint64
+	wsCount := 0
 	total := 0
 	for w := 0; w < nw; w++ {
 		off := w * 8
@@ -292,7 +297,9 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 		}
 		wsw := binary.LittleEndian.Uint64(ix.ws[off:])
 		ix.wsw[w] = wsw
-		anyWS |= wsw &^ in
+		outWS := wsw &^ in
+		anyWS |= outWS
+		wsCount += bits.OnesCount64(outWS)
 
 		leaders := bs & in &^ escaped
 		target := leaders<<1 | prevLead
@@ -338,6 +345,7 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 			return nil, errSyntax("string ends in a backslash")
 		}
 		ix.noWS = anyWS == 0
+		ix.wsCount = wsCount
 	}
 	if strCarry != 0 && !partial {
 		return nil, errSyntax("unterminated string")
@@ -489,6 +497,7 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 	stack := ix.stack[:0]
 
 	var prevEsc, strCarry, anyWS, prevLead uint64
+	wsCount := 0
 	for base := 0; base < len(data); base += win {
 		end := base + win
 		if end > len(data) {
@@ -559,7 +568,9 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 				}
 				wsw := binary.LittleEndian.Uint64(ix.ws[off:])
 				ix.wsw[wbase+w] = wsw
-				anyWS |= wsw &^ in
+				outWS := wsw &^ in
+				anyWS |= outWS
+				wsCount += bits.OnesCount64(outWS)
 
 				// The escaped bytes are looked at directly rather than masked
 				// for: escapes are rare, so a pass over the document to find
@@ -652,6 +663,7 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 			return nil, errSyntax("string ends in a backslash")
 		}
 		ix.noWS = anyWS == 0
+		ix.wsCount = wsCount
 	}
 	if len(stack) != 0 {
 		return nil, errSyntax("unterminated container")

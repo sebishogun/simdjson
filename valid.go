@@ -14,6 +14,31 @@ import (
 	"math/bits"
 )
 
+// wsDenom sets where Valid switches from walking the document to walking the
+// mask: the mask when whitespace outside strings is more than one part in
+// wsDenom, the document otherwise.
+//
+// The mask walk exists to replace whitespace skipping, so a document with no
+// whitespace has nothing for it to replace and pays its bookkeeping for
+// nothing. Measured both ways on the same binary, MB/s:
+//
+//	           mask   descent
+//	twitter    3857     2897     26% whitespace
+//	citm       3969     3180     71%
+//	canada     1457     1672     0.001%
+//
+// The threshold is not a knife edge. canada.json has 24 bytes of whitespace in
+// 2.25 MB and twitter.json has 26%, four orders of magnitude apart, so anything
+// between routes the three the same way. A sweep over synthetic documents at
+// 0, 16, 28, 44 and 61% found the mask ahead at every one of them, so the only
+// shape this has to catch is the one with essentially none.
+//
+// It is not free of error: a synthetic document of nothing but numbers at 13%
+// whitespace wants the descent and gets the mask, and loses 4% for it. That is
+// the price of dispatching on something the scan already counts rather than on
+// something it would have to go and measure.
+var wsDenom = 64
+
 // Valid reports whether data is a well-formed JSON document.
 //
 // The same grammar encoding/json.Valid applies, and the same answer for every
@@ -30,7 +55,21 @@ func Valid(data []byte) bool {
 	if err != nil {
 		return false
 	}
-	d, start, err := docFront(data, ix)
+	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
+	if ix.wsCount*wsDenom > len(data) {
+		// The mask walk exists to replace whitespace skipping, so it is worth
+		// having exactly when there is whitespace to skip. twitter.json is 26%
+		// whitespace and citm_catalog.json is 71%, and it is 28% and 20% faster
+		// on them. canada.json has none at all — skip is then three
+		// instructions that always take the same branch, there is nothing to
+		// replace, and walking the mask to find bytes a pointer was already on
+		// cost it 16%.
+		//
+		// The flag is not a heuristic and it is not measured here: the scan
+		// sets it because Parse wants it for the same reason.
+		return d.validTokens()
+	}
+	start, err := docFront2(data, d)
 	if err != nil {
 		return false
 	}
@@ -314,6 +353,15 @@ func HTMLEscape(dst *bytes.Buffer, src []byte) {
 		}
 	}
 	dst.Write(src[start:])
+}
+
+// docFront2 finds where the top-level value starts in a Doc already built.
+func docFront2(data []byte, d *Doc) (int, error) {
+	i := d.skip(0)
+	if i >= len(data) {
+		return 0, errSyntax("empty input")
+	}
+	return i, nil
 }
 
 // docFront wraps an index in a Doc and returns where the top-level value
