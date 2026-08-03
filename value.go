@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"unicode/utf16"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/sebishogun/simd"
 )
@@ -165,6 +166,53 @@ func (v Value) String() string {
 		return ""
 	}
 	s, _ := unquote(v.d.data[v.start:v.end])
+	return s
+}
+
+// StringNoCopy is [Value.String] without the copy: for a string that needs no
+// unescaping, the result points into the document rather than at bytes of its
+// own.
+//
+// The whole point of a two-stage parser is that the bytes are already there and
+// already known to be a string, so copying them out is work nobody asked for.
+// minio/simdjson-go exposes the same thing as WithCopyStrings(false), fastjson
+// as StringBytes, and gjson's Result.Raw is a substring of the input by
+// construction.
+//
+// The cost is a lifetime the compiler will not check for you. The returned
+// string aliases the slice passed to [Parse], so it is only valid while that
+// slice is unmodified and reachable, and writing through the original slice
+// changes a string — which Go otherwise guarantees cannot happen. Use it when
+// the document outlives the strings taken from it and both stay in one
+// function; use [Value.String] anywhere the string escapes.
+//
+// A string containing an escape sequence has nothing to alias, because its
+// decoded form is not present in the document. Those are unescaped and copied
+// exactly as [Value.String] does, so this is never wrong, only sometimes no
+// faster.
+func (v Value) StringNoCopy() string {
+	if v.kind != String {
+		return ""
+	}
+	b := v.d.data[v.start:v.end]
+	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
+		return ""
+	}
+	in := b[1 : len(b)-1]
+	if len(in) == 0 {
+		return ""
+	}
+	if plainASCII(in) {
+		return unsafe.String(&in[0], len(in))
+	}
+	// Not ASCII, which does not mean it needs copying. A string with no escape
+	// and no invalid UTF-8 is already exactly its own decoded form, so it can
+	// alias too -- and that is most of twitter.json, which is Japanese. Only
+	// checking for ASCII left 3,800 of its 18,000 strings copying for nothing.
+	if indexEscape(in) < 0 && simd.ValidUTF8(in) {
+		return unsafe.String(&in[0], len(in))
+	}
+	s, _ := unquote(b)
 	return s
 }
 
