@@ -457,3 +457,37 @@ proved it properly by bounding what was there to win. Count what a loop is
 called on, and measure the replacement in isolation before threading it through
 a program — when the answer is "eleven bytes, a few hundred thousand times",
 the work to remove is the call, not the loop.
+
+## Fusing passes wins only when the passes are memory-bound
+
+Two fusions, same shape, opposite results.
+
+**The one that worked.** `JSONCopyRun` does the escape scan and the copy in one
+pass. 18% off `MarshalTo`. The copy has to happen regardless and is memory
+traffic; folding the scan into it adds one comparison per block to a loop that
+was already waiting on memory.
+
+**The one that did not.** `JSONQuote` adds UTF-8 validation to the same loop, so
+an encoder's three questions — anything to escape, is it valid, copy it —
+become one pass instead of three. Measured against the two-pass version it
+replaces:
+
+	              MarshalTo
+	two passes    58.5 58.8 58.5
+	fused         64.8 63.9 64.1     9% slower
+
+Also tried with the short-string fast path kept in front of it, which is the
+arrangement that fixed an earlier version of this mistake. Still 9% slower.
+
+The difference is what the extra work costs against what it saves. The escape
+scan is one comparison per block. The UTF-8 classifier is three lane-crossing
+shuffles and a dozen comparisons per block. The strings are around 150 bytes,
+so after the first pass they are in L1 — and a second pass over L1 is cheaper
+than doubling the instructions in the first.
+
+`simd.ValidUTF8` and `simd.JSONCopyRun` are each a tight vector loop over data
+in cache. Two of those beat one loop doing both.
+
+**The rule.** Count the instructions the fusion adds per block against the
+memory traffic it removes. If the data is already in L1 — and for a string it
+is — there is no traffic to remove and the arithmetic is all cost.
