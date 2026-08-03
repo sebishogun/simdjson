@@ -121,9 +121,9 @@ below about a kilobyte that fixed cost is the whole cost:
 | 2 KB | **890 ns** | 1,080 ns | 3,437 ns |
 | 20 KB | **7,951 ns** | 10,882 ns | 24,271 ns |
 
-The crossover is between 200 bytes and 2 KB. Below it, use ; it
-is what it is good at, and reaching for a vector unit to read a 64-byte config
-file is not a trade that pays.
+The crossover is between 200 bytes and 2 KB. Below it, use `encoding/json`; it
+is what that package is good at, and reaching for a vector unit to read a
+64-byte config file is not a trade that pays.
 
 **Nine shapes, not three files.** twitter, citm and canada cover
 strings-and-objects, objects-and-whitespace and numbers, and nothing else.
