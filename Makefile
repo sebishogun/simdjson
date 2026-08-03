@@ -14,7 +14,7 @@ DOCKER ?= docker
 
 all: verify ## The default
 
-verify: fmt-check vet test test-race test-tiers test-purego ## Everything short of the cross lane
+verify: fmt-check vet test test-race test-tiers test-purego ## Everything short of the cross lane and the gate
 
 test: ## Run the suite
 	$(GO) test ./...
@@ -42,6 +42,35 @@ test-cross: ## arm64, s390x and ppc64le under docker + qemu
 			-e GOFLAGS=-buildvcs=false -e CGO_ENABLED=0 golang:1.26 \
 			sh -c 'go test -short -vet=off -timeout 1200s ./...' || exit 1; \
 	done
+
+# ---------------------------------------------------------------- performance
+#
+# Every number in the README was measured once by hand, which is how they were
+# arrived at and also how they rot: a change that costs 10% looks exactly like
+# one that costs nothing until somebody re-runs the benchmark and remembers what
+# it used to say. A 10% regression in canada's parse shipped and sat there for
+# four commits before it was noticed by accident. This makes the remembering the
+# machine's job.
+#
+# The benchmarks are in bench_gate_test.go, in this package, so the gate runs
+# without the competing libraries installed. They need the corpora in /tmp and
+# skip without them.
+
+BENCH_BASELINE = testdata/bench/$(shell $(GO) env GOARCH).txt
+BENCH_COUNT   ?= 6
+BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
+
+.PHONY: bench-run bench-check bench-update
+
+bench-run: ## Run the gate benchmarks and write the raw output
+	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT)
+
+bench-check: bench-run ## Benchmark and fail on anything slower than the baseline
+	cd tools && $(GO) run ./benchcheck -baseline ../$(BENCH_BASELINE) $(BENCH_OUT)
+
+bench-update: bench-run ## Re-record the baseline. Say why in the commit message.
+	cd tools && $(GO) run ./benchcheck -update -baseline ../$(BENCH_BASELINE) $(BENCH_OUT)
+	@echo "baseline updated: $(BENCH_BASELINE)"
 
 FUZZTIME ?= 60s
 
