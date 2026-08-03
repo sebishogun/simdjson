@@ -12,6 +12,12 @@ import "unicode/utf8"
 // Nearly every string needs none of that. So the question asked first is not
 // "what does this byte need" but "does this run need anything at all", and that
 // is answered eight bytes at a time. A string needing nothing is one memmove.
+//
+// One thing tried and rejected: tracking in that same loop whether any byte was
+// above ASCII, so a pure-ASCII string could skip the UTF-8 validity check
+// entirely. It costs an OR per word and pays only when the string is ASCII —
+// and on a document of tweets most strings are not, so it was 102 us against
+// 86. Sound reasoning, wrong document.
 
 // needsEscape[c] is true for the bytes that end a clean run.
 var needsEscape = func() (t [256]bool) {
