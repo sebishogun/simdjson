@@ -1,6 +1,10 @@
 package simdjson
 
-import "unicode/utf8"
+import (
+	"unicode/utf8"
+
+	"github.com/sebishogun/simd"
+)
 
 // String escaping, which is most of what encoding a document costs.
 //
@@ -200,8 +204,14 @@ func cleanRunOpts(s string, html bool) int {
 // multi-byte rune needs no inspection and rides through the fast run with
 // everything else. Deciding it per rune meant calling the decoder for every
 // non-ASCII character, and on a document of tweets that was 20% of the encode.
+//
+// The check itself is simd.ValidUTF8, which is a block classifier rather than
+// a rune walk: each byte checked against the three before it, so no sequence
+// has to be located before the checking starts. unicode/utf8.ValidString is
+// eight times slower on text that is not ASCII than on text that is, and a
+// document of tweets is full of the former — it was 42% of the encode.
 func appendQuoted(dst []byte, s string) []byte {
-	if !utf8.ValidString(s) {
+	if !simd.ValidUTF8(s) {
 		return appendQuotedInvalid(dst, s)
 	}
 	dst = append(dst, '"')
