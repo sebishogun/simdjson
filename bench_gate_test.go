@@ -140,6 +140,29 @@ func BenchmarkGateMarshal(b *testing.B) {
 	})
 }
 
+// The gate's Marshal data is float64(i)*1.5 -- one or two significant digits,
+// which is the one shape where shortest-representation formatting is trivial.
+// Real float-heavy JSON is not that: canada.json is 111,126 coordinates of
+// about sixteen significant digits each, and a formatter that is 30% faster
+// there can be 2% slower on X.5 and the gate would call that a regression.
+//
+// So the gate measures both.
+func BenchmarkGateMarshalFloats(b *testing.B) {
+	data := gateCorpus(b, "canada")
+	var v any
+	if err := Unmarshal(data, &v); err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(len(data)))
+	buf := make([]byte, 0, len(data)+1<<16)
+	for i := 0; i < b.N; i++ {
+		var err error
+		if buf, err = MarshalTo(buf[:0], v); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkGateUnmarshal(b *testing.B) {
 	src, err := Marshal(gateValue())
 	if err != nil {

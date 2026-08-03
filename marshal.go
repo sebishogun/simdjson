@@ -421,12 +421,11 @@ func appendFloat(b []byte, f float64, bits int) []byte {
 	// A float that is a whole number prints as that whole number, and printing
 	// an integer is far cheaper than the shortest-representation search a float
 	// needs. `f` is the format this always uses below 1e21, and `f` with a
-	// precision of -1 gives "3" for 3.0, which is what AppendInt gives too.
+	// precision of -1 gives "3" for 3.0, which is what appendInt gives too.
 	//
 	// Worth having because whole numbers are most of the floats in real JSON:
 	// counts, ids, prices in whole units, anything that was an integer before
-	// it was put in a float64 field. Shortest-representation formatting is 37%
-	// of a marshal here.
+	// it was put in a float64 field.
 	//
 	// The bound is what makes the exact integer also the *shortest* decimal that
 	// round-trips, which is what a precision of -1 asks for. Below 2^53 every
@@ -454,6 +453,30 @@ func appendFloat(b []byte, f float64, bits int) []byte {
 	// slower: math.Trunc is one ROUNDSD, and a conversion out to an integer and
 	// back is two conversions with worse latency plus a range test to make the
 	// first one defined. Measured, twice, on both Marshal and MarshalTo.
+
+	// A float32 goes to strconv, which finds the shortest decimal that
+	// round-trips as a float32. Schubfach here is the float64 algorithm and its
+	// answer is the shortest for a float64, which is a different and longer
+	// string for the same value.
+	if bits == 32 {
+		return appendFloatStrconv(b, f, 32)
+	}
+	if f == 0 {
+		if math.Signbit(f) {
+			return append(b, '-', '0')
+		}
+		return append(b, '0')
+	}
+	// encoding/json's rule, not strconv's 'g': decimal while the magnitude is
+	// in [1e-6, 1e21), scientific outside it.
+	expFormat := abs < 1e-6 || abs >= 1e21
+	return appendShortest(b, math.Signbit(f), schubfach(math.Float64bits(abs)), expFormat)
+}
+
+// appendFloatStrconv is the path this used to take everywhere, kept for
+// float32 and as the thing the tests compare against.
+func appendFloatStrconv(b []byte, f float64, bits int) []byte {
+	abs := math.Abs(f)
 	fmtc := byte('f')
 	if abs != 0 {
 		if bits == 64 && (abs < 1e-6 || abs >= 1e21) ||
