@@ -1,0 +1,3 @@
+
+# Test binaries from `go test -c`, which git add -A will otherwise sweep in.
+*.test
