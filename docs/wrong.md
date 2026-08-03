@@ -800,3 +800,42 @@ cost it adds at the very first word.
 Build both, run them alternately, and compare within one pass — and be most
 suspicious when a sweep is *consistent*, because consistency across builds is
 what a layout difference looks like.
+
+## Deriving the bracket kind from masks, and an A/B script that lied
+
+The extraction loop reads `data[p]` once per bracket to decide which of `{}[]`
+it is. That is a scattered load into a document far larger than L1, and the
+counters agreed it was a load and not a branch: 145,000 L1 misses per Scan of
+citm against 2,364 branch misses, with the switch at 920 ms of a 10 s profile.
+
+Two extra masks — `{[` for open-versus-close and `[]` for curly-versus-square —
+give both bits from two *sequential* words per sixty-four bytes of document,
+replacing one scattered byte per bracket.
+
+It is 32% slower.
+
+	Scan/twitter, three runs each, alone
+	  before   59,126   59,769   59,906
+	  after    78,177   78,365   79,030
+
+Two more passes over the whole document cost far more than the scattered loads
+they remove, and the reason is the ratio: a mask pass touches every byte, while
+the loads it saves happen only at brackets — about one byte in twenty. Trading
+1.7 MB of sequential reads for 85,000 scattered ones is a bad trade even though
+scattered reads are individually dearer.
+
+**The A/B script reported it as a 24% improvement.** The pattern used all
+session pipes two labelled runs into awk, sorts, and compares. `NEW` sorts
+before `OLD`, so the first field is the new number and the second is the old
+one — and this particular copy printed them in that order while labelling the
+columns the other way round. Every figure came out with the sign flipped.
+
+It was caught because the "before" number did not match the recorded baseline:
+the script said the old binary ran Scan/twitter in 77,889 ns where the gate's
+baseline said 59,178. A number that should have been familiar and was not.
+
+**The rule.** An A/B harness needs a control. Run the unmodified binary alone
+and check it against the recorded baseline before believing anything the harness
+says about the modified one — and if the two disagree, the harness is wrong
+until proven otherwise. A measurement tool is code, and it is the one piece of
+code whose bugs are invisible in its own output.
