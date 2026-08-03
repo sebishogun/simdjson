@@ -18,7 +18,7 @@ Go with no cgo and no run-time code generation.
 | marshal | sonic 36 µs | 76 µs | 2.1× | JIT to machine code + assembly quote |
 | one field from a big document | gjson | — | up to 1000× | scans to the field and stops; keeps nothing |
 | validate | sonic | 3,637 MB/s | 1.02× ours on twitter | hand-written assembly state machine |
-| 10 GB in one piece | **this** | 833 MB/s | — | C++ simdjson caps a document at 4 GB |
+| 10 GB in one piece | **this** | 833 MB/s | — | `SIMDJSON_MAXSIZE_BYTES` caps a C++ document at 4 GB − 1 |
 
 `encoding/json/v2`, new in Go 1.26 behind `GOEXPERIMENT=jsonv2`, is **not** a
 threat yet: 686 µs to unmarshal twitter against v1's 834 and this package's 322,
@@ -31,13 +31,30 @@ The direct competitor: also two-stage, also SIMD, also Go. It is slower than
 this on all three corpora, and it does four things better.
 
 **Delta offsets, not absolute ones.** It stores the *distance from the previous
-structural character* in a `uint32`
-(`parsed_json.go:74`, `flatten_bits_amd64.s:26`). A delta never exceeds the gap
-between two structural characters, so the width of the integer never bounds the
-size of the document. This package stores absolute `int32` positions, which is
-why it refuses anything over 2 GiB — a limit that is not inherent, it is a
-representation choice, and it is the wrong one. **This is the most valuable
-thing in this document.**
+structural character* in a `uint32`. `flatten_bits_amd64.s:47` writes
+`MOVL ZEROS, (DI)(INDEX*4)` where `ZEROS` is the trailing-zero count plus one —
+a gap, not an offset — and `stage2_build_tape_amd64.go:42` puts it back together
+with a running sum, `idx = idx_in + uint64(indexes[index])`. A delta never
+exceeds the gap between two structural characters, so the width of the integer
+never bounds the size of the document.
+
+**It does not port to this package as it stands, and the reason is worth
+writing down.** minio's stage two walks the index strictly forward, so a running
+sum is free. This package *navigates*: `matchBracket` (`simdjson.go:792`) takes
+an opening bracket's byte offset, gallops and then bisects over `pos` to find
+its entry, and then reads `pos[match[k]]` — an entry an arbitrary distance
+ahead. Both of those need random access to an ordered array, and neither
+survives delta encoding. So the delta is not a fix to copy: minio gets it for
+free from a design this package deliberately does not share, and pays for it by
+being unable to jump.
+
+What removes the limit here without giving up the jump is a **base per chunk**:
+keep `pos` as `int32` relative to `chunkBase[c]`, with a handful of 64-bit bases
+and the entry index where each chunk starts. Binary search still works — over
+the chunk table first, then within the chunk — and a document under 2 GiB has
+exactly one chunk with base zero, which is the code that runs today. See #113.
+Note also that `match` holds *entry indices* as `int32`, so it caps the number
+of brackets at 2^31 independently of the byte count.
 
 **One fused pass, not five.** A single hand-written loop
 (`find_structural_bits_amd64.s:49`) computes the backslash, quote, whitespace
@@ -56,6 +73,68 @@ the flow control. This package runs them in sequence.
 
 Its NDJSON path batches 10 MiB across `GOMAXPROCS/2` goroutines
 (`simdjson_amd64.go:116`).
+
+## C++ simdjson — the original, and what it does that this does not
+
+Read at 4.6.4, from the amalgamated header in `/usr/include/simdjson.h` and by
+disassembling `libsimdjson.so.33.0.0` where the header only declares a thing.
+Line numbers are that header; generic code is duplicated once per ISA and the
+first occurrence is cited.
+
+**It has a size limit too, and a smaller one.**
+`constexpr size_t SIMDJSON_MAXSIZE_BYTES = 0xFFFFFFFF` (3273), enforced as
+`if (capacity > SIMDJSON_MAXSIZE_BYTES) { return CAPACITY; }` (14984). Its
+`structural_indexes` are `uint32_t` (3751) and *absolute*, so a document is
+capped at 4 GB − 1. It is documented, not apologised for. This package's 2 GiB
+is half of that and, unlike theirs, has `Decoder` and `Token` behind it — 10 GB
+at 956 and 833 MB/s in under 20 MB of heap.
+
+**Pseudo-structural bytes.** Their index records the seven structural
+characters *and* the first non-whitespace byte after each one, which is where a
+number or literal begins. Stage two therefore never scans for a token's start:
+a token is `[index[i], index[i+1])`, and the end of a scalar is checked with one
+table lookup, `is_not_structural_or_whitespace(*p)` (20703, tables at
+12665-66). This package indexes brackets only and finds scalar starts by
+skipping whitespace — and `docs/wrong.md` has the measurement showing that
+indexing every token start was *slower* here, because the extra positions cost
+more to extract than the scan they save.
+
+**UTF-8 is a separate pass for them too.** No fused symbol exists in the
+library: `nm -D` gives `simdjson::validate_utf8`, per-arch
+`implementation::validate_utf8`, and `dom_parser_implementation::stage1` as
+three separate entry points, and disassembling `parse` at `0xca90` shows it call
+`stage1` and then tail-jump to `stage2` with no validator between them. The
+haswell validator is its own AVX2 body (`vpshufb`/`vptest`, the lookup-table
+DFA). That is the same answer this package arrived at by measurement when
+fusing validation into the copy loop cost 9%.
+
+**On-Demand keeps nothing.** `iterate` runs stage one and returns
+(72586-87); "the call to iterate does not parse and validate the whole document"
+(64852). The whole of its state is a cursor — `token_iterator` is
+`const uint8_t *buf; token_position _position;` (64033-34) — plus a
+`_string_buf_loc` scratch pointer for unescaping (64084-127). Values are parsed
+when asked. This is fastjson's idea with an index under it.
+
+**Numbers are Eisel-Lemire and scalar.** `compute_float_64` (20133) with the
+Clinger fast path (20143), a 128-bit multiply against `power_of_five_128`
+(20252), the `0x1FF` exactness probe (20268) and round-to-even (20356).
+Digit accumulation is `while (parse_digit(*p, i)) { p++; }` (20679) — no SIMD.
+Go's `strconv.ParseFloat` has had Eisel-Lemire since 1.16, so this is one of the
+few places the standard library already hands over the state of the art.
+
+**Batching.** `DEFAULT_BATCH_SIZE = 1000000` (5152), minimum 32 (5161), with
+`stage1_mode::streaming_partial` and `streaming_final` (3602) doing what
+partial-mode indexing does here, and the next batch starting at
+`batch_start + structural_indexes[n_structural_indexes]` (70937) — bytes, not
+counts, which is the same conclusion reached here after count-based batching
+measured 20% worse.
+
+**What cannot be copied.** `SIMDJSON_PADDING = 64` (3283): the indexer reads up
+to 64 bytes past the end of the input and the caller must guarantee they are
+allocated. Go slices panic instead, so the same trick needs a padded copy and
+`unsafe`, and `-race`/`checkptr` object to the over-read. Their runtime
+dispatch across haswell/icelake/westmere/arm64 in one binary is the same problem
+this package solves by generating per-ISA assembly ahead of time.
 
 ## fastjson — why it wins on twitter without any SIMD
 
@@ -107,19 +186,30 @@ onward, and `docs/lazy-paths.md` has the measurement.
 
 ## What to take
 
-In order of value:
+In order of value, which is not the order they were found in:
 
-1. **Delta-encoded structural positions.** Removes the 2 GiB limit outright,
-   without the 1.4× index that `int64` absolutes would cost. minio proves it
-   works. This is a real defect in this package's design and it now has a known
-   fix.
+1. **Fuse the five mask passes into one.** Every `Parse`, `Scan`, `Valid`,
+   `Compact` and `Indent` pays for five passes over the document and five
+   dispatches; minio pays for one. The kernels here are generated from C, so
+   this is one kernel that writes four masks, not four kernels called four
+   times. It is the only item on this list that makes the common case faster.
 2. **An array-indexed type cache** for the compiled encoders and decoders,
-   instead of `sync.Map`.
-3. **Fuse the five mask passes into one.** The kernels are generated from C, so
-   this is one kernel that computes four masks, not four kernels called four
-   times — five dispatches and five passes become one.
-4. **Lazy scalars in `Parse`.** fastjson's whole advantage on twitter. It would
-   change what `Parse` means here, so it needs thought rather than adoption.
+   instead of `sync.Map` — goccy's `(rtype - base) >> shift`. The per-Decoder
+   cache already here is a workaround for the wrong data structure.
+3. **A chunk base for the index**, removing the 2 GiB limit while keeping the
+   binary search that delta encoding would cost. Smaller than it first looked:
+   C++ simdjson caps at 4 GB and calls it a documented limit, and the answer
+   here above 2 GiB is already `Decoder` and `Token`.
+4. **Lazy scalars in `Parse`.** fastjson's whole advantage on twitter, and
+   C++ simdjson's On-Demand mode is the same idea with an index under it. It
+   would change what `Parse` means here, so it needs thought rather than
+   adoption.
+
+Two things this package already does that the leaders confirm rather than
+contradict: keeping UTF-8 validation as a separate pass, which C++ simdjson also
+does and which was measured here at 9% when fused; and bounding batches by bytes
+rather than by count, which `DEFAULT_BATCH_SIZE` also does and which measured
+20% worse the other way.
 
 Not reachable without changing what this package is: sonic's JIT, and the
 hand-written assembly both it and minio use — this one generates its assembly

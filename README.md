@@ -143,7 +143,7 @@ repeated to size, with a deliberate best and worst case for the range:
 | best case: minified ASCII, long values | 7,302 MB/s | 5,859 | 5,143 | 583 |
 | worst case: nothing but brackets and escapes | 1,166 | 1,497 | 707 | 471 |
 
-Six times between the two for `Scan`, which is the honest spread — a single
+Six times between the two for `Scan`, which is the real spread — a single
 number for a JSON parser is an average over shapes that differ by that much.
 
 **Past 2 GiB, one piece does not work at all.** A bracket position is an

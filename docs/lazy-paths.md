@@ -21,7 +21,7 @@ of it. gjson is proportional to how far in the field is. They cross near the
 middle: a field in the first half is gjson's, a field in the second half is
 this one's.
 
-That is the honest summary and it is what the README says. It is also not the
+That is the summary and it is what the README says. It is also not the
 interesting number.
 
 ## The interesting number

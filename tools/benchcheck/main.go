@@ -2,10 +2,10 @@
 // fails when something got slower.
 //
 // Every performance number in this repository was measured once by hand. That
-// is how they were arrived at honestly and it is also how they rot: a kernel
-// rewrite that costs 30% looks exactly like one that costs nothing until
-// somebody re-runs the benchmark and remembers what it used to say. This makes
-// the remembering the machine's job.
+// is how they were arrived at and it is also how they rot: a kernel rewrite
+// that costs 30% looks exactly like one that costs nothing until somebody
+// re-runs the benchmark and remembers what it used to say. This makes the
+// remembering the machine's job.
 //
 //	go test -run '^$' -bench . -count 6 ./... > new.txt
 //	go run ./tools/benchcheck -baseline testdata/bench/amd64.txt new.txt
@@ -19,12 +19,25 @@
 //
 // Noise is handled by taking the minimum of each benchmark's samples rather
 // than the median — see parse for why that is the right estimator and not
-// merely the optimistic one — and then by a percentage threshold on top: 25%
-// by default.
+// merely the optimistic one — and then by a percentage threshold on top.
 //
 // The threshold alone was tried first and is not enough. It assumed a
 // run-to-run spread of 1-3%, and at 6 to 15 ns/op the spread against a median
 // exceeds 100%.
+//
+// The threshold is 8%, which is tight, and the reason it can be is that the
+// minimum estimator and the gate's choice of benchmarks between them leave very
+// little noise to absorb. Two full passes recorded back to back on an idle
+// machine, sixteen samples each, disagreed by 0.1% to 1.9% — every benchmark in
+// the gate is above 61 us, where the per-sample spread that makes a nanosecond
+// benchmark unusable has averaged out. 25% was the first value here and it was
+// wrong for the thing the gate exists to catch: the regression that prompted it
+// was 10% on canada's parse, and it would have passed.
+//
+// The corollary is that this threshold belongs to this gate. Point benchcheck
+// at a set of benchmarks that includes short ones and it will need a looser
+// one, or per-benchmark thresholds — see wideThreshold, which is where the
+// three benchmarks that need one are listed with what they measured.
 package main
 
 import (
@@ -37,10 +50,34 @@ import (
 	"strings"
 )
 
+// wideThreshold holds the benchmarks whose own run-to-run spread is wider than
+// the default threshold, and what each one is allowed instead.
+//
+// Two full passes recorded back to back on an idle machine had eleven of the
+// fourteen agreeing within 0.6%. These three disagreed by 4.3%, 6.2% and 8.2%.
+// They are the three that go through reflect and allocate per value, which is
+// the difference: their timing includes whichever garbage collections happened
+// to land inside the measurement.
+//
+// Neither uniform answer is any good. Holding these to 8% fails the gate on
+// noise, and a gate that cries wolf gets switched off. Holding all fourteen to
+// 18% lets canada's parse quietly lose 10%, which is the exact regression the
+// gate was built to catch.
+//
+// Each value is about twice the spread that was measured for that benchmark.
+// If one of these is made to allocate less, re-measure and tighten it — a
+// stale exemption is a hole.
+var wideThreshold = map[string]float64{
+	"BenchmarkGateStream/Encode": 18, // measured 8.2%
+	"BenchmarkGateStream/Decode": 15, // measured 6.2%
+	"BenchmarkGateUnmarshal":     12, // measured 4.3%
+}
+
 func main() {
 	baseline := flag.String("baseline", "", "the stored benchmark output to compare against")
-	threshold := flag.Float64("threshold", 25, "percent slower before a benchmark fails")
+	threshold := flag.Float64("threshold", 8, "percent slower before a benchmark fails")
 	update := flag.Bool("update", false, "overwrite the baseline with the new run instead of comparing")
+	verbose := flag.Bool("v", false, "print every benchmark's delta, not only the ones that failed")
 	maxLoad := flag.Float64("maxload", 4, "refuse to run when the one-minute load average is above this")
 	flag.Parse()
 
@@ -92,7 +129,7 @@ func main() {
 		fatal(err)
 	}
 
-	var regressed, improved, missing []string
+	var regressed, improved, missing, all []string
 	names := make([]string, 0, len(base))
 	for n := range base {
 		names = append(names, n)
@@ -102,8 +139,11 @@ func main() {
 	for _, n := range names {
 		c, ok := cur[n]
 		if !ok {
-			// A benchmark that disappeared is a change worth noticing — it is
-			// usually a rename, and a rename silently drops its own history.
+			// A benchmark in the baseline with no line in the run is a failure,
+			// not a note. It is either a rename, which silently drops that
+			// benchmark's history, or a skip — and a skipped benchmark is the
+			// one way this tool can report success for a run that measured
+			// nothing. Both deserve to stop the gate and be looked at.
 			missing = append(missing, n)
 			continue
 		}
@@ -112,11 +152,26 @@ func main() {
 			continue
 		}
 		delta := (c - b) / b * 100
+		// The per-benchmark exemption only ever loosens. A flag tighter than an
+		// entry in the table is a deliberate ask for a stricter run and has to
+		// win, or -threshold 1 would silently do nothing for three of fourteen.
+		lim := *threshold
+		if w, ok := wideThreshold[n]; ok && w > lim {
+			lim = w
+		}
+		if *verbose {
+			note := ""
+			if lim != *threshold {
+				note = fmt.Sprintf("  (limit %.0f%%)", lim)
+			}
+			all = append(all,
+				fmt.Sprintf("  %-52s %9.2f -> %9.2f ns/op  %+6.1f%%%s", n, b, c, delta, note))
+		}
 		switch {
-		case delta > *threshold:
+		case delta > lim:
 			regressed = append(regressed,
-				fmt.Sprintf("  %-52s %9.2f -> %9.2f ns/op  %+6.1f%%", n, b, c, delta))
-		case delta < -*threshold:
+				fmt.Sprintf("  %-52s %9.2f -> %9.2f ns/op  %+6.1f%%  (limit %.0f%%)", n, b, c, delta, lim))
+		case delta < -lim:
 			improved = append(improved,
 				fmt.Sprintf("  %-52s %9.2f -> %9.2f ns/op  %+6.1f%%", n, b, c, delta))
 		}
@@ -124,18 +179,30 @@ func main() {
 
 	fmt.Printf("%d benchmarks compared against %s (threshold %.0f%%)\n",
 		len(base), *baseline, *threshold)
+	if len(all) > 0 {
+		fmt.Printf("\n%s\n", strings.Join(all, "\n"))
+	}
 	if len(improved) > 0 {
 		fmt.Printf("\n%d faster:\n%s\n", len(improved), strings.Join(improved, "\n"))
 	}
 	if len(missing) > 0 {
-		fmt.Printf("\n%d in the baseline and not in this run (renamed or removed):\n  %s\n",
+		fmt.Printf("\n%d MISSING from this run (renamed, removed, or skipped):\n  %s\n",
 			len(missing), strings.Join(missing, "\n  "))
 	}
 	if len(regressed) > 0 {
 		fmt.Printf("\n%d SLOWER:\n%s\n", len(regressed), strings.Join(regressed, "\n"))
-		fmt.Fprintln(os.Stderr, "\nbenchcheck: regressions above the threshold; "+
-			"re-run to rule out noise, then either fix them or update the baseline "+
-			"with -update and say why in the commit.")
+	}
+	if len(regressed) > 0 || len(missing) > 0 {
+		if len(regressed) > 0 {
+			fmt.Fprintln(os.Stderr, "\nbenchcheck: regressions above the threshold; "+
+				"re-run to rule out noise, then either fix them or update the baseline "+
+				"with -update and say why in the commit.")
+		}
+		if len(missing) > 0 {
+			fmt.Fprintln(os.Stderr, "\nbenchcheck: benchmarks in the baseline did not "+
+				"run. If they were renamed, update the baseline; if they skipped, the "+
+				"gate measured nothing and the run is not a pass.")
+		}
 		os.Exit(1)
 	}
 	fmt.Println("\nno regressions")

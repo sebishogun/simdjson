@@ -10,16 +10,48 @@ package simdjson
 
 import (
 	"bytes"
+	"compress/gzip"
+	"io"
 	"os"
+	"sync"
 	"testing"
 )
 
+// The corpora are vendored, gzipped, under testdata/bench/corpus.
+//
+// They used to be read from /tmp, where they happened to be sitting on the
+// machine the numbers were first measured on. That is a gate that passes on any
+// machine that does not have them, because a benchmark that skips writes no
+// line, and a baseline entry with no matching line was reported and not failed.
+// The whole thing was green and measuring nothing.
+//
+// 676 KB gzipped for all three. They are in the module zip, which is the cost
+// of a gate that runs the first time somebody clones this rather than the third
+// time somebody asks where to get canada.json.
+var corpusCache sync.Map // name -> []byte
+
 func gateCorpus(b *testing.B, name string) []byte {
 	b.Helper()
-	data, err := os.ReadFile("/tmp/" + name + ".json")
-	if err != nil {
-		b.Skipf("%s not available", name)
+	if v, ok := corpusCache.Load(name); ok {
+		return v.([]byte)
 	}
+	path := "testdata/bench/corpus/" + name + ".json.gz"
+	f, err := os.Open(path)
+	if err != nil {
+		// Fatal, not Skip. A gate that skips is worse than no gate: it reports
+		// success for a run in which nothing was measured.
+		b.Fatalf("corpus %s: %v", path, err)
+	}
+	defer f.Close()
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		b.Fatalf("corpus %s: %v", path, err)
+	}
+	data, err := io.ReadAll(zr)
+	if err != nil {
+		b.Fatalf("corpus %s: %v", path, err)
+	}
+	corpusCache.Store(name, data)
 	return data
 }
 
