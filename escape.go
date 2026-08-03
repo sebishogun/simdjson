@@ -35,18 +35,11 @@ import (
 // "what does this byte need" but "does this run need anything at all", and that
 // is answered eight bytes at a time. A string needing nothing is one memmove.
 //
-// One thing tried and rejected, and then arrived at from the other side:
-// tracking in the word loop whether any byte was above ASCII, so a pure-ASCII
-// string could skip the UTF-8 validity check. Written that way it costs an OR
-// per word and it was 102 us against 86.
-//
-// The reasoning was right and the implementation was wrong. Counted, 95% of the
-// strings in twitter.json and 99% of those in citm_catalog.json are pure ASCII,
-// and the median string in either is under a dozen bytes — so the question is
-// not what a scan costs per byte but what it costs per string, and adding work
-// to the word loop is the wrong direction. Answering both questions with one
-// table lookup per byte, and copying whole when the answer is yes, is 13%. See
-// appendQuoted.
+// One thing tried and rejected: tracking in that same loop whether any byte was
+// above ASCII, so a pure-ASCII string could skip the UTF-8 validity check
+// entirely. It costs an OR per word and pays only when the string is ASCII —
+// and on a document of tweets most strings are not, so it was 102 us against
+// 86. Sound reasoning, wrong document.
 
 // needsEscape[c] is true for the bytes that end a clean run.
 var needsEscape = func() (t [256]bool) {

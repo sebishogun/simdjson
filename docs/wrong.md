@@ -236,3 +236,33 @@ size of the buffer that call was handed. Both mistakes here were the same
 mistake -- choosing a strategy by how much data existed rather than by how much
 of it the operation would actually touch.
 
+## The escape kernel loses on the HTML set twice, for different reasons
+
+The first time, over every string in the document, it was 4% slower and the
+explanation was that the set contains `0xE2` -- which leads U+2014 and U+2026
+and the whole U+2000 block -- so the scan stops at every dash and ellipsis and
+no run is long enough to cover the call.
+
+That explanation predicted the kernel would win once the population changed. It
+did change: the ASCII fast path in `appendQuoted` now answers for 95% of the
+strings, leaving only the ones with something above ASCII in them, which are the
+long ones -- 30% of the bytes in 5% of the strings, around 150 apiece.
+
+Same call, same threshold, a population that is now entirely long strings:
+
+	              MarshalTo
+	word loop     68.9  69.2  69.1
+	kernel        78.8  78.8  79.6
+
+14% worse. Whatever the first explanation was measuring, it was not the whole
+reason, and the prediction it made was wrong.
+
+Measured against `cleanRun` on its own the kernel is 3.9x at 64 bytes and 7x at
+256, so the loss is not in the scan. What is left is the shape of the call:
+`scan` holding a call cannot be inlined, and `appendBody` calls it once per run.
+
+**The rule.** A theory that explains a measurement is not the same as a theory
+that predicts the next one. This one explained the first result and failed the
+experiment it suggested; the word loop stays, and the reason it stays is the
+measurement, not the story about `0xE2`.
+
