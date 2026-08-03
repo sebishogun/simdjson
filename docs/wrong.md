@@ -668,3 +668,52 @@ about the code, and it should be made only after looking at *why* the
 instructions are what they are. The disassembly had said 24 bytes and two
 branches from the beginning. Counting the branches and asking what the second
 one was for is the step that was skipped.
+
+## The type cache did not want replacing, and the reason it looked like it did
+
+Reading goccy turned up a real technique: it finds the minimum and maximum
+`rtype` address through `go:linkname reflect.typelinks` and indexes a flat array
+by `(typeptr - base) >> shift`, where this package used a `sync.Map` keyed by
+`reflect.Type`. A `sync.Map` keyed by an interface hashes that interface on
+every lookup, which is an indirect call to the type's hash function before any
+comparison happens. Once per program that is nothing; once per value in a
+stream it is not, and the note in `docs/competition.md` put it at 10% of a
+stream decode.
+
+Two replacements were written and both are slower.
+
+**A generic cache**, `map[uintptr]F` behind an `atomic.Pointer`, keyed on the
+type pointer taken from the interface's second word — no `linkname`, no
+runtime internals, a lookup that is an atomic load and an integer map probe.
+Unmarshal **+4.7%**.
+
+**The same thing written out three times** without generics, on the theory that
+a `map[uintptr]F` with `F` a type parameter loses the compiler's specialised
+integer-key access. Unmarshal **+3.8%**. So it was not generics.
+
+What it is, most likely, is the key itself:
+
+	func typeKey(t reflect.Type) uintptr {
+		return uintptr((*(*[2]unsafe.Pointer)(unsafe.Pointer(&t)))[1])
+	}
+
+There is no way to read an interface's data word without taking the address of
+the interface, and taking the address of a parameter forces it to the stack. A
+store and a load, per lookup, to save a hash.
+
+**But the number was stale, and that is the part worth keeping.** The 10% was
+measured before the per-Decoder and per-`encodeState` caches were added — the
+ones that remember the last type and skip the lookup entirely. Profiling
+Unmarshal now puts the whole of `sync.Map.Load` at **2.76%**, not 10%. The
+workaround had already collected most of the prize, so every replacement was
+competing for 2.76% and each of them spent more than that getting there.
+
+`sync.Map` is a `HashTrieMap` as of Go 1.26, and for a map holding one entry —
+which is what a benchmark that unmarshals one type has — it is a pointer chase
+and hard to beat.
+
+**The rule.** A technique read out of another library comes with a number
+attached, and the number is about that library. Before adopting it, re-measure
+the thing it is supposed to fix *here*, in the state the code is in now. Two
+implementations were written against a figure that a previous change had
+already invalidated.

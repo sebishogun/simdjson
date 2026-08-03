@@ -160,9 +160,15 @@ this package validates and it does not look at. It costs elsewhere: a mandatory
 **Its type cache is an array, not a map.** It finds the minimum and maximum
 `rtype` address via `go:linkname reflect.typelinks`, then indexes a flat array by
 `(typeptr - base) >> shift` (`decoder/compile_norace.go:12`). One subtract, one
-shift, one load. This package used a `sync.Map`, which was 10% of a stream
-decode before it was cached per-Decoder — and that cache is a workaround for the
-wrong data structure.
+shift, one load. This package uses a `sync.Map`, which was 10% of a stream
+decode before it was cached per-Decoder.
+
+That reads like the cache is a workaround for the wrong data structure, and it
+was written here as such. It is not: with the per-Decoder cache in place the
+`sync.Map` lookup is 2.76% of an Unmarshal, and two replacements — a generic
+`map[uintptr]F` behind an atomic pointer, and the same written out concretely —
+came in 4.7% and 3.8% *slower*. The key cannot be computed without taking the
+address of an interface, which spills it. `docs/wrong.md` has the detail.
 
 Its escape scan is the SWAR mask this package measured and rejected
 (`encoder/string.go:414`), which is a fair reminder that the same technique can
@@ -214,9 +220,10 @@ somewhere else.
    dispatches; minio pays for one. The kernels here are generated from C, so
    this is one kernel that writes four masks, not four kernels called four
    times. Worth roughly two thirds of that 20.2%, and it also makes #117 cheap.
-3. **An array-indexed type cache** for the compiled encoders and decoders,
-   instead of `sync.Map` — goccy's `(rtype - base) >> shift`. The per-Decoder
-   cache already here is a workaround for the wrong data structure.
+3. ~~**An array-indexed type cache**~~ — *tried, measured worse, see
+   `docs/wrong.md`.* The 10% figure below was measured before the per-Decoder
+   cache existed. Profiling now puts the whole `sync.Map` lookup at **2.76%** of
+   an Unmarshal, and both replacements written for it cost more than that.
 4. **A chunk base for the index**, removing the 2 GiB limit while keeping the
    binary search that delta encoding would cost. Smaller than it first looked:
    C++ simdjson caps at 4 GB and calls it a documented limit, and the answer
