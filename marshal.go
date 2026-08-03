@@ -624,7 +624,11 @@ type encField struct {
 	// key is the whole `"name":` prefix, escaped and quoted at compile time so
 	// that writing a field is one append rather than a quote, an escape pass
 	// and a colon.
-	key       []byte
+	key []byte
+	// keyComma is key with the separating comma already on the front, because
+	// every field but the first needs both and appending them separately is two
+	// bounds checks and two length updates to write six bytes.
+	keyComma  []byte
 	offset    uintptr
 	fn        encodeFn
 	typ       reflect.Type
@@ -704,39 +708,56 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 	for i := range fields {
 		f := &fields[i]
 		f.simple = !f.ptrPath && !f.omitEmpty && !f.omitZero && !f.quoted && f.leaf != leafNone
+		f.keyComma = append(append(make([]byte, 0, len(f.key)+1), ','), f.key...)
 	}
 
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-		e.buf = append(e.buf, '{')
+		// The buffer lives in a local for the length of the field loop rather
+		// than in e. Every `e.buf = append(e.buf, ...)` is a read of a slice
+		// header from the heap, an append, and a write of it back; a local is a
+		// register. On a struct of scalars that is three memory operations per
+		// field spent on bookkeeping.
+		//
+		// This is the portable half of what sonic's JIT gets by keeping the
+		// buffer's pointer, length and capacity in registers for the whole
+		// encode (assembler_regabi_amd64.go:320). It goes back into e before
+		// any call that takes e, because those append to e.buf themselves, and
+		// at the end.
+		b := append(e.buf, '{')
 		first := true
 		for i := range fields {
 			f := &fields[i]
 			if f.simple {
 				fp := unsafe.Add(p, f.offset)
+				// One append for the separator and the key together. They were
+				// two, and the comma is one byte.
 				if first {
+					b = append(b, f.key...)
 					first = false
 				} else {
-					e.buf = append(e.buf, ',')
+					b = append(b, f.keyComma...)
 				}
-				e.buf = append(e.buf, f.key...)
 				switch f.leaf {
 				case leafString:
-					e.writeString(*(*string)(fp))
+					b = appendQuotedOpts(b, *(*string)(fp), e.opts)
 				case leafInt:
-					e.buf = strconv.AppendInt(e.buf, *(*int64)(fp), 10)
+					b = strconv.AppendInt(b, *(*int64)(fp), 10)
 				case leafUint:
-					e.buf = strconv.AppendUint(e.buf, *(*uint64)(fp), 10)
+					b = strconv.AppendUint(b, *(*uint64)(fp), 10)
 				case leafBool:
 					if *(*bool)(fp) {
-						e.buf = append(e.buf, "true"...)
+						b = append(b, "true"...)
 					} else {
-						e.buf = append(e.buf, "false"...)
+						b = append(b, "false"...)
 					}
 				default: // leafFloat64
-					e.buf = appendFloat(e.buf, *(*float64)(fp), 64)
+					b = appendFloat(b, *(*float64)(fp), 64)
 				}
 				continue
 			}
+			// Everything below can call back into e, so the buffer goes home
+			// first and is picked up again after.
+			e.buf = b
 			var fp unsafe.Pointer
 			var frv reflect.Value
 			if f.ptrPath {
@@ -774,13 +795,13 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				e.buf = append(e.buf, f.key...)
 				first = false
 			} else {
-				e.buf = append(e.buf, ',')
-				e.buf = append(e.buf, f.key...)
+				e.buf = append(e.buf, f.keyComma...)
 			}
 			if f.quoted {
 				if err := e.writeQuotedValue(f, fp, frv); err != nil {
 					return err
 				}
+				b = e.buf
 				continue
 			}
 			// The leaf kinds are written here rather than through f.fn. What
@@ -808,8 +829,10 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 					return err
 				}
 			}
+			b = e.buf
 		}
-		e.buf = append(e.buf, '}')
+		b = append(b, '}')
+		e.buf = b
 		return nil
 	}
 }

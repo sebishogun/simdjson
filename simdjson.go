@@ -38,6 +38,7 @@
 package simdjson
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/bits"
 	"unicode/utf8"
@@ -475,6 +476,31 @@ func (d *Doc) number(i int) (int, bool) {
 		j++
 		if j >= n || !isDigit(b[j]) {
 			return 0, false
+		}
+		// Four digits per iteration, and only here. A number's fraction is the
+		// long digit run -- canada.json's coordinates are two digits before the
+		// point and six or seven after -- so this is where the byte-at-a-time loop
+		// runs enough times to matter. On the integer part and the exponent it
+		// only added a test that immediately fails.
+		//
+		// The reason to care is not the arithmetic, it is the fetch. This loop has
+		// twice been moved across a 64-byte boundary by an unrelated change and
+		// cost 14-15% with an identical instruction stream (docs/wrong.md entry
+		// 13). Running it a quarter as often makes where it lands matter a quarter
+		// as much, and it shows: frontend stalls on Valid/canada fall from 1.53 G
+		// to 0.53 G.
+		//
+		// The test is the standard has-a-byte-above-9 SWAR. c^0x30 is 0..9 exactly
+		// for '0'..'9' and 10 or more for every other byte, so adding 0x76 to each
+		// byte carries into its high bit precisely when that byte was not a digit;
+		// the `| d` catches bytes at 0x80 and above, which would not carry.
+		for j+4 <= n {
+			v := binary.LittleEndian.Uint32(b[j:])
+			d := v ^ 0x30303030
+			if (d+0x76767676|d)&0x80808080 != 0 {
+				break
+			}
+			j += 4
 		}
 		for j < n && isDigit(b[j]) {
 			j++
