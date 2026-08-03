@@ -369,6 +369,13 @@ func compileSliceEncoder(t reflect.Type) encodeFn {
 			return nil
 		}
 	}
+	// A slice of a leaf kind is written element by element without a call, for
+	// the same reason a struct field of one is: the call is more than the work.
+	// A slice pays it per element, so the shape that gains most is the one that
+	// turns up most -- a []string of tags, a []int of ids.
+	if leaf := encLeafOf(elem); leaf != leafNone {
+		return compileLeafSliceEncoder(leaf, elem.Size())
+	}
 	inner := encoderFor(elem)
 	esize := elem.Size()
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
@@ -388,6 +395,44 @@ func compileSliceEncoder(t reflect.Type) encodeFn {
 			}
 			if err := inner(e, unsafe.Add(h.data, uintptr(i)*esize), erv); err != nil {
 				return err
+			}
+		}
+		e.buf = append(e.buf, ']')
+		return nil
+	}
+}
+
+// compileLeafSliceEncoder writes a slice whose elements the loop can write
+// itself. The kind is decided once, outside the loop, so the switch costs one
+// well-predicted branch per element rather than an indirect call.
+func compileLeafSliceEncoder(leaf encLeaf, esize uintptr) encodeFn {
+	return func(e *encodeState, p unsafe.Pointer, _ reflect.Value) error {
+		h := (*sliceHeader)(p)
+		if h.data == nil {
+			e.buf = append(e.buf, "null"...)
+			return nil
+		}
+		e.buf = append(e.buf, '[')
+		for i := 0; i < h.len; i++ {
+			if i > 0 {
+				e.buf = append(e.buf, ',')
+			}
+			ep := unsafe.Add(h.data, uintptr(i)*esize)
+			switch leaf {
+			case leafString:
+				e.writeString(*(*string)(ep))
+			case leafInt:
+				e.buf = strconv.AppendInt(e.buf, *(*int64)(ep), 10)
+			case leafUint:
+				e.buf = strconv.AppendUint(e.buf, *(*uint64)(ep), 10)
+			case leafBool:
+				if *(*bool)(ep) {
+					e.buf = append(e.buf, "true"...)
+				} else {
+					e.buf = append(e.buf, "false"...)
+				}
+			case leafFloat64:
+				e.buf = appendFloat(e.buf, *(*float64)(ep), 64)
 			}
 		}
 		e.buf = append(e.buf, ']')
