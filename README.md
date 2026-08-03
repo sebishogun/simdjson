@@ -75,14 +75,18 @@ same three — 4.1× fastjson on twitter. It is not the same operation; see belo
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
 | `Unmarshal` → struct | **390 µs** | 398 µs | 443 µs | 2,705 µs |
-| `Marshal` | **90 µs** | 111 µs | — | 129 µs |
-| `MarshalTo`, caller's buffer | 69 µs | — | 38 µs | — |
-| `Fast` options | 46 µs | — | 28 µs | — |
+| `Marshal` | **87 µs** | 107 µs | — | 123 µs |
+| `MarshalTo`, caller's buffer | 67 µs | — | 37 µs | — |
+| `Fast` options | 45 µs | — | 28 µs | — |
 
-Marshal is the one place another library is clearly ahead: sonic's
-`ConfigStd` is 1.85× this on `MarshalTo`. sonic's *default* config is 28 µs and
-is not comparable to any of these — it does not escape HTML and passes U+2028
-through raw, so it does not produce what `encoding/json` produces.
+**`MarshalTo` is the one operation measured here where another library is
+faster, and it is not close: sonic's `ConfigStd` is 1.8× this.** It is the same
+factor at both option settings, which says what it is. sonic compiles an encoder
+to machine code at run time and calls hand-written assembly to quote strings, on
+amd64 and arm64. This compiles its kernels ahead of time, ships them as Plan 9
+assembly for six architectures, and needs no cgo and no code generation at run
+time. That is the trade, it is deliberate, and 1.8× is what it costs on this
+one operation.
 
 **Text in, text out**, against `encoding/json`, MB/s:
 
