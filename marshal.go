@@ -541,7 +541,9 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			}
 			pairs = append(pairs, kv{s, k})
 		}
-		sort.Slice(pairs, func(i, j int) bool { return pairs[i].s < pairs[j].s })
+		if e.opts.SortMapKeys {
+			sort.Slice(pairs, func(i, j int) bool { return pairs[i].s < pairs[j].s })
+		}
 
 		e.buf = append(e.buf, '{')
 		for i, pr := range pairs {
@@ -725,9 +727,13 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		// at the end.
 		b := append(e.buf, '{')
 		first := true
+		// Hoisted: with OmitZeroStructFields set, no field is simple any more,
+		// because every one of them has to be asked whether it is zero first.
+		// Read once rather than per field.
+		omitAll := e.opts.OmitZeroStructFields
 		for i := range fields {
 			f := &fields[i]
-			if f.simple {
+			if f.simple && !omitAll {
 				fp := unsafe.Add(p, f.offset)
 				// One append for the separator and the key together. They were
 				// two, and the comma is one byte.
@@ -788,7 +794,7 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 			if f.omitEmpty && isEmptyPtr(f.typ, fp) {
 				continue
 			}
-			if f.omitZero && isZeroPtr(f, fp) {
+			if (f.omitZero || omitAll) && isZeroPtr(f, fp) {
 				continue
 			}
 			if first {

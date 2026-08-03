@@ -1,5 +1,7 @@
 package simdjson
 
+import "io"
+
 // Options selects what an encoder checks and escapes.
 //
 // The defaults match [encoding/json] exactly, because a drop-in replacement
@@ -24,11 +26,35 @@ type Options struct {
 	// is about a third of the encode — and the right choice when the strings
 	// come from somewhere that already guarantees UTF-8.
 	ValidateStrings bool
+
+	// SortMapKeys writes a map's keys in order. encoding/json always does, so
+	// this is on in [Std] and every byte-for-byte comparison depends on it.
+	//
+	// Off, keys come out in whatever order the map iterates, which Go
+	// deliberately randomises — so the same map encodes differently on
+	// successive calls. That is fine for a payload nobody diffs and fatal for
+	// a cache key, an ETag or a signature. encoding/json/v2 makes it opt-in;
+	// this keeps v1's default and lets you turn it off, which is the safer way
+	// round.
+	SortMapKeys bool
+
+	// OmitZeroStructFields drops every struct field holding its type's zero
+	// value, as though each carried `omitzero`.
+	//
+	// New in encoding/json/v2 as an option, and useful for the case the tag
+	// cannot serve: a type from another package, or a struct being encoded for
+	// a wire format that treats absent and zero the same.
+	//
+	// It follows `omitzero` and not `omitempty`: an empty slice and an empty
+	// map are their zero value only when nil, and a type with its own IsZero
+	// method is asked. A field with an explicit tag keeps whatever the tag
+	// said.
+	OmitZeroStructFields bool
 }
 
 // Std matches encoding/json byte for byte. It is what the package-level
 // Marshal uses.
-var Std = Options{EscapeHTML: true, ValidateStrings: true}
+var Std = Options{EscapeHTML: true, ValidateStrings: true, SortMapKeys: true}
 
 // Fast gives up HTML escaping and UTF-8 validation.
 //
@@ -36,7 +62,12 @@ var Std = Options{EscapeHTML: true, ValidateStrings: true}
 // be valid UTF-8 — decoded from JSON, read from a UTF-8 database column, built
 // from Go string literals. The output is identical to Std's for any input that
 // meets those conditions, and differs for any that does not.
-var Fast = Options{}
+//
+// Map keys are still sorted. Not sorting them is a bigger change than a few
+// percent: it makes the same value encode differently on successive calls,
+// which is a different promise rather than a faster one. Set SortMapKeys to
+// false deliberately if that is wanted.
+var Fast = Options{SortMapKeys: true}
 
 // Marshal returns the JSON encoding of v under these options.
 func (o Options) Marshal(v any) ([]byte, error) {
@@ -66,3 +97,28 @@ func (o Options) MarshalTo(dst []byte, v any) ([]byte, error) {
 	encoderPool.Put(e)
 	return dst, nil
 }
+
+// MarshalWrite writes the JSON encoding of v to w.
+//
+// The shape encoding/json/v2 added as MarshalWrite: encode straight into the
+// destination rather than building a []byte and handing it over. For a large
+// value going to a socket or a file this is the difference between one buffer
+// and two.
+//
+// It is not [Encoder.Encode]: that appends a newline, because it is for writing
+// a stream of values. This writes exactly the value.
+func (o Options) MarshalWrite(w io.Writer, v any) error {
+	e := encoderPool.Get().(*encodeState)
+	e.buf, e.opts = e.buf[:0], o
+	err := e.marshal(v)
+	if err != nil {
+		encoderPool.Put(e)
+		return err
+	}
+	_, err = w.Write(e.buf)
+	encoderPool.Put(e)
+	return err
+}
+
+// MarshalWrite writes the JSON encoding of v to w, matching encoding/json.
+func MarshalWrite(w io.Writer, v any) error { return Std.MarshalWrite(w, v) }
