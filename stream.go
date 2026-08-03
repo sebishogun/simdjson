@@ -115,16 +115,11 @@ func (d *Decoder) Decode(out any) error {
 		if d.doc != nil {
 			i := d.doc.skip(d.cur)
 			if i < len(d.data) {
-				v, next, err := d.doc.value(i)
-				if err != nil {
-					return err
-				}
-				if err := v.Decode(out); err != nil {
+				next, err := d.doc.decodeAt(i, out)
+				if next > d.cur {
 					d.cur, d.off = next, d.base+next
-					return err
 				}
-				d.cur, d.off = next, d.base+next
-				return nil
+				return err
 			}
 			d.doc, d.data = nil, nil
 		}

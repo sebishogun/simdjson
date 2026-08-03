@@ -93,6 +93,32 @@ func (v Value) Decode(out any) error {
 	return v.decode(el)
 }
 
+// decodeAt decodes the value beginning at i into out, and returns where it
+// ends.
+//
+// The end is the reason this exists rather than Value.Decode. Building a Value
+// first means matching its brackets over the index to find its extent, and the
+// compiled decoder is going to walk to that same place and report it anyway --
+// so a stream, which needs the end only to know where the next value starts,
+// was paying for a bracket match per value to learn something it was about to
+// be told.
+func (d *Doc) decodeAt(i int, out any) (int, error) {
+	rv := reflect.ValueOf(out)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return 0, &json.InvalidUnmarshalError{Type: reflect.TypeOf(out)}
+	}
+	if el := rv.Elem(); el.CanAddr() {
+		return decoderFor(el.Type())(unsafe.Pointer(el.UnsafeAddr()), d, i)
+	}
+	// Not addressable, which a pointer handed to Decode always is unless it
+	// came from reflection. Worth no cleverness.
+	v, end, err := d.value(i)
+	if err != nil {
+		return 0, err
+	}
+	return end, v.decode(rv.Elem())
+}
+
 // validate walks v's bytes and reports the first thing wrong with them.
 func (v Value) validate() error {
 	if v.d == nil {
