@@ -16,7 +16,10 @@ package simdjson
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
+	"reflect"
+	"unsafe"
 
 	"github.com/sebishogun/simd"
 )
@@ -58,6 +61,11 @@ type Decoder struct {
 	useNumber       bool
 	disallowUnknown bool
 
+	// The decoder for the type last decoded into. decoderFor is a sync.Map
+	// keyed by reflect.Type; consulting it per value was 15% of a stream.
+	fnTyp reflect.Type
+	fn    decodeFn
+
 	// vstack holds the open brackets the framing scan has seen, so a closer can
 	// be checked against its opener. Reused across calls; a stack allocated per
 	// value would cost more than the scan.
@@ -87,6 +95,22 @@ func (d *Decoder) InputOffset() int64 { return d.consumed + int64(d.off) }
 // Buffered returns a reader over the bytes read from the underlying reader and
 // not yet consumed by Decode.
 func (d *Decoder) Buffered() io.Reader { return bytes.NewReader(d.buf[d.off:]) }
+
+// decodeAt is Doc.decodeAt with the type lookup cached across calls, which for
+// a stream of one shape means done once.
+func (d *Decoder) decodeAt(i int, out any) (int, error) {
+	rv := reflect.ValueOf(out)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return 0, &json.InvalidUnmarshalError{Type: reflect.TypeOf(out)}
+	}
+	if el := rv.Elem(); el.CanAddr() {
+		if t := el.Type(); d.fnTyp != t {
+			d.fn, d.fnTyp = decoderFor(t), t
+		}
+		return d.fn(unsafe.Pointer(el.UnsafeAddr()), d.doc, i)
+	}
+	return d.doc.decodeAt(i, out)
+}
 
 // More reports whether there is another element in the array or object being
 // read, or another value in the stream.
@@ -126,7 +150,7 @@ func (d *Decoder) Decode(out any) error {
 		if d.doc != nil {
 			i := d.doc.skip(d.cur)
 			if i < len(d.data) {
-				next, err := d.doc.decodeAt(i, out)
+				next, err := d.decodeAt(i, out)
 				if next > d.cur {
 					d.cur, d.off = next, d.base+next
 				}

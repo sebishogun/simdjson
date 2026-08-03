@@ -64,6 +64,7 @@ type encodeState struct {
 	// per type rather than one per record.
 	addrTyp reflect.Type
 	addrVal reflect.Value
+	addrFn  encodeFn
 }
 
 // addressable returns a pointer to rv's data, reusing this encoder's scratch
@@ -74,7 +75,7 @@ func (e *encodeState) addressable(rv reflect.Value) unsafe.Pointer {
 		return unsafe.Pointer(rv.UnsafeAddr())
 	}
 	if t := rv.Type(); e.addrTyp != t {
-		e.addrVal, e.addrTyp = reflect.New(t).Elem(), t
+		e.addrVal, e.addrTyp, e.addrFn = reflect.New(t).Elem(), t, encoderFor(t)
 	}
 	e.addrVal.Set(rv)
 	return unsafe.Pointer(e.addrVal.UnsafeAddr())
@@ -90,7 +91,16 @@ func (e *encodeState) marshal(v any) error {
 	rv := reflect.ValueOf(v)
 	// The value out of an interface is not addressable, and the compiled
 	// encoders work from a pointer. One copy, at the top level only.
-	return encoderFor(rv.Type())(e, e.addressable(rv), rv)
+	//
+	// The encoder for the type is looked up alongside the scratch and cached
+	// with it. encoderFor is a sync.Map keyed by reflect.Type, so it hashes an
+	// interface and walks a trie -- fine once, and 15% of a stream when it is
+	// once per value.
+	p := e.addressable(rv)
+	if e.addrFn != nil && e.addrTyp == rv.Type() {
+		return e.addrFn(e, p, rv)
+	}
+	return encoderFor(rv.Type())(e, p, rv)
 }
 
 // encodeFn writes one value.
