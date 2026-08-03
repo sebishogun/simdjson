@@ -98,13 +98,17 @@ through raw, so it does not produce what `encoding/json` produces.
 
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
-| `Decoder` | 15.0 ms | **13.1 ms** | 13.6 ms | 38.5 ms |
-| `Encoder` | 9.0 ms | **6.9 ms** | 10.0 ms | 10.4 ms |
+| `Decoder` | 14.8 ms | **12.5 ms** | 13.2 ms | 38.2 ms |
+| `Encoder` | 7.3 ms | **6.6 ms** | 9.8 ms | 10.2 ms |
 
 goccy is ahead on both. The index is built per buffer rather than per value —
 per value it was 54 ms, slower than everything — and what is left is a framing
 pass that has to find where the last whole value ends before the index can be
-built at all. See `docs/wrong.md`.
+built at all, which is a second scan over the same bytes. See `docs/wrong.md`.
+
+Allocation is already lower than goccy's on the decode side: 9.5 MB and 150,183
+allocations against 12.9 MB and 306,525, for the same 6.5 MB of input. What is
+left of the gap is that second scan.
 
 **Nine shapes, not three files.** twitter, citm and canada cover
 strings-and-objects, objects-and-whitespace and numbers, and nothing else.
