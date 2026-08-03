@@ -115,6 +115,26 @@ type index struct {
 
 	match []int32 // for each entry of pos, the index of its partner bracket
 	stack []int32 // bracket stack, reused between parses
+
+	// The three fields below are only written in partial mode, where the input
+	// is a prefix of a document rather than a document.
+	//
+	// A prefix ends wherever the buffer ended: inside a string, inside a
+	// container, in the middle of a number. The masks before that point are
+	// still correct — they are computed left to right and nothing later can
+	// change them — so the answer to "index this prefix" is not an error, it is
+	// an index plus a mark saying how far it can be trusted.
+	//
+	// safeEnd is one past the last top-level container that closed. Everything
+	// before it is a whole number of complete values.
+	//
+	// partErr is the first syntax error found, and partErrAt where. It is not
+	// returned unless it lies before safeEnd: a bad escape in the truncated
+	// tail belongs to a value that has not finished arriving, and reporting it
+	// now would reject input that is about to become valid.
+	safeEnd   int
+	partErr   error
+	partErrAt int
 }
 
 // buildIndex scans data and returns the bracket positions outside strings,
@@ -145,14 +165,15 @@ type index struct {
 const masksOnly = true
 
 func buildIndex(data []byte, ix *index, validate bool) (*index, error) {
-	return buildIndexMode(data, ix, validate, false)
+	return buildIndexMode(data, ix, validate, false, false)
 }
 
-func buildIndexMode(data []byte, ix *index, validate, noBrackets bool) (*index, error) {
+func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) (*index, error) {
 	if ix == nil {
 		ix = &index{}
 	}
 	ix.pos = ix.pos[:0]
+	ix.safeEnd, ix.partErr, ix.partErrAt = 0, nil, 0
 	// Cleared here rather than in the validating half, because Scan never runs
 	// that — a Parser reused for Scan after a Parse would otherwise carry the
 	// previous document's answer and skip whitespace that is really there.
@@ -162,9 +183,20 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets bool) (*index, 
 		return ix, nil
 	}
 	if len(data) <= wholeDocMax {
-		return buildIndexWhole(data, ix, validate, noBrackets)
+		return buildIndexWhole(data, ix, validate, noBrackets, partial)
 	}
-	return buildIndexWindowed(data, ix, validate, noBrackets)
+	return buildIndexWindowed(data, ix, validate, noBrackets, partial)
+}
+
+// note records a syntax error found while indexing a prefix, keeping the first.
+//
+// It is not returned unless it turns out to lie before safeEnd. A bad escape in
+// the truncated tail belongs to a value that has not finished arriving, and
+// rejecting it now would reject input that is about to become valid.
+func (ix *index) note(at int, msg string) {
+	if ix.partErr == nil {
+		ix.partErr, ix.partErrAt = errSyntax(msg), at
+	}
 }
 
 // buildIndexWhole indexes a document small enough to hold its masks in cache.
@@ -173,7 +205,7 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets bool) (*index, 
 // is the shape to use when the masks are never going to leave cache, and it is
 // measurably better than doing the same work through the windowed loop below —
 // about 9% on a 1 MB document — because there is no window bookkeeping.
-func buildIndexWhole(data []byte, ix *index, validate, noBrackets bool) (*index, error) {
+func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool) (*index, error) {
 	// Whole words, so the arithmetic below never has to special-case the last
 	// one. The bytes between the end of the document and the end of its last
 	// word are zeroed rather than left over, so they match nothing.
@@ -243,8 +275,11 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets bool) (*index,
 		// registers at this point — a separate pass recomputed escapedMask for
 		// every word of the document to get back what this loop had already
 		// worked out.
-		if binary.LittleEndian.Uint64(ix.ctl[off:])&in != 0 {
-			return nil, errSyntax("control character in string")
+		if c := binary.LittleEndian.Uint64(ix.ctl[off:]) & in; c != 0 {
+			if !partial {
+				return nil, errSyntax("control character in string")
+			}
+			ix.note(w*64+bits.TrailingZeros64(c), "control character in string")
 		}
 		wsw := binary.LittleEndian.Uint64(ix.ws[off:])
 		ix.wsw[w] = wsw
@@ -256,31 +291,46 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets bool) (*index,
 		for t := target; t != 0; t &= t - 1 {
 			p := w*64 + bits.TrailingZeros64(t)
 			if p >= len(data) {
-				return nil, errSyntax("string ends in a backslash")
+				if !partial {
+					return nil, errSyntax("string ends in a backslash")
+				}
+				ix.note(p, "string ends in a backslash")
+				continue
 			}
 			switch data[p] {
 			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
 			case 'u':
 				if p+4 >= len(data) {
-					return nil, errSyntax("short \\u escape")
+					if !partial {
+						return nil, errSyntax("short \\u escape")
+					}
+					ix.note(p, "short \\u escape")
+					continue
 				}
 				for k := 1; k <= 4; k++ {
 					if !isHex(data[p+k]) {
-						return nil, errSyntax("invalid \\u escape")
+						if !partial {
+							return nil, errSyntax("invalid \\u escape")
+						}
+						ix.note(p, "invalid \\u escape")
+						break
 					}
 				}
 			default:
-				return nil, errSyntax("invalid escape")
+				if !partial {
+					return nil, errSyntax("invalid escape")
+				}
+				ix.note(p, "invalid escape")
 			}
 		}
 	}
 	if validate {
-		if prevLead != 0 {
+		if prevLead != 0 && !partial {
 			return nil, errSyntax("string ends in a backslash")
 		}
 		ix.noWS = anyWS == 0
 	}
-	if strCarry != 0 {
+	if strCarry != 0 && !partial {
 		return nil, errSyntax("unterminated string")
 	}
 
@@ -325,7 +375,11 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets bool) (*index,
 				stack = append(stack, int32(k)<<1|1)
 			case '}', ']':
 				if len(stack) == 0 {
-					return nil, errSyntax("unbalanced brackets")
+					if !partial {
+						return nil, errSyntax("unbalanced brackets")
+					}
+					ix.note(int(p), "unbalanced brackets")
+					break
 				}
 				o := stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
@@ -333,17 +387,35 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets bool) (*index,
 				// opening kind rode along in the stack entry's low bit, so
 				// this needs no second look at the input.
 				if (o&1 == 1) != (data[p] == ']') {
-					return nil, errSyntax("mismatched brackets")
+					if !partial {
+						return nil, errSyntax("mismatched brackets")
+					}
+					ix.note(int(p), "mismatched brackets")
+					break
 				}
 				oi := o >> 1
 				match[oi] = int32(k)
 				match[k] = oi
+				if len(stack) == 0 && ix.partErr == nil {
+					// The top level just closed, and nothing wrong has been
+					// seen yet. Everything up to here is a whole number of
+					// complete values.
+					//
+					// It stops advancing at the first error rather than
+					// advancing past it, because a caller decoding a stream
+					// hands back the values before the bad one and only then
+					// reports it. "0\"\x10\"[]" is a number, then a string
+					// holding a control character: the number is a value and
+					// the error comes after it. Advancing to the end of the []
+					// would have thrown the number away with the error.
+					ix.safeEnd = int(p) + 1
+				}
 			}
 			k++
 			st &= st - 1
 		}
 	}
-	if len(stack) != 0 {
+	if len(stack) != 0 && !partial {
 		return nil, errSyntax("unterminated container")
 	}
 	ix.pos, ix.match, ix.stack = pos, match, stack
@@ -358,7 +430,7 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets bool) (*index,
 // document stops fitting: 9,146 MB/s at 8 MB against 2,740 at 64 MB. A window's
 // masks are 40 KiB and never leave L2, so the document is read from memory once
 // rather than five times, and throughput goes flat instead.
-func buildIndexWindowed(data []byte, ix *index, validate, noBrackets bool) (*index, error) {
+func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bool) (*index, error) {
 	nw := (len(data) + 63) / 64
 
 	// The masks are built a window at a time rather than for the whole

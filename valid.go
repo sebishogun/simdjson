@@ -26,7 +26,7 @@ func Valid(data []byte) bool {
 			indexPool.Put(ix)
 		}
 	}()
-	ix, err := buildIndexMode(data, ix, true, masksOnly)
+	ix, err := buildIndexMode(data, ix, true, masksOnly, false)
 	if err != nil {
 		return false
 	}
@@ -337,7 +337,7 @@ func docFront(data []byte, ix *index) (*Doc, int, error) {
 // anything: encoding/json reports a syntax error rather than emitting a
 // prefix.
 func indexAndValidate(src []byte, ix *index) (*index, *Doc, int, error) {
-	ix, err := buildIndexMode(src, ix, true, masksOnly)
+	ix, err := buildIndexMode(src, ix, true, masksOnly, false)
 	if err != nil {
 		return ix, nil, 0, err
 	}

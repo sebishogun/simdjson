@@ -176,6 +176,31 @@ func (d *Decoder) load() error {
 		if _, err := d.peek(); err != nil {
 			return err
 		}
+		// One pass, not two. The index is built over the whole buffer in
+		// partial mode, which does not treat a value cut in half as an error:
+		// it indexes what is there and says how far that goes. safeEnd is one
+		// past the last top-level container that closed.
+		//
+		// What this replaces is a scalar scan over the same bytes to find that
+		// point before the vector index was allowed to read them -- 17% of a
+		// decode, spent deciding where the vector pass was permitted to start.
+		if !d.single && d.off < len(d.buf) && canStartValue[d.buf[d.off]] {
+			ix, err := buildIndexMode(d.buf[d.off:], d.ix, true, false, true)
+			d.ix = ix
+			if err == nil && ix.safeEnd > 0 {
+				if ix.partErr != nil && ix.partErrAt < ix.safeEnd {
+					return ix.partErr
+				}
+				if doc, err := scanRoot(d.buf[d.off:d.off+ix.safeEnd], ix); err == nil {
+					doc.strictSkip = true
+					doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
+					d.doc, d.data = doc, d.buf[d.off:d.off+ix.safeEnd]
+					d.base, d.cur = d.off, 0
+					return nil
+				}
+			}
+		}
+
 		limit, err := d.completeThrough()
 		if err != nil {
 			return err

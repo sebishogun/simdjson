@@ -98,17 +98,18 @@ through raw, so it does not produce what `encoding/json` produces.
 
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
-| `Decoder` | 14.8 ms | **12.5 ms** | 13.2 ms | 38.2 ms |
+| `Decoder` | **11.7 ms** | 12.6 ms | 13.1 ms | 37.8 ms |
 | `Encoder` | 7.3 ms | **6.6 ms** | 9.8 ms | 10.2 ms |
 
-goccy is ahead on both. The index is built per buffer rather than per value —
-per value it was 54 ms, slower than everything — and what is left is a framing
-pass that has to find where the last whole value ends before the index can be
-built at all, which is a second scan over the same bytes. See `docs/wrong.md`.
+The index is built per buffer rather than per value — per value it was 54 ms,
+slower than everything here — and the buffer is indexed in **partial mode**,
+which treats a value cut in half by the end of the buffer as a fact to report
+rather than an error: it indexes what is there and says how far that goes.
+Before that, a scalar pass had to find where the last whole value ended before
+the vector index was allowed to read the same bytes, which was 17% of a decode.
 
-Allocation is already lower than goccy's on the decode side: 9.5 MB and 150,183
-allocations against 12.9 MB and 306,525, for the same 6.5 MB of input. What is
-left of the gap is that second scan.
+Allocation is lower than goccy's too: 9.5 MB in 150,183 allocations against
+12.9 MB in 306,525, for the same 6.5 MB of input.
 
 **Small documents are the one size where this is the wrong tool.** The index
 costs the same few passes whether the document is 64 bytes or a megabyte, and
