@@ -554,7 +554,10 @@ tail:
 		ix.wsCount = wsCount
 	}
 	if strCarry != 0 && !partial {
-		return nil, errSyntax("unterminated string")
+		// Blamed on the end of the input, which is where encoding/json puts it:
+		// the string is unterminated because the document stopped, and the
+		// opening quote was fine when it was read.
+		return nil, errAt("unterminated string", len(data)-1)
 	}
 
 	if noBrackets {
@@ -599,7 +602,7 @@ tail:
 			case '}', ']':
 				if len(stack) == 0 {
 					if !partial {
-						return nil, errSyntax("unbalanced brackets")
+						return nil, errAt("unbalanced brackets", int(p))
 					}
 					ix.note(int(p), "unbalanced brackets")
 					break
@@ -611,7 +614,7 @@ tail:
 				// this needs no second look at the input.
 				if (o&1 == 1) != (data[p] == ']') {
 					if !partial {
-						return nil, errSyntax("mismatched brackets")
+						return nil, errAt("mismatched brackets", int(p))
 					}
 					ix.note(int(p), "mismatched brackets")
 					break
@@ -639,7 +642,7 @@ tail:
 		}
 	}
 	if len(stack) != 0 && !partial {
-		return nil, errSyntax("unterminated container")
+		return nil, errAt("unterminated container", len(data)-1)
 	}
 	ix.pos, ix.match, ix.stack = pos, match, stack
 	return ix, nil
@@ -843,14 +846,14 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 					stack = append(stack, int32(k)<<1|1)
 				case '}', ']':
 					if len(stack) == 0 {
-						return nil, errSyntax("unbalanced brackets")
+						return nil, errAt("unbalanced brackets", int(p))
 					}
 					o := stack[len(stack)-1]
 					stack = stack[:len(stack)-1]
 					// A brace must close a brace and a bracket a bracket. The
 					// opening kind rode along in the stack entry's low bit.
 					if (o&1 == 1) != (data[p] == ']') {
-						return nil, errSyntax("mismatched brackets")
+						return nil, errAt("mismatched brackets", int(p))
 					}
 					oi := o >> 1
 					match[oi] = int32(k)
@@ -862,7 +865,10 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 		}
 	}
 	if strCarry != 0 {
-		return nil, errSyntax("unterminated string")
+		// Blamed on the end of the input, which is where encoding/json puts it:
+		// the string is unterminated because the document stopped, and the
+		// opening quote was fine when it was read.
+		return nil, errAt("unterminated string", len(data)-1)
 	}
 	if validate {
 		if prevLead != 0 {
@@ -872,7 +878,7 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 		ix.wsCount = wsCount
 	}
 	if len(stack) != 0 {
-		return nil, errSyntax("unterminated container")
+		return nil, errAt("unterminated container", len(data)-1)
 	}
 	ix.pos, ix.match, ix.stack = pos, match, stack
 	return ix, nil

@@ -45,14 +45,40 @@ import (
 	"unsafe"
 )
 
-type syntaxError struct{ msg string }
+// A SyntaxError reports that the input is not valid JSON.
+//
+// Offset is the byte in the input where the problem was found, which is the
+// whole reason this is a type and not a string: the position used to be
+// formatted into the message and a caller who wanted it had to parse English
+// back out. encoding/json, encoding/json/v2, goccy and sonic all carry it;
+// fastjson and minio/simdjson-go do not, and that is the wrong side to be on.
+//
+// It is deliberately shaped like [json.SyntaxError] — same field, same meaning,
+// same Error() text apart from the package name — but it cannot be an alias,
+// because json.SyntaxError's msg field is unexported and one cannot be built
+// from outside that package.
+type SyntaxError struct {
+	msg    string
+	Offset int64
+}
 
-func (e *syntaxError) Error() string { return "simdjson: " + e.msg }
+func (e *SyntaxError) Error() string { return "simdjson: " + e.msg }
 
-func errSyntax(msg string) error { return &syntaxError{msg} }
+// errSyntax reports a problem whose position is not known, or not worth
+// reporting -- "unterminated string" found while scanning a mask has no single
+// byte to blame.
+func errSyntax(msg string) error { return &SyntaxError{msg: msg} }
 
+// errAt reports a problem at a byte, and keeps that byte in the error rather
+// than only in its text.
+//
+// Offset is pos+1, not pos, because that is what encoding/json means by the
+// field: "the error occurred after reading Offset bytes". Checked against it
+// directly — every case where both report a position, stdlib's is exactly one
+// more than the index of the offending byte. The message keeps the index, which
+// is what someone looking at a hex dump wants.
 func errAt(msg string, pos int) error {
-	return &syntaxError{fmt.Sprintf("%s at byte %d", msg, pos)}
+	return &SyntaxError{msg: fmt.Sprintf("%s at byte %d", msg, pos), Offset: int64(pos) + 1}
 }
 
 // Kind is the type of a JSON value.
@@ -556,7 +582,13 @@ var spaceByte = func() (t [256]bool) {
 }()
 
 func (d *Doc) lit(i int, want string, k Kind) (Value, int, error) {
-	if i+len(want) > len(d.data) || string(d.data[i:i+len(want)]) != want {
+	if i+len(want) > len(d.data) {
+		// The literal ran off the end. encoding/json blames the end of the
+		// input for this rather than where the literal started, and matching it
+		// is the point of carrying an offset at all.
+		return Value{}, i, errAt("invalid literal", len(d.data)-1)
+	}
+	if string(d.data[i:i+len(want)]) != want {
 		return Value{}, i, errAt("invalid literal", i)
 	}
 	return Value{d: d, kind: k, start: i, end: i + len(want)}, i + len(want), nil
