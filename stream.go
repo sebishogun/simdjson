@@ -205,6 +205,76 @@ func (d *Decoder) Decode(out any) error {
 	}
 }
 
+// Value returns the next value in the stream without decoding it into a Go
+// value.
+//
+// The same framing as [Decoder.Decode] -- separators consumed, batches reused --
+// stopping one step earlier: the value is handed back as a [Value] pointing into
+// the batch rather than copied into a destination. That is what makes reading
+// line-delimited JSON cheap, because most records in a log are read to pull two
+// fields out of them and decoding the other twenty is waste.
+//
+// The value is validated before it is returned, unlike [Scan], because a caller
+// stepping through a stream is asking "is this a record" and the answer has to
+// mean something. That costs about a third of the throughput and is not
+// optional.
+//
+// The returned Value is only valid until the next call. It points into a buffer
+// this Decoder reuses, and reusing it is the whole reason a ten gigabyte stream
+// fits in twenty megabytes.
+//
+// It returns [io.EOF] when the input is exhausted.
+func (d *Decoder) Value() (Value, error) {
+	if len(d.tstack) > 0 && d.inItem {
+		if d.doc != nil {
+			i := d.doc.skip(d.cur)
+			if i < len(d.data) && d.data[i] == ',' {
+				d.cur = i + 1
+				d.off = d.base + d.cur
+			} else {
+				d.doc, d.data = nil, nil
+			}
+		}
+		if d.doc == nil {
+			c, err := d.peek()
+			if err != nil {
+				return Value{}, err
+			}
+			if c == ',' {
+				d.off++
+			}
+		}
+	}
+	for {
+		if d.doc != nil {
+			i := d.doc.skip(d.cur)
+			if i < len(d.data) {
+				v, next, err := d.doc.value(i)
+				if err == nil {
+					// value() settles the extent and the kind; it does not walk
+					// inside a container. Decode validates as it decodes and
+					// Scan is documented not to validate at all, but a caller
+					// reading a log line by line is asking "is this a record",
+					// and answering yes for `{bad}` because nobody looked
+					// inside is the mistake gjson's ForEachLine makes.
+					err = v.validate()
+				}
+				if next > d.cur {
+					d.cur, d.off = next, d.base+next
+				}
+				if err == nil && len(d.tstack) > 0 {
+					d.afterItem()
+				}
+				return v, err
+			}
+			d.doc, d.data = nil, nil
+		}
+		if err := d.load(); err != nil {
+			return Value{}, err
+		}
+	}
+}
+
 // load indexes as many whole values as the buffer holds, reading more if it
 // holds none.
 //
