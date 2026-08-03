@@ -1,8 +1,12 @@
 # simdjson
 
-**JSON parsing for Go that finds the whole document's structure in a few vector
-passes, then walks that instead of the bytes.** Built on
+**JSON for Go that finds the whole document's structure in a few vector passes,
+then walks that instead of the bytes.** Built on
 [simd.go](https://github.com/sebishogun/simd).
+
+A drop-in for `encoding/json` — `Marshal`, `Unmarshal`, `Decoder`, `Encoder`,
+`Valid`, `Compact`, `Indent` — and, underneath, an index you can navigate
+without decoding anything.
 
 **No cgo, and it runs the same on amd64, arm64, riscv64, s390x, ppc64le and
 loong64.** The established Go port,
@@ -36,6 +40,79 @@ doc.Get("items").ForEach(func(v simdjson.Value) bool {
 	return true
 })
 ```
+
+## It is also a drop-in for `encoding/json`
+
+`Marshal`, `Unmarshal`, `Valid`, `Compact`, `Indent`, `MarshalIndent`,
+`HTMLEscape`, `NewDecoder`, `NewEncoder`, `RawMessage`, `Marshaler`,
+`TextMarshaler`, `UseNumber`, `DisallowUnknownFields`, and the `omitempty`,
+`omitzero` and `,string` tags. Every one is checked against `encoding/json` by
+a fuzzer that demands the same bytes and the same error-or-not, not merely the
+same meaning.
+
+Not implemented: `Decoder.Token`, which is a cursor over the syntax rather than
+over the values. It says so rather than half-working.
+
+## Where it stands
+
+One machine, minimum of four, and every number below appeared twice in two
+separate passes — anything the two passes disagreed about is not here. The
+competitors are measured in the same process on the same bytes.
+
+**Parsing.** A document in, a navigable and validated structure out:
+
+| 1 MB–2.3 MB document | this | fastjson | minio | |
+|---|---|---|---|---|
+| twitter, 1.17 MB | 237 µs | 237 µs | 315 µs | parity |
+| citm, 1.73 MB | 636 µs | 711 µs | 692 µs | **1.12×** |
+| canada, 2.25 MB | 1,372 µs | 1,972 µs | 5,609 µs | **1.44×** |
+
+`Scan`, the index without the grammar descent, is 57 µs / 207 µs / 345 µs on the
+same three — 4.1× fastjson on twitter. It is not the same operation; see below.
+
+**Into and out of Go values**, twitter into a struct and back:
+
+| | this | goccy | sonic | encoding/json |
+|---|---|---|---|---|
+| `Unmarshal` → struct | **390 µs** | 398 µs | 443 µs | 2,705 µs |
+| `Marshal` | **90 µs** | 111 µs | — | 129 µs |
+| `MarshalTo`, caller's buffer | 69 µs | — | 38 µs | — |
+| `Fast` options | 46 µs | — | 28 µs | — |
+
+Marshal is the one place another library is clearly ahead: sonic's
+`ConfigStd` is 1.85× this on `MarshalTo`. sonic's *default* config is 28 µs and
+is not comparable to any of these — it does not escape HTML and passes U+2028
+through raw, so it does not produce what `encoding/json` produces.
+
+**Text in, text out**, against `encoding/json`, MB/s:
+
+| | twitter | citm | canada | vs stdlib |
+|---|---|---|---|---|
+| `Valid` | 2,834 | 3,166 | 1,902 | **5.3–6.0×** |
+| `Compact` | 1,457 | 1,895 | 1,702 | **3.9–5.2×** |
+| `Indent` | 1,046 | 1,074 | 612 | **2.2–3.1×** |
+
+`Valid` is 15× goccy's and 1.25× behind sonic's.
+
+**Streaming**, 50,000 newline-delimited records, 6.5 MB:
+
+| | this | goccy | sonic | encoding/json |
+|---|---|---|---|---|
+| `Decoder` | 15.0 ms | **13.1 ms** | 13.6 ms | 38.5 ms |
+| `Encoder` | 9.0 ms | **6.9 ms** | 10.0 ms | 10.4 ms |
+
+goccy is ahead on both. The index is built per buffer rather than per value —
+per value it was 54 ms, slower than everything — and what is left is a framing
+pass that has to find where the last whole value ends before the index can be
+built at all. See `docs/wrong.md`.
+
+**Nine shapes, not three files.** twitter, citm and canada cover
+strings-and-objects, objects-and-whitespace and numbers, and nothing else.
+`shapes_test.go` adds deep nesting, wide objects, long strings, escape-heavy
+strings, non-ASCII, bare numbers, bare literals, pretty-printed and empty
+containers — each about a megabyte, each checked against `encoding/json`
+through every entry point before it is timed. `Scan` holds 12.3–12.5 GB/s on
+every one of them except the two that are nothing but brackets.
 
 ## Numbers, including the ones that are bad
 
