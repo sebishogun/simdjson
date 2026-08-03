@@ -186,21 +186,42 @@ onward, and `docs/lazy-paths.md` has the measurement.
 
 ## What to take
 
-In order of value, which is not the order they were found in:
+In order of value, which is not the order they were found in, and which changed
+once the profile was read rather than guessed at.
 
-1. **Fuse the five mask passes into one.** Every `Parse`, `Scan`, `Valid`,
+**What `Scan` actually spends, on citm and twitter, by line:**
+
+| | ms of 10,140 | share |
+|---|---|---|
+| the six shift-XOR steps of the prefix scan | 1,150 | 11.3% |
+| `switch data[p]`, one dependent load per bracket | 800 | 7.9% |
+| popcount of the structural mask | 880 | 8.7% |
+| structural load and and-not, second pass | 780 | 7.7% |
+| **every vector mask kernel put together** | **2,050** | **20.2%** |
+
+The kernels are a fifth of it. The Go word loop is 72%. That is the opposite of
+what "fuse the vector passes" assumes, and it is why the list below starts
+somewhere else.
+
+1. **Prefix-XOR eight words at a time.** 11.3% of `Scan` goes on six sequential
+   shift-XOR steps per word. minio does the same thing in one `VPCLMULQDQ`;
+   that instruction is not portable, but the chains for different words are
+   independent, so a `u64x8` does eight words' worth in six vector ops and the
+   cross-word carry reduces to a prefix XOR over the top bits alone. About 1.75
+   ops per word against 12. See #116.
+2. **Fuse the five mask passes into one.** Every `Parse`, `Scan`, `Valid`,
    `Compact` and `Indent` pays for five passes over the document and five
    dispatches; minio pays for one. The kernels here are generated from C, so
    this is one kernel that writes four masks, not four kernels called four
-   times. It is the only item on this list that makes the common case faster.
-2. **An array-indexed type cache** for the compiled encoders and decoders,
+   times. Worth roughly two thirds of that 20.2%, and it also makes #117 cheap.
+3. **An array-indexed type cache** for the compiled encoders and decoders,
    instead of `sync.Map` — goccy's `(rtype - base) >> shift`. The per-Decoder
    cache already here is a workaround for the wrong data structure.
-3. **A chunk base for the index**, removing the 2 GiB limit while keeping the
+4. **A chunk base for the index**, removing the 2 GiB limit while keeping the
    binary search that delta encoding would cost. Smaller than it first looked:
    C++ simdjson caps at 4 GB and calls it a documented limit, and the answer
    here above 2 GiB is already `Decoder` and `Token`.
-4. **Lazy scalars in `Parse`.** fastjson's whole advantage on twitter, and
+5. **Lazy scalars in `Parse`.** fastjson's whole advantage on twitter, and
    C++ simdjson's On-Demand mode is the same idea with an index under it. It
    would change what `Parse` means here, so it needs thought rather than
    adoption.
