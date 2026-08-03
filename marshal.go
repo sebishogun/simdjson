@@ -450,6 +450,10 @@ func appendFloat(b []byte, f float64, bits int) []byte {
 	if abs < lim && f == math.Trunc(f) && !(f == 0 && math.Signbit(f)) {
 		return appendInt(b, int64(f))
 	}
+	// Not `if i := int64(f); float64(i) == f`, which looks cheaper and is 2-3%
+	// slower: math.Trunc is one ROUNDSD, and a conversion out to an integer and
+	// back is two conversions with worse latency plus a range test to make the
+	// first one defined. Measured, twice, on both Marshal and MarshalTo.
 	fmtc := byte('f')
 	if abs != 0 {
 		if bits == 64 && (abs < 1e-6 || abs >= 1e21) ||
