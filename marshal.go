@@ -485,6 +485,49 @@ func mapKeyString(k reflect.Value) (string, error) {
 }
 
 // encField is one struct field, prepared once.
+// encLeaf names the field types the struct loop writes without a call. Only
+// the ones whose in-memory shape is exactly the one the writer wants: int64 and
+// uint64 but not the narrower widths, which would need a conversion and would
+// then not be a load.
+type encLeaf uint8
+
+const (
+	leafNone encLeaf = iota
+	leafString
+	leafInt
+	leafUint
+	leafBool
+	leafFloat64
+)
+
+// encLeafOf reports how the struct loop can write a field of type t, or leafNone
+// if it has to call the compiled encoder. A named type with its own MarshalJSON
+// is never a leaf however it is shaped, which is why this asks encoderFor's
+// question first.
+func encLeafOf(t reflect.Type) encLeaf {
+	if t.Implements(marshalerType) || reflect.PointerTo(t).Implements(marshalerType) ||
+		t.Implements(textMarshalerType) || reflect.PointerTo(t).Implements(textMarshalerType) {
+		return leafNone
+	}
+	switch t.Kind() {
+	case reflect.String:
+		return leafString
+	case reflect.Int64, reflect.Int:
+		if t.Size() == 8 {
+			return leafInt
+		}
+	case reflect.Uint64, reflect.Uint, reflect.Uintptr:
+		if t.Size() == 8 {
+			return leafUint
+		}
+	case reflect.Bool:
+		return leafBool
+	case reflect.Float64:
+		return leafFloat64
+	}
+	return leafNone
+}
+
 type encField struct {
 	// key is the whole `"name":` prefix, escaped and quoted at compile time so
 	// that writing a field is one append rather than a quote, an escape pass
@@ -498,7 +541,11 @@ type encField struct {
 	omitZero  bool
 	// isZero is the type's own IsZero method, when it has one. omitzero asks
 	// the type first and falls back to comparing against the zero value.
-	isZero  func(unsafe.Pointer) bool
+	isZero func(unsafe.Pointer) bool
+	// leaf names the kinds the field loop writes itself. The compiled encoder
+	// for a string or an int is three instructions behind an indirect call, and
+	// the call is the larger half; a struct of scalars pays one per field.
+	leaf    encLeaf
 	quoted  bool
 	ptrPath bool
 }
@@ -548,6 +595,7 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				index:     append(append([]int{}, index...), i),
 				omitEmpty: containsOpt(opts, "omitempty"),
 				omitZero:  containsOpt(opts, "omitzero"),
+				leaf:      encLeafOf(sf.Type),
 				isZero:    isZeroMethod(sf.Type),
 				quoted:    containsOpt(opts, "string"),
 				ptrPath:   viaPtr,
@@ -607,8 +655,30 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				}
 				continue
 			}
-			if err := f.fn(e, fp, frv); err != nil {
-				return err
+			// The leaf kinds are written here rather than through f.fn. What
+			// the closure does for a string or an int is a load and an append;
+			// what the call costs is more than that, and a struct of scalars
+			// pays it once per field. Anything else still goes through f.fn,
+			// which is every kind that actually needs a compiled encoder.
+			switch f.leaf {
+			case leafString:
+				e.writeString(*(*string)(fp))
+			case leafInt:
+				e.buf = strconv.AppendInt(e.buf, *(*int64)(fp), 10)
+			case leafUint:
+				e.buf = strconv.AppendUint(e.buf, *(*uint64)(fp), 10)
+			case leafBool:
+				if *(*bool)(fp) {
+					e.buf = append(e.buf, "true"...)
+				} else {
+					e.buf = append(e.buf, "false"...)
+				}
+			case leafFloat64:
+				e.buf = appendFloat(e.buf, *(*float64)(fp), 64)
+			default:
+				if err := f.fn(e, fp, frv); err != nil {
+					return err
+				}
 			}
 		}
 		e.buf = append(e.buf, '}')
