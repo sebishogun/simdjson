@@ -46,35 +46,41 @@ something behind: the second query against the same document is free, which is
 the whole argument for an index and is why the crossover in the README is stated
 in queries rather than in bytes.
 
-## What blocks it
+## What blocked it, and what still does
 
-`buildIndex` already works a window at a time on documents past 4 MB. Stopping
-early needs one thing it cannot currently do: **produce an index for a prefix
-whose tail is cut mid-value.** A prefix of a document is not a document. The
-scan reaches the end inside a string, or with brackets still open, and reports a
-syntax error rather than a partial answer.
+`buildIndex` could not produce an index for a prefix cut mid-value. That half is
+done: **partial mode** now indexes what is there and reports `safeEnd`, one past
+the last top-level container that closed, recording syntax errors with their
+position and reporting them only if they fall before that point. It was built
+for the streaming decoder, where it removed a scalar framing pass worth 17% of a
+decode and made this the fastest of the four decoders measured.
 
-What it would have to return instead:
+It is not enough for lazy paths, and the reason is worth stating because it was
+not obvious until partial mode existed.
 
-- the masks, which are correct up to the last complete string;
-- the bracket positions and their pairs, up to the last one that closed;
-- the offset past which nothing is known.
+`safeEnd` marks whole *top-level* values. A document that is one big object has
+no top-level value that closes until the last byte, so `safeEnd` stays 0 for
+every prefix and the mark says nothing useful. Streaming is the case where it
+works, because a stream is a sequence of top-level values by definition.
 
-and the path descent would have to distinguish *absent* from *not yet indexed*,
-extending by another window in the second case.
+What lazy paths need instead is to **navigate a partial index**: descend into a
+container that has not closed yet, using the bracket positions that are known,
+and distinguish "this field is not in the document" from "this field is not in
+the part indexed so far". Concretely:
 
-## The same blocker, twice
+- `matchBracket` must answer "not yet" for an opener whose partner is past the
+  indexed region, instead of treating it as an internal error;
+- the descent must propagate that upward rather than returning absent;
+- the caller extends by another window and resumes, rather than restarting.
 
-This is the same missing capability as the one holding back the streaming
-decoder. `Decoder.load` has to find where the last whole value ends before it
-can build an index, because an index over half a value is an error — so it runs
-a scalar framing pass over bytes the vector index is about to read again. That
-pass is 17% of a stream decode, and it is the difference between this and goccy
-there.
+The last of those is what makes it worth doing rather than merely possible: work
+already done must not be repeated, or growing the prefix geometrically costs
+twice what indexing it once would.
 
-One change closes both: an index build that tolerates a truncated tail and
-reports how far it got. The streaming decoder stops needing the framing pass at
-all, and lazy paths become possible.
+## What it would be worth
 
-That is the next thing to build here, and it is worth roughly 17% of streaming
-plus the whole first-field case against gjson.
+The rates above, unchanged: about twice gjson per byte. A field in the first
+4 KB of a 631 KB document would cost roughly 865 ns against gjson's 160 ns for
+the very first field and 58,000 ns for one in the middle — ahead everywhere but
+the first few hundred bytes, and leaving an index behind that makes the next
+query free.
