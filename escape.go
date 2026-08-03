@@ -86,9 +86,74 @@ func hasByte(w uint64, b byte) bool {
 
 const hexDigits = "0123456789abcdef"
 
-// writeString appends s as a quoted JSON string.
+// writeString appends s as a quoted JSON string, under the encoder's options.
 func (e *encodeState) writeString(s string) {
-	e.buf = appendQuoted(e.buf, s)
+	e.buf = appendQuotedOpts(e.buf, s, e.opts)
+}
+
+// appendQuotedOpts is appendQuoted with the checks the caller asked for.
+//
+// The two dimensions are independent: HTML escaping changes which bytes end a
+// clean run, and validation decides whether an undecodable byte becomes U+FFFD
+// or is written through. Both default on.
+func appendQuotedOpts(dst []byte, s string, o Options) []byte {
+	if o.EscapeHTML && o.ValidateStrings {
+		return appendQuoted(dst, s)
+	}
+	dst = append(dst, '"')
+	for {
+		n := cleanRunOpts(s, o.EscapeHTML)
+		if n == len(s) {
+			dst = append(dst, s...)
+			break
+		}
+		dst = append(dst, s[:n]...)
+		s = s[n:]
+		c := s[0]
+		switch {
+		case c == '"':
+			dst = append(dst, '\\', '"')
+		case c == '\\':
+			dst = append(dst, '\\', '\\')
+		case c == '\b':
+			dst = append(dst, '\\', 'b')
+		case c == '\f':
+			dst = append(dst, '\\', 'f')
+		case c == '\n':
+			dst = append(dst, '\\', 'n')
+		case c == '\r':
+			dst = append(dst, '\\', 'r')
+		case c == '\t':
+			dst = append(dst, '\\', 't')
+		case c < 0x20 || (o.EscapeHTML && (c == '<' || c == '>' || c == '&')):
+			dst = append(dst, '\\', 'u', '0', '0', hexDigits[c>>4], hexDigits[c&0xF])
+		default:
+			if o.EscapeHTML && c == 0xE2 && len(s) >= 3 && s[1] == 0x80 &&
+				(s[2] == 0xA8 || s[2] == 0xA9) {
+				dst = append(dst, '\\', 'u', '2', '0', '2', hexDigits[s[2]&0xF])
+				s = s[3:]
+				continue
+			}
+			dst = append(dst, c)
+		}
+		s = s[1:]
+	}
+	return append(dst, '"')
+}
+
+// cleanRunOpts is cleanRun with the HTML bytes optionally left alone.
+func cleanRunOpts(s string, html bool) int {
+	if html {
+		return cleanRun(s)
+	}
+	i := 0
+	for ; i < len(s); i++ {
+		c := s[i]
+		if c < 0x20 || c == '"' || c == '\\' {
+			break
+		}
+	}
+	return i
 }
 
 // appendQuoted is writeString for a caller with its own buffer.

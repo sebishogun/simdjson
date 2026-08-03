@@ -200,3 +200,46 @@ func FuzzMarshalAgainstStdlib(f *testing.F) {
 		}
 	})
 }
+
+// The options are a way to buy speed by giving something up, so each has to
+// give up exactly what it says and nothing else.
+func TestOptions(t *testing.T) {
+	type doc struct {
+		S string `json:"s"`
+	}
+	html := doc{S: "a<b>&c"}
+	bad := doc{S: "x" + string([]byte{0xff}) + "y"}
+	uni := doc{S: "line\u2028break"}
+
+	if got, _ := simdjson.Std.Marshal(html); string(got) != `{"s":"a\u003cb\u003e\u0026c"}` {
+		t.Errorf("Std should escape HTML, got %s", got)
+	}
+	if got, _ := simdjson.Fast.Marshal(html); string(got) != `{"s":"a<b>&c"}` {
+		t.Errorf("Fast should not escape HTML, got %s", got)
+	}
+	if got, _ := simdjson.Std.Marshal(uni); string(got) != `{"s":"line\u2028break"}` {
+		t.Errorf("Std should escape U+2028, got %s", got)
+	}
+	if got, _ := simdjson.Std.Marshal(bad); string(got) != `{"s":"x\ufffdy"}` {
+		t.Errorf("Std should replace invalid UTF-8, got %s", got)
+	}
+	if got, _ := simdjson.Fast.Marshal(bad); string(got) == `{"s":"x\ufffdy"}` {
+		t.Errorf("Fast should not validate, got %s", got)
+	}
+	// Std must agree with the package-level Marshal and with encoding/json.
+	for _, v := range []any{html, bad, uni} {
+		a, _ := simdjson.Std.Marshal(v)
+		b, _ := simdjson.Marshal(v)
+		c, _ := json.Marshal(v)
+		if string(a) != string(b) || string(a) != string(c) {
+			t.Errorf("Std=%s Marshal=%s stdlib=%s", a, b, c)
+		}
+	}
+	// And on input that meets Fast's conditions, the two agree.
+	clean := doc{S: "plain ascii and caf\u00e9"}
+	a, _ := simdjson.Std.Marshal(clean)
+	b, _ := simdjson.Fast.Marshal(clean)
+	if string(a) != string(b) {
+		t.Errorf("on clean input Std=%s and Fast=%s should agree", a, b)
+	}
+}

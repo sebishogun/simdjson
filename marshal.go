@@ -21,7 +21,7 @@ import (
 // fuzz test rather than by inspection.
 func Marshal(v any) ([]byte, error) {
 	e := encoderPool.Get().(*encodeState)
-	e.buf = e.buf[:0]
+	e.buf, e.opts = e.buf[:0], Std
 	err := e.marshal(v)
 	if err != nil {
 		encoderPool.Put(e)
@@ -40,7 +40,7 @@ func Marshal(v any) ([]byte, error) {
 // stream of payloads does not allocate a new one for each.
 func MarshalTo(dst []byte, v any) ([]byte, error) {
 	e := encoderPool.Get().(*encodeState)
-	e.buf = e.buf[:0]
+	e.buf, e.opts = e.buf[:0], Std
 	err := e.marshal(v)
 	if err != nil {
 		encoderPool.Put(e)
@@ -53,6 +53,7 @@ func MarshalTo(dst []byte, v any) ([]byte, error) {
 
 type encodeState struct {
 	buf     []byte
+	opts    Options
 	scratch [64]byte
 }
 
