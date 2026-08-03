@@ -136,6 +136,59 @@ allocated. Go slices panic instead, so the same trick needs a padded copy and
 dispatch across haswell/icelake/westmere/arm64 in one binary is the same problem
 this package solves by generating per-ISA assembly ahead of time.
 
+## sonic — read from source, because it is the one gap that is 2x
+
+Read at v1.15.2. It is 2.1x this package on marshal, which is the largest
+margin anyone holds, so it was worth finding out exactly where that goes.
+
+**Floats are Schubfach, written in C and compiled to assembly.**
+`native/f64toa.c:288` is `f64todec`, citing Schubfach and Drachennest, reached
+through `alg.F64toa` (`internal/encoder/alg/spec.go:157`) and dispatched by
+CPUID to an AVX2 or SSE body embedded as a byte array. Go's `strconv` is Ryu,
+which produces the same digits — both are correctly-rounded shortest — so the
+difference is speed, not output.
+
+It has the same whole-number shortcut this package now has
+(`f64toa.c:381`): `if (q <= 0 && q >= -F64_SIG_BITS && is_div_pow2(c, -q))`,
+then `format_integer`. Arriving at that independently and finding it already
+there is the useful kind of confirmation.
+
+*A correction worth recording,* because it was nearly written down as fact.
+sonic's fixed-versus-exponent rule is `sci_exp < -6 || sci_exp > 20`
+(`f64toa.c:245`), and Go's `strconv` shortest-`'g'` switches at `exp < -4 ||
+exp >= 6`. That reads like a divergence from `encoding/json` and it is not:
+`encoding/json` does not use `'g'`. It switches at 1e-6 and 1e21, which is
+sonic's rule exactly. Checked rather than assumed — `json.Marshal(1e6)` is
+`1000000` and `strconv.FormatFloat(1e6, 'g', -1, 64)` is `1e+06`.
+
+**Integers are a two-digit table and magic division** (`native/fastint.h:266`,
+table at `tab.h:22`), with SSE2 only above 10^8. The sub-10^8 path has no SIMD
+in it at all.
+
+**The escape scan is 32-byte AVX2** (`parsing.h:138`) with an SSE 16-byte loop
+and a scalar tail under 16, and the predicate is the same four compares this
+package uses (`parsing.h:114`).
+
+**What the JIT actually buys.** One struct field compiles to: the pre-quoted
+field name as *immediate constants in the instruction stream*
+(`assembler_regabi_amd64.go:369`), the field offset as a constant added to a
+register (`:1012`), one hoisted capacity check (`:406`), and a call to the
+native quote routine. The buffer's pointer, length and capacity live in
+`%rdi`/`%rsi`/`%rdx` for the whole encode, loaded once in the prologue
+(`:320`).
+
+That last part is the one to take, and it does not need a JIT — it needs the
+buffer state in locals and one worst-case reservation per operation instead of
+a checked `append` per piece. The report's own ranking puts it first among the
+portable techniques, above Schubfach.
+
+**And it is amd64-only.** The JIT is `internal/encoder/pools_amd64.go`; arm64
+gets a VM interpreter whose integers go through `strconv.AppendInt`
+(`vm.go:142`, `alg/spec.go:183`), which is exactly this package's current cost.
+On riscv64, s390x, ppc64le and loong64 — and on **Go 1.27 and later** — the
+build tag at `compat.go:1` routes the entire API to `encoding/json`
+(`compat.go:60`). So the 2.1x is one architecture and one range of Go versions.
+
 ## fastjson — why it wins on twitter without any SIMD
 
 It builds a value tree and decodes **nothing**:
