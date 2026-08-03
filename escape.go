@@ -35,11 +35,18 @@ import (
 // "what does this byte need" but "does this run need anything at all", and that
 // is answered eight bytes at a time. A string needing nothing is one memmove.
 //
-// One thing tried and rejected: tracking in that same loop whether any byte was
-// above ASCII, so a pure-ASCII string could skip the UTF-8 validity check
-// entirely. It costs an OR per word and pays only when the string is ASCII —
-// and on a document of tweets most strings are not, so it was 102 us against
-// 86. Sound reasoning, wrong document.
+// One thing tried and rejected, and then arrived at from the other side:
+// tracking in the word loop whether any byte was above ASCII, so a pure-ASCII
+// string could skip the UTF-8 validity check. Written that way it costs an OR
+// per word and it was 102 us against 86.
+//
+// The reasoning was right and the implementation was wrong. Counted, 95% of the
+// strings in twitter.json and 99% of those in citm_catalog.json are pure ASCII,
+// and the median string in either is under a dozen bytes — so the question is
+// not what a scan costs per byte but what it costs per string, and adding work
+// to the word loop is the wrong direction. Answering both questions with one
+// table lookup per byte, and copying whole when the answer is yes, is 13%. See
+// appendQuoted.
 
 // needsEscape[c] is true for the bytes that end a clean run.
 var needsEscape = func() (t [256]bool) {
@@ -248,7 +255,45 @@ func cleanRunOpts(s string, html bool) int {
 // has to be located before the checking starts. unicode/utf8.ValidString is
 // eight times slower on text that is not ASCII than on text that is, and a
 // document of tweets is full of the former — it was 42% of the encode.
+// plainASCIIRun returns the length of the prefix of s that is ASCII and needs
+// no escaping. Both questions from one table lookup per byte.
+func plainASCIIRun(s string) int {
+	i := 0
+	for i < len(s) && plainByte[s[i]] {
+		i++
+	}
+	return i
+}
+
+// plainByte marks the bytes that need neither escaping nor a second thought
+// about UTF-8: printable ASCII, minus the five characters JSON or HTML escaping
+// rewrites.
+var plainByte = func() (t [256]bool) {
+	for c := 0x20; c < 0x80; c++ {
+		t[c] = true
+	}
+	for _, c := range []byte(`"\<>&`) {
+		t[c] = false
+	}
+	return
+}()
+
 func appendQuoted(dst []byte, s string) []byte {
+	// One pass, answering both questions at once. A string of printable ASCII
+	// with nothing to escape is valid UTF-8 by construction, so it needs no
+	// validity check and no escape scan -- it is a quote, a memmove and a
+	// quote.
+	//
+	// That is not a special case, it is the case: 95% of the strings in
+	// twitter.json and 99% of those in citm_catalog.json are pure ASCII, and
+	// the median string in either is under a dozen bytes, so what this path
+	// costs per string matters far more than what it costs per byte. The
+	// separate ValidUTF8 call alone was 14% of an encode.
+	if plainASCIIRun(s) == len(s) {
+		dst = append(dst, '"')
+		dst = append(dst, s...)
+		return append(dst, '"')
+	}
 	if !simd.ValidUTF8(s) {
 		return appendQuotedInvalid(dst, s)
 	}
