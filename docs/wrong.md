@@ -530,3 +530,88 @@ them.
 **The rule.** "Seven passes must be worse than one" is a statement about passes,
 and what matters is what a pass costs. Measure the thing you are trying to beat
 before writing the thing that beats it.
+
+## A 10% regression with no code change at all
+
+`canada.json` lost 9% on `Parse` and 14% on `Valid` between simd.go v1.7.1 and
+v1.8.0. The bisect landed on the commit that bumped the dependency, and the
+obvious reading — a kernel got slower — is wrong in every particular.
+
+**What the dependency bump changed.** v1.8.0 is v1.7.1 plus one kernel,
+`JSONCopyRun`. `Parse` and `Valid` never call it. All four mask kernels are
+byte-identical between the two tags:
+
+	maskBits       SAME  2278c7e5
+	maskBitsLess   SAME  29feccbb
+	maskBitsAny    SAME  fd14ea38
+	maskBitsAny4   SAME  01c4adc1
+
+The regression is present with `GOSIMD=avx512`, `avx2` *and* `sse2` forced, so
+it is not a dispatch decision either.
+
+**What the counters said.** Two test binaries built from identical simdjson
+source, differing only in the dependency version, on the same 2,000 iterations:
+
+	                        v1.7.1          v1.8.0        delta
+	ns/op                1,180,335       1,337,931       +13.4%
+	cycles              11.83 G         13.50 G          +14.1%
+	instructions        80.494951 G     80.495057 G      +0.0001%
+	branches            22.548230 G     22.548255 G      +0.0001%
+	branch-misses           23.06 M         23.04 M       -0.06%
+	L1-icache-misses         472 K           483 K        +2.2%
+	stalled-frontend         0.572 G         1.404 G     +145%
+
+The same instruction stream. The same branches, predicted the same way. No
+instruction-cache problem worth the name. IPC fell from 6.81 to 5.96 and
+frontend stalls went up two and a half times.
+
+**Where.** `perf annotate` puts the cost on `simdjson.go:455`, the loop that
+scans the fraction digits of a number, and the disassembly of that loop in the
+two binaries is byte-for-byte the same instructions at different addresses:
+
+	v1.7.1                                v1.8.0
+	c60d9a: inc    %rdi                   c63b3a: inc    %rdi
+	c60d9d: nopl   (%rax)                 c63b3d: nopl   (%rax)
+	c60da0: cmp    %rcx,%rdi              c63b40: cmp    %rcx,%rdi
+	c60da3: jge    c60db2                 c63b43: jge    c63b52
+	c60da5: movzbl (%rdx,%rdi,1),%esi     c63b45: movzbl (%rdx,%rdi,1),%esi
+	c60da9: add    $0xffffffd0,%esi       c63b49: add    $0xffffffd0,%esi
+	c60dac: cmp    $0x9,%sil              c63b4c: cmp    $0x9,%sil
+	c60db0: jbe    c60d9a                 c63b50: jbe    c63b3a
+
+Adding the kernel moved every symbol after it by 0x2da0 bytes, and 0x2da0 mod
+64 is 32. So every loop in the binary kept its alignment mod 32 and had its
+alignment mod 64 flipped. This one went from offset 26 in its 64-byte line,
+where its 24 bytes fit entirely inside one line, to offset 58, where they
+straddle two. It runs once per digit byte, over about 1.6 million of them.
+
+The compiler's `nopl` is aligning the loop *body* to 32 — `c60da0` and `c63b40`
+are both 32-aligned. The branch target is the `inc` three bytes earlier, and
+three bytes is the whole difference.
+
+**There is no fix from Go source.** Nothing here is a mistake to correct: the
+code is the same code, the compiler did what it was asked, and the address it
+landed at is a property of everything linked before it. Shrinking the loop was
+considered and there is nothing to shrink — 24 bytes is `inc`, a bounds check, a
+load, and a two-instruction range test, and the table-lookup alternative encodes
+to the same size while adding a dependent load. A non-inlined digit-run helper
+would shrink `number` from 1408 bytes to a few hundred, and at 444,000 calls per
+iteration against 5.9 M cycles per iteration the call overhead alone is more
+than a third of the benchmark.
+
+Go PGO does not apply: it reads `default.pgo` from the main package, so a
+library cannot ship one that reaches the programs that import it.
+
+**What this is for.** It cost most of a day to find, and the answer at the end of
+it was "nothing changed". Next time a benchmark moves and the diff does not
+explain it, the first two commands are
+
+	perf stat -e cycles,instructions,branch-misses,stalled-cycles-frontend ./old.test ...
+	perf stat -e cycles,instructions,branch-misses,stalled-cycles-frontend ./new.test ...
+
+and if the instruction counts match to five figures, stop reading the diff.
+
+**The rule.** A benchmark is a measurement of a binary, not of a change. Two
+builds of identical source can differ by 14% for reasons no line of the diff
+mentions. Before attributing a regression to a change, prove the instruction
+count moved.
