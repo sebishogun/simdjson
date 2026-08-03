@@ -21,15 +21,27 @@ import (
 // fuzz test rather than by inspection.
 func Marshal(v any) ([]byte, error) {
 	e := encoderPool.Get().(*encodeState)
-	e.buf, e.opts = e.buf[:0], Std
+	// Encoded straight into the buffer that gets handed back, rather than into
+	// the pooled one and then copied out of it. The copy was the whole output,
+	// once per call: 600 KB on a document of tweets, and a quarter of what
+	// Marshal cost.
+	//
+	// The pooled buffer cannot be handed out — it goes back to the pool and the
+	// next caller would overwrite the last one's result — so what the pool
+	// carries instead is the size the last encode needed. A fresh buffer of
+	// that size grows no more than the first one did.
+	saved := e.buf
+	e.buf, e.opts = make([]byte, 0, e.hint), Std
 	err := e.marshal(v)
+	out := e.buf
+	if len(out) > e.hint {
+		e.hint = len(out)
+	}
+	e.buf = saved
+	encoderPool.Put(e)
 	if err != nil {
-		encoderPool.Put(e)
 		return nil, err
 	}
-	out := make([]byte, len(e.buf))
-	copy(out, e.buf)
-	encoderPool.Put(e)
 	return out, nil
 }
 
@@ -65,6 +77,10 @@ type encodeState struct {
 	addrTyp reflect.Type
 	addrVal reflect.Value
 	addrFn  encodeFn
+
+	// hint is how many bytes the last encode through this state produced, so
+	// the next Marshal can size its buffer without growing into it.
+	hint int
 }
 
 // addressable returns a pointer to rv's data, reusing this encoder's scratch
@@ -593,6 +609,12 @@ type encField struct {
 	leaf    encLeaf
 	quoted  bool
 	ptrPath bool
+	// simple marks a field the loop can write with no questions asked: a fixed
+	// offset, a leaf kind, and none of omitempty, omitzero or ,string. Almost
+	// every field of almost every struct is one, and testing the four flags
+	// separately meant four branches per field in a loop that is 24% of an
+	// encode.
+	simple bool
 }
 
 func compileStructEncoder(t reflect.Type) encodeFn {
@@ -648,12 +670,42 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		}
 	}
 	walk(t, nil, 0, false, 0)
+	for i := range fields {
+		f := &fields[i]
+		f.simple = !f.ptrPath && !f.omitEmpty && !f.omitZero && !f.quoted && f.leaf != leafNone
+	}
 
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
 		e.buf = append(e.buf, '{')
 		first := true
 		for i := range fields {
 			f := &fields[i]
+			if f.simple {
+				fp := unsafe.Add(p, f.offset)
+				if first {
+					first = false
+				} else {
+					e.buf = append(e.buf, ',')
+				}
+				e.buf = append(e.buf, f.key...)
+				switch f.leaf {
+				case leafString:
+					e.writeString(*(*string)(fp))
+				case leafInt:
+					e.buf = strconv.AppendInt(e.buf, *(*int64)(fp), 10)
+				case leafUint:
+					e.buf = strconv.AppendUint(e.buf, *(*uint64)(fp), 10)
+				case leafBool:
+					if *(*bool)(fp) {
+						e.buf = append(e.buf, "true"...)
+					} else {
+						e.buf = append(e.buf, "false"...)
+					}
+				default: // leafFloat64
+					e.buf = appendFloat(e.buf, *(*float64)(fp), 64)
+				}
+				continue
+			}
 			var fp unsafe.Pointer
 			var frv reflect.Value
 			if f.ptrPath {

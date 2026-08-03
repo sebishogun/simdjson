@@ -161,6 +161,18 @@ func appendQuotedOpts(dst []byte, s string, o Options) []byte {
 		return appendQuoted(dst, s)
 	}
 	dst = append(dst, '"')
+	// The same fused copy the stdlib-compatible path uses, once before the
+	// loop. The loop below is what handles a string that has something to
+	// escape; this is what handles the ones that do not, which is most of them.
+	if len(s) >= kernelScanMin {
+		dst = growTo(dst, len(s))
+		k := simd.JSONCopyRun(dst[len(dst):len(dst)+len(s)], s, o.EscapeHTML)
+		dst = dst[:len(dst)+k]
+		if k == len(s) {
+			return append(dst, '"')
+		}
+		s = s[k:]
+	}
 	for {
 		n := scanOpts(s, o.EscapeHTML)
 		if n == len(s) {
@@ -316,8 +328,33 @@ func appendQuoted(dst []byte, s string) []byte {
 	}
 	dst = append(dst, '"')
 	dst = append(dst, s[:n]...)
-	dst = appendBody(dst, s[n:])
+	tail := s[n:]
+	// Copy and scan in one pass, for the tail that is left once the ASCII run
+	// has been taken. What reaches here has something above ASCII in it, which
+	// makes it one of the long strings, and most of those hold nothing that
+	// needs escaping at all — so the usual answer is "all of it", arrived at
+	// without reading the bytes twice.
+	if len(tail) >= kernelScanMin {
+		dst = growTo(dst, len(tail))
+		k := simd.JSONCopyRun(dst[len(dst):len(dst)+len(tail)], tail, true)
+		dst = dst[:len(dst)+k]
+		if k == len(tail) {
+			return append(dst, '"')
+		}
+		tail = tail[k:]
+	}
+	dst = appendBody(dst, tail)
 	return append(dst, '"')
+}
+
+// growTo makes room for n more bytes past dst's length without changing it.
+func growTo(dst []byte, n int) []byte {
+	if cap(dst)-len(dst) < n {
+		nd := make([]byte, len(dst), 2*(len(dst)+n))
+		copy(nd, dst)
+		return nd
+	}
+	return dst
 }
 
 // appendBody writes the contents of a valid-UTF-8 string, without quotes.

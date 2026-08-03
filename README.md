@@ -75,18 +75,20 @@ same three — 4.1× fastjson on twitter. It is not the same operation; see belo
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
 | `Unmarshal` → struct | **390 µs** | 398 µs | 443 µs | 2,705 µs |
-| `Marshal` | **84 µs** | 109 µs | — | 127 µs |
-| `MarshalTo`, caller's buffer | 65 µs | — | 37 µs | — |
-| `Fast` options | 43 µs | — | 30 µs | — |
+| `Marshal` | 76 µs | 109 µs | **36 µs** | 127 µs |
+| `MarshalTo`, caller's buffer | 58 µs | — | — | — |
+| `Fast` options | 40 µs | — | 30 µs | — |
 
-**`MarshalTo` is the one operation measured here where another library is
-faster, and it is not close: sonic's `ConfigStd` is 1.8× this.** It is the same
-factor at both option settings, which says what it is. sonic compiles an encoder
-to machine code at run time and calls hand-written assembly to quote strings, on
-amd64 and arm64. This compiles its kernels ahead of time, ships them as Plan 9
-assembly for six architectures, and needs no cgo and no code generation at run
-time. That is the trade, it is deliberate, and 1.8× is what it costs on this
-one operation.
+**Encoding is the one thing measured here that another library does better, and
+it is not close: sonic's `ConfigStd.Marshal` is 2.1× this.** The same factor
+holds at both option settings, so it is not about what is being escaped. sonic
+compiles an encoder to machine code at run time and calls hand-written assembly
+to quote strings, on amd64 and arm64.
+
+This does the second half of that ahead of time — `JSONCopyRun` in simd.go
+scans and copies in one pass, which is 18% of what closed the gap so far — and
+does not do the first half at all. Run-time code generation is the trade this
+package does not make, and what is left of the 2.1× is mostly that.
 
 **Text in, text out**, against `encoding/json`, MB/s:
 
