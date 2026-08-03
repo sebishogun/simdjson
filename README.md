@@ -110,6 +110,21 @@ Allocation is already lower than goccy's on the decode side: 9.5 MB and 150,183
 allocations against 12.9 MB and 306,525, for the same 6.5 MB of input. What is
 left of the gap is that second scan.
 
+**Small documents are the one size where this is the wrong tool.** The index
+costs the same few passes whether the document is 64 bytes or a megabyte, and
+below about a kilobyte that fixed cost is the whole cost:
+
+| | this | fastjson | encoding/json |
+|---|---|---|---|
+| 64 B | 123 ns | 40 ns | 76 ns |
+| 200 B | 276 ns | 103 ns | 233 ns |
+| 2 KB | **890 ns** | 1,080 ns | 3,437 ns |
+| 20 KB | **7,951 ns** | 10,882 ns | 24,271 ns |
+
+The crossover is between 200 bytes and 2 KB. Below it, use ; it
+is what it is good at, and reaching for a vector unit to read a 64-byte config
+file is not a trade that pays.
+
 **Nine shapes, not three files.** twitter, citm and canada cover
 strings-and-objects, objects-and-whitespace and numbers, and nothing else.
 `shapes_test.go` adds deep nesting, wide objects, long strings, escape-heavy
