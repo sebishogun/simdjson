@@ -84,3 +84,28 @@ The rates above, unchanged: about twice gjson per byte. A field in the first
 the very first field and 58,000 ns for one in the middle — ahead everywhere but
 the first few hundred bytes, and leaving an index behind that makes the next
 query free.
+
+## Since then: the first query stopped being the price
+
+The table above was measured when the path API went through a validating
+[Parse]. It does not any more — `GetPath` indexes with `Scan`, which is what
+gjson.Get does too: neither validates the parts of the document it did not walk
+through.
+
+Indexing twitter.json without validating is 57 µs against 244 µs with, and that
+is the whole of the difference. Two passes, minimum of many:
+
+| query | gjson | this |
+|---|---|---|
+| one field near the front | 105 µs | **83 µs** |
+| one field near the back | 105 µs | **85 µs** |
+| ten fields, one document | 634 µs | **239 µs** |
+
+So the crossover that this document was written to explain is gone. gjson is
+proportional to how far into the document the field is and pays it again for
+every query; this is proportional to the document once. There is no field
+position and no query count at which gjson is now ahead.
+
+What has not changed is the reason: gjson keeps nothing. That is still the right
+design for one query against one document that will never be asked again, and it
+is still why gjson needs no allocation to speak of. It is simply not faster.
