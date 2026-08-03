@@ -26,15 +26,15 @@ func Valid(data []byte) bool {
 			indexPool.Put(ix)
 		}
 	}()
-	ix, err := buildIndex(data, ix, true)
+	ix, err := buildIndexMode(data, ix, true, masksOnly)
 	if err != nil {
 		return false
 	}
-	d, err := scanRoot(data, ix)
+	d, start, err := docFront(data, ix)
 	if err != nil {
 		return false
 	}
-	end, err := d.validateValue(d.root.start)
+	end, err := d.validateValue(start)
 	if err != nil {
 		return false
 	}
@@ -316,20 +316,36 @@ func HTMLEscape(dst *bytes.Buffer, src []byte) {
 	dst.Write(src[start:])
 }
 
+// docFront wraps an index in a Doc and returns where the top-level value
+// starts, without working out where it ends.
+//
+// scanRoot does that too, and does it by matching the root's brackets over the
+// position array — which is the array these three callers asked not to have
+// built. They do not need it: the grammar descent finds the end of the value on
+// its way through, which is the same walk it was going to make anyway.
+func docFront(data []byte, ix *index) (*Doc, int, error) {
+	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
+	i := d.skip(0)
+	if i >= len(data) {
+		return nil, 0, errSyntax("empty input")
+	}
+	return d, i, nil
+}
+
 // indexAndValidate builds the index and proves the document well-formed, which
 // is what Compact and Indent both need before they are allowed to copy
 // anything: encoding/json reports a syntax error rather than emitting a
 // prefix.
 func indexAndValidate(src []byte, ix *index) (*index, *Doc, int, error) {
-	ix, err := buildIndex(src, ix, true)
+	ix, err := buildIndexMode(src, ix, true, masksOnly)
 	if err != nil {
 		return ix, nil, 0, err
 	}
-	d, err := scanRoot(src, ix)
+	d, start, err := docFront(src, ix)
 	if err != nil {
 		return ix, nil, 0, err
 	}
-	end, err := d.validateValue(d.root.start)
+	end, err := d.validateValue(start)
 	if err != nil {
 		return ix, nil, 0, err
 	}

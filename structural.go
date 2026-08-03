@@ -133,7 +133,22 @@ type index struct {
 // the masks will stay in cache. Below the limit the whole-document path is
 // faster because it has no window bookkeeping; above it, it falls off a cliff
 // and the windowed path stays flat. See wholeDocMax.
+// masksOnly is the third thing buildIndex can be asked for, alongside indexing
+// and validating.
+//
+// Valid, Compact and Indent all walk the document from the front and none of
+// them navigates it, so none of them ever reads a bracket position or its
+// partner — the grammar descent proves the brackets nest by expecting them, and
+// the two copying functions only ever consult the whitespace and in-string
+// masks. Extracting the positions and pairing them is then two int32 writes per
+// bracket and a stack, for arrays nobody reads.
+const masksOnly = true
+
 func buildIndex(data []byte, ix *index, validate bool) (*index, error) {
+	return buildIndexMode(data, ix, validate, false)
+}
+
+func buildIndexMode(data []byte, ix *index, validate, noBrackets bool) (*index, error) {
 	if ix == nil {
 		ix = &index{}
 	}
@@ -147,9 +162,9 @@ func buildIndex(data []byte, ix *index, validate bool) (*index, error) {
 		return ix, nil
 	}
 	if len(data) <= wholeDocMax {
-		return buildIndexWhole(data, ix, validate)
+		return buildIndexWhole(data, ix, validate, noBrackets)
 	}
-	return buildIndexWindowed(data, ix, validate)
+	return buildIndexWindowed(data, ix, validate, noBrackets)
 }
 
 // buildIndexWhole indexes a document small enough to hold its masks in cache.
@@ -158,7 +173,7 @@ func buildIndex(data []byte, ix *index, validate bool) (*index, error) {
 // is the shape to use when the masks are never going to leave cache, and it is
 // measurably better than doing the same work through the windowed loop below —
 // about 9% on a 1 MB document — because there is no window bookkeeping.
-func buildIndexWhole(data []byte, ix *index, validate bool) (*index, error) {
+func buildIndexWhole(data []byte, ix *index, validate, noBrackets bool) (*index, error) {
 	// Whole words, so the arithmetic below never has to special-case the last
 	// one. The bytes between the end of the document and the end of its last
 	// word are zeroed rather than left over, so they match nothing.
@@ -269,6 +284,11 @@ func buildIndexWhole(data []byte, ix *index, validate bool) (*index, error) {
 		return nil, errSyntax("unterminated string")
 	}
 
+	if noBrackets {
+		ix.pos, ix.match = ix.pos[:0], ix.match[:0]
+		return ix, nil
+	}
+
 	// Checked separately: they are grown together here, but tying match's
 	// capacity to pos's is the kind of coupling that survives one refactor and
 	// then panics on the slice below.
@@ -338,7 +358,7 @@ func buildIndexWhole(data []byte, ix *index, validate bool) (*index, error) {
 // document stops fitting: 9,146 MB/s at 8 MB against 2,740 at 64 MB. A window's
 // masks are 40 KiB and never leave L2, so the document is read from memory once
 // rather than five times, and throughput goes flat instead.
-func buildIndexWindowed(data []byte, ix *index, validate bool) (*index, error) {
+func buildIndexWindowed(data []byte, ix *index, validate, noBrackets bool) (*index, error) {
 	nw := (len(data) + 63) / 64
 
 	// The masks are built a window at a time rather than for the whole
@@ -490,6 +510,10 @@ func buildIndexWindowed(data []byte, ix *index, validate bool) (*index, error) {
 			}
 
 			cnt += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in)
+		}
+
+		if noBrackets {
+			continue
 		}
 
 		// Grown to hold this window's brackets exactly, doubling when it has to
