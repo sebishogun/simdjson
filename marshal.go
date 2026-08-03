@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"math"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"unsafe"
 )
@@ -81,6 +82,49 @@ type encodeState struct {
 	// hint is how many bytes the last encode through this state produced, so
 	// the next Marshal can size its buffer without growing into it.
 	hint int
+
+	// lastTyp and lastFn remember the encoder used for the previous value
+	// reached through an interface.
+	//
+	// A map[string]any or a []any looks up an encoder per element, and that
+	// lookup hashes an interface -- HashTrieMap.Load plus nilinterhash were 14%
+	// of marshalling a decoded document. Real documents are homogeneous: every
+	// element of an array is the same shape, and the values of a map mostly
+	// are, so the previous answer is usually this answer.
+	//
+	// One entry, not a map. A second map lookup to avoid a map lookup would be
+	// no better, and a one-entry cache costs a comparison.
+	lastTyp reflect.Type
+	lastFn  encodeFn
+
+	// kvbuf is where every map encoder in this encode collects its keys.
+	//
+	// One growing buffer with stack discipline -- a nested map takes a slice
+	// from the end and gives it back on the way out -- instead of two fresh
+	// slices per map, which is what MapKeys plus a pairs slice cost. A decoded
+	// twitter.json is thousands of nested maps, and this package allocated
+	// 44,960 times to marshal it against goccy's 1,870.
+	kvbuf []kv
+
+	// anybuf is where encodeStringMap collects its entries, with the same
+	// stack discipline as kvbuf: a nested map takes the space after this one's
+	// and gives it back. Plain strings and interfaces, not reflect.Values,
+	// which is the whole point -- see encode_any.go.
+	anybuf []kvAny
+}
+
+// encoderForCached is encoderFor with the previous answer checked first.
+//
+// Only for values reached through an interface, where the type is not known
+// until it is in hand. The compiled paths resolve their encoders once at
+// compile time and must not pay this comparison.
+func (e *encodeState) encoderForCached(t reflect.Type) encodeFn {
+	if e.lastTyp == t {
+		return e.lastFn
+	}
+	f := encoderFor(t)
+	e.lastTyp, e.lastFn = t, f
+	return f
 }
 
 // addressable returns a pointer to rv's data, reusing this encoder's scratch
@@ -112,6 +156,13 @@ func (e *encodeState) marshal(v any) error {
 	// with it. encoderFor is a sync.Map keyed by reflect.Type, so it hashes an
 	// interface and walks a trie -- fine once, and 15% of a stream when it is
 	// once per value.
+	// The shapes a JSON decode produces, written without reflect. See
+	// encode_any.go: going through the compiled encoders for these means an
+	// allocation per key and per value, because every reflect operation on a
+	// map boxes its result.
+	if ok, err := e.encodeAny(v); ok {
+		return err
+	}
 	p := e.addressable(rv)
 	if e.addrFn != nil && e.addrTyp == rv.Type() {
 		return e.addrFn(e, p, rv)
@@ -206,7 +257,46 @@ func compileEncoder(t reflect.Type) encodeFn {
 				return nil
 			}
 			el := rv.Elem()
-			return encoderFor(el.Type())(e, ptrOf(el), el)
+			// The scalars are written straight from the reflect.Value.
+			//
+			// The compiled encoders work from a pointer, and a value pulled out
+			// of an interface has no address, so reaching one means ptrOf --
+			// which is a reflect.New and an allocation per value. On a decoded
+			// document that is an allocation for every string, number and bool
+			// in it, and malloc was 17% of marshalling one.
+			//
+			// reflect.Value can read a scalar without an address. Only the
+			// composites, which need a pointer to walk, still pay.
+			switch el.Kind() {
+			case reflect.String:
+				e.buf = appendQuotedOpts(e.buf, el.String(), e.opts)
+				return nil
+			case reflect.Bool:
+				if el.Bool() {
+					e.buf = append(e.buf, "true"...)
+				} else {
+					e.buf = append(e.buf, "false"...)
+				}
+				return nil
+			case reflect.Float64, reflect.Float32:
+				f := el.Float()
+				if math.IsInf(f, 0) || math.IsNaN(f) {
+					return &json.UnsupportedValueError{Str: strconv.FormatFloat(f, 'g', -1, 64)}
+				}
+				bits := 64
+				if el.Kind() == reflect.Float32 {
+					bits = 32
+				}
+				e.buf = appendFloat(e.buf, f, bits)
+				return nil
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				e.buf = strconv.AppendInt(e.buf, el.Int(), 10)
+				return nil
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+				e.buf = strconv.AppendUint(e.buf, el.Uint(), 10)
+				return nil
+			}
+			return e.encoderForCached(el.Type())(e, ptrOf(el), el)
 		}
 	}
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
@@ -519,6 +609,12 @@ func compileArrayEncoder(t reflect.Type) encodeFn {
 
 // compileMapEncoder writes a map with its keys sorted, which is what
 // encoding/json does and what makes its output reproducible.
+// kv is a map key as it will be written and as it must be looked up.
+type kv struct {
+	s string
+	v reflect.Value
+}
+
 func compileMapEncoder(t reflect.Type) encodeFn {
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
 		if !rv.IsValid() {
@@ -528,21 +624,28 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			e.buf = append(e.buf, "null"...)
 			return nil
 		}
-		keys := rv.MapKeys()
-		type kv struct {
-			s string
-			v reflect.Value
-		}
-		pairs := make([]kv, 0, len(keys))
-		for _, k := range keys {
+		// MapRange rather than MapKeys: MapKeys builds a slice of every key
+		// before anything is written, and the keys are wanted one at a time.
+		mark := len(e.kvbuf)
+		it := rv.MapRange()
+		for it.Next() {
+			k := it.Key()
 			s, err := mapKeyString(k)
 			if err != nil {
+				e.kvbuf = e.kvbuf[:mark]
 				return err
 			}
-			pairs = append(pairs, kv{s, k})
+			e.kvbuf = append(e.kvbuf, kv{s, k})
 		}
+		pairs := e.kvbuf[mark:]
+		// Given back on the way out, whatever happens, so a nested map inside
+		// this one gets the space after it.
+		defer func() { e.kvbuf = e.kvbuf[:mark] }()
 		if e.opts.SortMapKeys {
-			sort.Slice(pairs, func(i, j int) bool { return pairs[i].s < pairs[j].s })
+			// slices.SortFunc over a concrete slice, not sort.Slice: sort.Slice
+			// swaps through reflect, and its insertion sort plus the string
+			// compares under it were 18% of marshalling a decoded document.
+			slices.SortFunc(pairs, func(a, b kv) int { return strings.Compare(a.s, b.s) })
 		}
 
 		e.buf = append(e.buf, '{')
@@ -553,7 +656,7 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			e.writeString(pr.s)
 			e.buf = append(e.buf, ':')
 			el := rv.MapIndex(pr.v)
-			if err := encoderFor(el.Type())(e, ptrOf(el), el); err != nil {
+			if err := e.encoderForCached(el.Type())(e, ptrOf(el), el); err != nil {
 				return err
 			}
 		}
