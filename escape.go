@@ -282,16 +282,26 @@ func appendQuoted(dst []byte, s string) []byte {
 	// the median string in either is under a dozen bytes, so what this path
 	// costs per string matters far more than what it costs per byte. The
 	// separate ValidUTF8 call alone was 14% of an encode.
-	if plainASCIIRun(s) == len(s) {
+	n := plainASCIIRun(s)
+	if n == len(s) {
 		dst = append(dst, '"')
 		dst = append(dst, s...)
 		return append(dst, '"')
 	}
-	if !simd.ValidUTF8(s) {
+	// The prefix is already known: printable ASCII, nothing to escape, and
+	// therefore valid UTF-8 by construction. Neither of the two scans that
+	// follow needs to look at it again, and both used to start from the front.
+	//
+	// Cutting at n is a rune boundary whatever stopped the run. A byte above
+	// ASCII stops it at that byte, which is a lead byte or a stray continuation
+	// and is where validation has to begin either way; a byte needing an escape
+	// stops it at an ASCII byte, which is a boundary too.
+	if !simd.ValidUTF8(s[n:]) {
 		return appendQuotedInvalid(dst, s)
 	}
 	dst = append(dst, '"')
-	dst = appendBody(dst, s)
+	dst = append(dst, s[:n]...)
+	dst = appendBody(dst, s[n:])
 	return append(dst, '"')
 }
 
