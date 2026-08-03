@@ -491,3 +491,42 @@ in cache. Two of those beat one loop doing both.
 **The rule.** Count the instructions the fusion adds per block against the
 memory traffic it removes. If the data is already in L1 — and for a string it
 is — there is no traffic to remove and the arithmetic is all cost.
+
+## A second index builder for small documents does not beat the first
+
+Below about a kilobyte this loses to fastjson — 147 ns against 39 on 64 bytes —
+and the reason looked obvious. The vector index costs the same few passes
+whatever the document is: five mask passes, a word pass to resolve the strings,
+a pass to extract and pair the brackets. Seven passes to describe sixty-four
+bytes. One scalar pass ought to win easily.
+
+It does not. Filling the same index in one pass, measured against the vector one
+on the same bytes:
+
+	bytes    one pass   vector
+	   51       84.3     85.8    1.02x
+	  185      305.3    201.2    0.66
+	  497      824.1    230.0    0.28
+	 1013     1,684     284.1    0.17
+
+A wash at fifty bytes and worse everywhere above it. Tightening the loop — a
+class table instead of a chain of comparisons, and setting the in-string bits a
+range at a time when a string closes instead of a bit at a time as the bytes go
+past — made it *slower* again, 106 ns at fifty-one bytes.
+
+The premise was wrong. After the portable mask builders were rewritten word at a
+time, `buildIndexWhole` costs 86 ns for fifty-one bytes, and that is most of the
+147 ns a 64-byte `Parse` takes. It is not seven expensive passes; it is seven
+cheap ones, and a scalar loop over the same bytes is not cheaper than five
+vector calls plus two word passes even at that size.
+
+Getting the two builders to agree was most of the work, and it turned up three
+things worth knowing about the vector index — the whitespace mask covers the
+whole document including inside strings, escapes are resolved before strings so
+a backslash suppresses a quote and nothing else, and a trailing backslash is
+only an error inside a string. All three came from the fuzzer that compared
+them.
+
+**The rule.** "Seven passes must be worse than one" is a statement about passes,
+and what matters is what a pass costs. Measure the thing you are trying to beat
+before writing the thing that beats it.
