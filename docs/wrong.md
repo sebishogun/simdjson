@@ -211,3 +211,28 @@ common turns one call into many. Judge a scan kernel by how long its runs are
 on real data, not by its throughput on a string with no matches in it -- that
 benchmark measures the one case the caller does not have.
 
+## A structural index per value is the wrong unit for a stream
+
+The first streaming Decoder called Unmarshal per value, which builds an index
+per value: five vector passes, a pool fetch, and mask buffers, for a
+hundred-byte record. It was the slowest of the four libraries measured -- 54 ms
+against goccy's 13 and encoding/json's 39 -- by the design that makes this
+package fast everywhere else.
+
+An index costs about the same whether one value reads it or six hundred do. So
+the buffer, not the value, is the unit: index as many whole values as are
+present and decode them all from it. 54 ms to 24.
+
+Then the framing scan -- finding where the last whole value ends, which has to
+happen before the index because an index over half a value is an error rather
+than a partial answer -- was 27% of the decode, five times the index it exists
+to protect. It called simd.IndexAny per hop, and the hops in a record of a
+hundred bytes are a dozen bytes long. The kernel's own length guard cannot help:
+it sees 64 KiB of buffer remaining and takes the vector path to find something
+three bytes away. A bounded scalar run first, kernel after: 24 ms to 16.6.
+
+**The rule.** A per-call cost is amortised by the work in one call, not by the
+size of the buffer that call was handed. Both mistakes here were the same
+mistake -- choosing a strategy by how much data existed rather than by how much
+of it the operation would actually touch.
+

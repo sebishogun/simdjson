@@ -93,11 +93,34 @@ func (v Value) Decode(out any) error {
 	return v.decode(el)
 }
 
+// validate walks v's bytes and reports the first thing wrong with them.
+func (v Value) validate() error {
+	if v.d == nil {
+		return nil
+	}
+	_, err := v.d.validateValue(v.start)
+	return err
+}
+
 // decode stores v into the settable reflect.Value rv.
 func (v Value) decode(rv reflect.Value) error {
 	// The two interfaces come first, and before the null check, because a type
 	// that implements them decides for itself what null means.
 	if u, ok := unmarshalerFor(rv); ok {
+		// The bytes have to be proved well-formed before they go out. Getting
+		// here means the decoder found the extent of the value — by matching
+		// its brackets over the index — and then skipped its contents, because
+		// a type with UnmarshalJSON is going to interpret them itself. Nothing
+		// checked them, and UnmarshalJSON is under no obligation to:
+		// json.RawMessage's copies whatever it is given. So "[A]" decoded into
+		// a RawMessage came back with no error and a RawMessage holding "[A]".
+		//
+		// This is the one place in the package where a value is handed over
+		// without having been walked, so it is the one place that has to walk
+		// it. encoding/json pays the same cost for the same reason.
+		if err := v.validate(); err != nil {
+			return err
+		}
 		return u.UnmarshalJSON(v.Raw())
 	}
 	if v.kind == String {
