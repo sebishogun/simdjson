@@ -78,6 +78,35 @@ Neither uniform answer works. 8% for all fourteen fails on Encode's own noise,
 and a gate that cries wolf gets switched off. 18% for all fourteen lets canada's
 parse quietly lose 10%.
 
+### The floor under all of this is code layout, and it is about 8%
+
+Adding dead code changes these numbers. Four builds of the same source, the only
+difference being 0, 7, 14 or 21 unexported functions that nothing calls:
+
+| build | `GateUnmarshal`, minimum of three |
+|---|---|
+| no padding | 501,741 |
+| 7 dead functions | **491,382** |
+| 14 dead functions | 504,024 |
+| 21 dead functions | **532,253** |
+
+**8.3%, from code that never runs.** Adding a function moves every symbol after
+it, and a hot loop that fitted inside one 64-byte fetch line at one address
+straddles two at another — `docs/wrong.md` entry 13 has the disassembly of a
+case where that cost 14% with an identical instruction stream.
+
+Three things follow. Any single benchmark number here is partly an accident of
+where the linker put things. A regression inside that band is not evidence of
+anything on its own. And the way to tell the difference is to count
+instructions: if two builds retire the same number and one takes longer, no
+change caused it.
+
+	perf stat -e cycles,instructions,stalled-cycles-frontend ./old.test -test.bench X -test.benchtime 8000x
+	perf stat -e cycles,instructions,stalled-cycles-frontend ./new.test -test.bench X -test.benchtime 8000x
+
+This is why the thresholds above are what they are, and it is the reason to be
+suspicious of a tighter one rather than pleased with it.
+
 Adding a *short* benchmark breaks the assumption differently: at 6 to 15 ns/op
 the spread against a median exceeds 100%. Such a benchmark needs its own entry
 in that table, not a looser global threshold.

@@ -328,7 +328,38 @@ func encodeFloatFn(t reflect.Type) encodeFn {
 // exponent is extreme, and then rewrites e+07 as e+7. Byte-identical output is
 // the whole point of a drop-in encoder, so the shape is copied exactly.
 func appendFloat(b []byte, f float64, bits int) []byte {
+	// A float that is a whole number prints as that whole number, and printing
+	// an integer is far cheaper than the shortest-representation search a float
+	// needs. `f` is the format this always uses below 1e21, and `f` with a
+	// precision of -1 gives "3" for 3.0, which is what AppendInt gives too.
+	//
+	// Worth having because whole numbers are most of the floats in real JSON:
+	// counts, ids, prices in whole units, anything that was an integer before
+	// it was put in a float64 field. Shortest-representation formatting is 37%
+	// of a marshal here.
+	//
+	// The bound is what makes the exact integer also the *shortest* decimal that
+	// round-trips, which is what a precision of -1 asks for. Below 2^53 every
+	// integer is exactly representable as a float64 and no two share a value,
+	// so no shorter decimal can round-trip to the same float — 1e15 leaves room
+	// under that and is well inside the 1e21 where the format changes to 'e'.
+	//
+	// A float32 is checked for round-tripping as a float32, where only integers
+	// below 2^24 are distinct. Above that the shortest decimal is not the exact
+	// value: float32(123456792) prints as 123456790, and using the exact
+	// integer would disagree with the standard library.
+	//
+	// Negative zero has to be excluded by hand: it is a whole number, and
+	// int64(-0.0) is 0, which would print "0" where the standard library
+	// prints "-0".
 	abs := math.Abs(f)
+	lim := 1e15
+	if bits == 32 {
+		lim = 1 << 24
+	}
+	if abs < lim && f == math.Trunc(f) && !(f == 0 && math.Signbit(f)) {
+		return strconv.AppendInt(b, int64(f), 10)
+	}
 	fmtc := byte('f')
 	if abs != 0 {
 		if bits == 64 && (abs < 1e-6 || abs >= 1e21) ||

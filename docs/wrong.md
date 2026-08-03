@@ -717,3 +717,45 @@ attached, and the number is about that library. Before adopting it, re-measure
 the thing it is supposed to fix *here*, in the state the code is in now. Two
 implementations were written against a figure that a previous change had
 already invalidated.
+
+## How much of a benchmark is the linker: about 8%
+
+Entry 13 showed a 14% regression caused by nothing but an address change. The
+obvious follow-up question is how big that effect is in general, and it is
+answerable directly: build the same source several times with differing amounts
+of dead code and watch a benchmark that the dead code cannot possibly affect.
+
+Four builds, differing only in 0, 7, 14 or 21 unexported functions that nothing
+calls:
+
+	no padding          501,741 ns
+	7 dead functions    491,382
+	14 dead functions   504,024
+	21 dead functions   532,253
+
+**8.3% between the best and the worst, from code that never executes.**
+
+This is the noise floor under every number in this repository, and it is much
+larger than the run-to-run spread the gate was tuned against — 0.1% to 1.9% for
+most of the gate, 4.5% for `GateUnmarshal`. A benchmark's absolute value is
+partly a fact about where the linker put things.
+
+What it changes:
+
+- A regression smaller than this band is not evidence on its own. The gate's
+  per-benchmark thresholds already reflect it, which is why `GateUnmarshal` is
+  allowed 12% and not 8%.
+- The way to tell a real change from a layout change is the instruction count,
+  not more benchmark runs. Two builds retiring the same instructions in
+  different time did not differ in any way the source explains.
+- It cuts both ways. A change that *appears* to win by 8% may have won a
+  lottery, and re-measuring it after an unrelated commit is the check.
+
+The immediate case: a whole-number fast path in `appendFloat` measured
+MarshalTo -10% and Unmarshal +8.8%. Counters settled it — MarshalTo retires
+82.02 G instructions against 89.75 G, so that is real work removed, while
+Unmarshal retires 90.867 G against 90.876 G and spends the difference entirely
+in frontend stalls. One is a change and the other is an address.
+
+**The rule.** Before believing a benchmark moved, count instructions. Before
+believing it did not, remember it can move 8% for free.
