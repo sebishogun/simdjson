@@ -159,10 +159,26 @@ That answer is `Decoder`, and it has no limit:
 |---|---|---|---|
 | `Decoder` over the file | 9.97 s | 956 MB/s | **19 MB** |
 
-Nineteen megabytes for ten gigabytes, because nothing is ever held whole. The
-one shape still unsupported at that size is a single enormous *array* — the
-decoder buffers until it has a complete value, and one 10 GB value is 10 GB.
-Splitting it needs `Token`, which is not implemented.
+Nineteen megabytes for ten gigabytes, because nothing is ever held whole.
+
+A single enormous *array* works too, which C++ simdjson does not do at all — it
+caps a document at 4 GB for the same reason this one caps at 2 GiB, structural
+indices that are 32 bits wide. Read the opening bracket with [`Decoder.Token`]
+and then decode the elements:
+
+| 10 GB, one array | elements | time | throughput | peak heap |
+|---|---|---|---|---|
+| `Token` then `Decode` | 6,509 | 11.5 s | 833 MB/s | 17 MB |
+| 1 GB, 13.4 M small elements | 13,419,914 | 2.2 s | 433 MB/s | 3 MB |
+
+The elements are indexed in batches rather than one at a time, which is what
+C++ simdjson's `parse_many` does and for the same reason: stage one is a fixed
+cost per call and amortising it over a batch is most of what makes streaming
+fast. The batch is bounded by **bytes, not by count** — an element of a
+megabyte fills one by itself, a hundred-byte record shares one with six hundred
+others. Batching by count instead was 20% slower on the large-element array,
+because it meant indexing several megabytes to save a cost measured in
+microseconds.
 
 **Nine shapes, not three files.** twitter, citm and canada cover
 strings-and-objects, objects-and-whitespace and numbers, and nothing else.

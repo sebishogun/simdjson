@@ -61,6 +61,15 @@ type Decoder struct {
 	useNumber       bool
 	disallowUnknown bool
 
+	// Token's position in the syntax, which Decode has to respect: after Token
+	// has returned an opening bracket, the next Decode reads an element of that
+	// container rather than a top-level value, and there is a comma in front of
+	// it after the first one.
+	tstack   []byte // open brackets, as the characters themselves
+	inItem   bool   // the enclosing container already holds something
+	wantKey  bool   // that container is an object and the next item is a key
+	afterKey bool   // the last token was a key, so a colon comes before its value
+
 	// The decoder for the type last decoded into. decoderFor is a sync.Map
 	// keyed by reflect.Type; consulting it per value was 15% of a stream.
 	fnTyp reflect.Type
@@ -146,6 +155,33 @@ func (d *Decoder) peek() (byte, error) {
 // It returns [io.EOF] when the stream holds no further value, which is what
 // ends a read loop.
 func (d *Decoder) Decode(out any) error {
+	// Inside a container, an element after the first has a comma in front of
+	// it. Token consumes its own separators; Decode has to consume this one,
+	// because the framing scan that follows only knows how to start at a value.
+	if len(d.tstack) > 0 && d.inItem {
+		// Stepped over inside the batch when there is one. Consuming it through
+		// the buffer would mean dropping the index, and dropping the index once
+		// per element is how a batch becomes no batch at all: an array of
+		// thirteen million small elements went from 4.4 seconds to 507.
+		if d.doc != nil {
+			i := d.doc.skip(d.cur)
+			if i < len(d.data) && d.data[i] == ',' {
+				d.cur = i + 1
+				d.off = d.base + d.cur
+			} else {
+				d.doc, d.data = nil, nil
+			}
+		}
+		if d.doc == nil {
+			c, err := d.peek()
+			if err != nil {
+				return err
+			}
+			if c == ',' {
+				d.off++
+			}
+		}
+	}
 	for {
 		if d.doc != nil {
 			i := d.doc.skip(d.cur)
@@ -153,6 +189,11 @@ func (d *Decoder) Decode(out any) error {
 				next, err := d.decodeAt(i, out)
 				if next > d.cur {
 					d.cur, d.off = next, d.base+next
+				}
+				if err == nil && len(d.tstack) > 0 {
+					// The index stays. Token clears it when it runs, and Decode
+					// wants it for the next element of the batch.
+					d.afterItem()
 				}
 				return err
 			}
@@ -184,6 +225,9 @@ func (d *Decoder) load() error {
 		// What this replaces is a scalar scan over the same bytes to find that
 		// point before the vector index was allowed to read them -- 17% of a
 		// decode, spent deciding where the vector pass was permitted to start.
+		if len(d.tstack) > 0 {
+			return d.loadBatch()
+		}
 		if !d.single && d.off < len(d.buf) && canStartValue[d.buf[d.off]] {
 			ix, err := buildIndexMode(d.buf[d.off:], d.ix, true, false, true)
 			d.ix = ix
@@ -250,6 +294,136 @@ func (d *Decoder) load() error {
 		// a stream only becomes complete once there is known to be nothing
 		// after it.
 		if d.err != nil {
+			if d.err == io.EOF {
+				return io.ErrUnexpectedEOF
+			}
+			return d.err
+		}
+		if err := d.fill(); err != nil && err != io.EOF {
+			return err
+		}
+	}
+}
+
+// loadBatch indexes as many whole elements of the open container as the buffer
+// holds, rather than one per call.
+//
+// This is what C++ simdjson's parse_many does and for the same reason: stage
+// one is a fixed cost per call and amortising it over a batch is most of what
+// makes streaming fast. Indexing one element at a time ran the 10 GB array at
+// 705 MB/s against the 956 the line-delimited path gets, on the same bytes —
+// the difference was entirely the batching.
+//
+// The batch stops at the container's closing bracket, which the top-level
+// framing has no reason to look for and would run straight past.
+func (d *Decoder) loadBatch() error {
+	for {
+		if _, err := d.peek(); err != nil {
+			return err
+		}
+		limit, n := d.elementsThrough()
+		if n > 0 {
+			ix, err := buildIndexMode(d.buf[d.off:limit], d.ix, true, false, true)
+			d.ix = ix
+			if err == nil && ix.safeEnd > 0 {
+				if ix.partErr != nil && ix.partErrAt < ix.safeEnd {
+					return ix.partErr
+				}
+				end := d.off + ix.safeEnd
+				doc, err := scanRoot(d.buf[d.off:end], ix)
+				if err == nil {
+					doc.strictSkip = true
+					doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
+					d.doc, d.data = doc, d.buf[d.off:end]
+					d.base, d.cur = d.off, 0
+					return nil
+				}
+			}
+			// The batch would not index. One element on its own still might,
+			// and if it does not the error belongs to that element.
+			return d.loadOne()
+		}
+		if d.err != nil {
+			return d.loadOne()
+		}
+		if err := d.fill(); err != nil && err != io.EOF {
+			return err
+		}
+	}
+}
+
+// elementsThrough returns the end of the last whole element of the open
+// container that the buffer holds, and how many there are. It stops at the
+// closing bracket rather than running past it.
+func (d *Decoder) elementsThrough() (int, int) {
+	i, limit, n := d.off, d.off, 0
+	for {
+		for i < len(d.buf) && isJSONSpace[d.buf[i]] {
+			i++
+		}
+		if i >= len(d.buf) || d.buf[i] == '}' || d.buf[i] == ']' {
+			return limit, n
+		}
+		if n > 0 {
+			if d.buf[i] != ',' {
+				return limit, n
+			}
+			i++
+			for i < len(d.buf) && isJSONSpace[d.buf[i]] {
+				i++
+			}
+			if i >= len(d.buf) {
+				return limit, n
+			}
+		}
+		if !canStartValue[d.buf[i]] {
+			return limit, n
+		}
+		end, ok := d.valueEnd(d.buf, i)
+		if !ok {
+			return limit, n
+		}
+		i, limit, n = end, end, n+1
+		// Batched by bytes, not by count, which is what parse_many does. An
+		// element of a megabyte fills a batch by itself and a hundred-byte
+		// record shares one with six hundred others; batching by count instead
+		// made the 10 GB array slower, because it meant indexing several
+		// megabytes at a time to save a fixed cost measured in microseconds.
+		if limit-d.off >= streamChunk {
+			return limit, n
+		}
+	}
+}
+
+// loadOne indexes exactly one value, for a Decode reading an element the batch
+// could not take: the last one before a refill, or one that will not index.
+func (d *Decoder) loadOne() error {
+	for {
+		if _, err := d.peek(); err != nil {
+			return err
+		}
+		end, ok := d.valueEnd(d.buf, d.off)
+		if ok {
+			ix, err := buildIndexMode(d.buf[d.off:end], d.ix, true, false, false)
+			d.ix = ix
+			if err != nil {
+				return err
+			}
+			doc, err := scanRoot(d.buf[d.off:end], ix)
+			if err != nil {
+				return err
+			}
+			doc.strictSkip = true
+			doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
+			d.doc, d.data = doc, d.buf[d.off:end]
+			d.base, d.cur = d.off, 0
+			return nil
+		}
+		if d.err != nil {
+			if d.err == io.EOF && end > d.off && d.buf[d.off] != '"' &&
+				d.buf[d.off] != '{' && d.buf[d.off] != '[' {
+				continue
+			}
 			if d.err == io.EOF {
 				return io.ErrUnexpectedEOF
 			}
