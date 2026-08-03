@@ -424,7 +424,34 @@ was the reason for attempts 6 and 7, was wrong: the word loop was working the
 whole time, and seven tests that short-circuit beat seventeen operations that
 do not.
 
-**The rule.** Eight attempts at making an inner loop faster, eight losses, in
+**The ninth attempt is the one worth keeping.** The kernel had only ever been
+measured on plain ASCII. Measured instead on what actually reaches `cleanRun` —
+strings with something above ASCII in them, which are the long ones — it is
+clearly ahead:
+
+	                cleanRun   kernel
+	jp-150            53.1 ns    38.2   1.4x
+	mixed-150         42.2       16.2   2.6x
+	jp-400           133.9       27.0   5.0x
+
+So it was integrated the way the earlier failure suggested: once per string in
+`appendQuoted`, before the run-at-a-time loop, instead of once per run inside
+it. A string with nothing to escape — which is most of them — then costs one
+kernel call and a memmove.
+
+	MarshalTo   65.4 65.1 65.3 us -> 71.8 71.5 71.5   10% slower
+
+**That is the finding.** A replacement that is 1.4x to 5x faster on exactly the
+inputs it will see, called once per string instead of once per run, integrated
+at the point the previous post-mortem pointed at, still lost 10%. Nine attempts,
+nine losses, and this one had every argument in its favour and a microbenchmark
+on the right population to back it.
+
+Isolated speedups in this code do not survive integration, and that is now a
+demonstrated property rather than a suspicion. The next person to look at
+`cleanRun` should not start from a microbenchmark.
+
+**The rule.** Nine attempts at making an inner loop faster, nine losses, in
 two different loops. The loops are not the problem, and the ninth measurement
 proved it properly by bounding what was there to win. Count what a loop is
 called on, and measure the replacement in isolation before threading it through
