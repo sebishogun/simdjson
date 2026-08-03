@@ -615,3 +615,56 @@ and if the instruction counts match to five figures, stop reading the diff.
 builds of identical source can differ by 14% for reasons no line of the diff
 mentions. Before attributing a regression to a change, prove the instruction
 count moved.
+
+### Postscript: it was recoverable, and the fix was one keyword
+
+The entry above concluded there was no fix from Go source. That was wrong, and
+the reason it was wrong is worth as much as the diagnosis.
+
+The loop was 24 bytes because it contained **two** branches, not one:
+
+	c64c40: cmp %rcx,%rdi        the signed test the source asked for
+	c64c43: jge ...
+	...                          and, on the entry path, an unsigned bounds check
+
+`for j < len(b) && isDigit(b[j])` with `j` an `int` cannot be compiled to one
+check, because nothing tells the compiler `j` is not negative. It emits the
+signed comparison the source wrote *and* the unsigned bounds check that indexing
+requires. Go's alignment pass then spends three more bytes on a `nopl` to put
+the loop's condition on a 32-byte boundary — which is what leaves the branch
+target, the increment, three bytes earlier and in the previous cache line.
+
+Making the cursor a `uint` removes the second branch, and with it the padding:
+
+	b := d.data
+	n := uint(len(b))
+	j := uint(i)
+	for j < n && isDigit(b[j]) { j++ }
+
+21 bytes, one branch, no padding. Counters on Valid/canada, 1,500 iterations:
+
+	                        pre-regression   regressed        uint cursor
+	cycles                      8.875 G       10.233 G          8.886 G
+	instructions               60.415 G       60.732 G         59.922 G
+	stalled-cycles-frontend     0.592 G        1.439 G          0.823 G
+
+	Valid/canada             1,193,793 ns   1,349,157 ns    1,171,138 ns
+	Parse/canada             1,436,472 ns   1,561,474 ns    1,408,494 ns
+
+Fewer instructions than the version before the regression ever happened, because
+the double check was always there and the misalignment is only what made it
+visible.
+
+An intermediate attempt is worth recording because it looked right and was not.
+Re-slicing at each digit run — `j += digitRun(b[j:])` — gets the same one-branch
+loop, since a counter starting at a literal zero is provably non-negative too.
+It recovered the frontend entirely (0.526 G stalls) and then gave most of it
+back: building a fresh slice header at three sites cost **3.07 billion**
+instructions across the document, 63.49 G against 60.41. The loop shape was
+bought and paid for again in setup. The `uint` gets the shape for nothing.
+
+**The rule, revised.** "No fix from source" is a claim about the search, not
+about the code, and it should be made only after looking at *why* the
+instructions are what they are. The disassembly had said 24 bytes and two
+branches from the beginning. Counting the branches and asking what the second
+one was for is the step that was skipped.

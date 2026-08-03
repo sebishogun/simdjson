@@ -427,12 +427,36 @@ func (d *Doc) value(i int) (Value, int, error) {
 // and the caller — which is looking for a comma or a closing bracket next —
 // rejects it there. That is the same division of labour as before.
 func (d *Doc) number(i int) (int, bool) {
+	// The cursor is a uint, and that is the whole of why this function is
+	// fifteen percent of Valid on canada.json.
+	//
+	// With an int, the compiler cannot prove j is not negative, so `b[j]` under
+	// `j < len(b)` compiles to two branches: the signed test the source asked
+	// for, and an unsigned bounds check it did not. That makes each of the
+	// three digit loops 24 bytes, and Go's alignment pass then spends three of
+	// them on a `nopl` to put the loop's *condition* on a 32-byte boundary —
+	// which leaves the branch target, the increment, three bytes earlier, in
+	// whatever came before. A uint cursor cannot be negative, the second branch
+	// goes, and the loop is 21 bytes needing no padding.
+	//
+	// It has to be a uint rather than a slice taken at i. Re-slicing gets the
+	// same loop shape, and building a fresh slice header at each of the three
+	// loops cost 3.07 billion instructions across canada.json — the shape was
+	// bought and then paid for again in setup. This form has neither: 59.92
+	// billion instructions against 60.41 for the int version it replaces.
+	//
+	// This is not cosmetic. The loop runs once per digit byte, about 1.6
+	// million times per pass over canada.json, and when its 24 bytes straddle
+	// two 64-byte lines the frontend stalls two and a half times as often for
+	// no other reason at all. Entry 13 in docs/wrong.md has the disassembly and
+	// the counters.
 	b := d.data
-	j := i
-	if j < len(b) && b[j] == '-' {
+	n := uint(len(b))
+	j := uint(i)
+	if j < n && b[j] == '-' {
 		j++
 	}
-	if j >= len(b) {
+	if j >= n {
 		return 0, false
 	}
 	switch {
@@ -441,34 +465,34 @@ func (d *Doc) number(i int) (int, bool) {
 		j++
 	case b[j] >= '1' && b[j] <= '9':
 		j++
-		for j < len(b) && isDigit(b[j]) {
+		for j < n && isDigit(b[j]) {
 			j++
 		}
 	default:
 		return 0, false
 	}
-	if j < len(b) && b[j] == '.' {
+	if j < n && b[j] == '.' {
 		j++
-		if j >= len(b) || !isDigit(b[j]) {
+		if j >= n || !isDigit(b[j]) {
 			return 0, false
 		}
-		for j < len(b) && isDigit(b[j]) {
+		for j < n && isDigit(b[j]) {
 			j++
 		}
 	}
-	if j < len(b) && (b[j] == 'e' || b[j] == 'E') {
+	if j < n && (b[j] == 'e' || b[j] == 'E') {
 		j++
-		if j < len(b) && (b[j] == '+' || b[j] == '-') {
+		if j < n && (b[j] == '+' || b[j] == '-') {
 			j++
 		}
-		if j >= len(b) || !isDigit(b[j]) {
+		if j >= n || !isDigit(b[j]) {
 			return 0, false
 		}
-		for j < len(b) && isDigit(b[j]) {
+		for j < n && isDigit(b[j]) {
 			j++
 		}
 	}
-	return j, true
+	return int(j), true
 }
 
 func isDigit(c byte) bool { return c >= '0' && c <= '9' }

@@ -264,7 +264,50 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 	var prevEsc, strCarry, anyWS, prevLead uint64
 	wsCount := 0
 	total := 0
-	for w := 0; w < nw; w++ {
+	w0 := 0
+	if !validate {
+		// Scan's path, and the one where the prefix XOR below is the largest
+		// single item: two words at a time, because the six shift-XOR steps are
+		// a twelve-operation dependency chain and the chains for two different
+		// words do not depend on each other. Only the one-bit carry between
+		// them is sequential, and that is one XOR.
+		//
+		// Two, not four or eight. Measured on 27,000 words in isolation:
+		// one 26,928 ns, two 21,933, four 22,087, eight 22,404. The gain is
+		// entirely there at two and unwinds slowly after.
+		//
+		// Not applied to the validating path: that body is another forty lines
+		// per word, and duplicating it to unroll would trade a delicate
+		// correctness check for a few percent.
+		for ; w0+2 <= nw; w0 += 2 {
+			off := w0 * 8
+			e0 := escapedMask(binary.LittleEndian.Uint64(ix.esc[off:]), &prevEsc)
+			e1 := escapedMask(binary.LittleEndian.Uint64(ix.esc[off+8:]), &prevEsc)
+			x0 := binary.LittleEndian.Uint64(ix.quote[off:]) &^ e0
+			x1 := binary.LittleEndian.Uint64(ix.quote[off+8:]) &^ e1
+			x0 ^= x0 << 1
+			x1 ^= x1 << 1
+			x0 ^= x0 << 2
+			x1 ^= x1 << 2
+			x0 ^= x0 << 4
+			x1 ^= x1 << 4
+			x0 ^= x0 << 8
+			x1 ^= x1 << 8
+			x0 ^= x0 << 16
+			x1 ^= x1 << 16
+			x0 ^= x0 << 32
+			x1 ^= x1 << 32
+			in0 := x0 ^ strCarry
+			in1 := x1 ^ uint64(int64(in0)>>63)
+			strCarry = uint64(int64(in1) >> 63)
+			ix.inStr[w0], ix.inStr[w0+1] = in0, in1
+			if !noBrackets {
+				total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in0)
+				total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off+8:]) &^ in1)
+			}
+		}
+	}
+	for w := w0; w < nw; w++ {
 		off := w * 8
 		bs := binary.LittleEndian.Uint64(ix.esc[off:])
 		escaped := escapedMask(bs, &prevEsc)
