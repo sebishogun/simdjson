@@ -353,3 +353,41 @@ not a check, not a comment-worth of code. Making whitespace skipping cheaper has
 to mean calling `skip` less often or making `skipRun` cheaper, and neither is
 the same problem.
 
+## The escape scan resisted seven attempts, and here is the shape of all of them
+
+`cleanRun` is 44% of a stdlib-compatible encode and has not moved. Every attempt
+to move it is below, with what each one predicted and what it measured, because
+the pattern across them says more than any one of them.
+
+	1  vector kernel over every string          4% slower
+	2  vector kernel, after the ASCII fast      14% slower
+	   path left only long strings
+	3  goccy's one-mask scan in cleanRun        2.5% slower
+	4  goccy's one-mask scan in the fast path   3% slower
+	5  single-load le64str                      3.5% slower
+	6  exact control test in cleanRun           2.5% slower
+	7  exact control test, retried after the    wash
+	   profile changed
+
+Attempt 2 was made because attempt 1's explanation predicted it would work.
+Attempt 7 was made because attempt 6's explanation turned out to be wrong --
+the claim was that `0xE2` ends the word loop on Japanese text, and Japanese is
+`E3 81 82`, so what actually ended it was the masked control test reading `0x81`
+as `0x01`. Fixing that was still a wash, because by then the ASCII fast path
+had cut the string before its first non-ASCII byte and what reached `cleanRun`
+was too short for a word loop to matter.
+
+**The through-line.** Every one of these makes the scan cheaper per byte. None
+of them makes it cheaper per string, and the strings are eleven bytes. The
+median string in twitter.json is eleven bytes; in citm_catalog.json it is eight,
+and citm has four escapes in 221 KB. There is no amortisation to be had.
+
+What did work, twice, was removing work rather than speeding it up: answering
+the escape question and the UTF-8 question with one table pass (13%), and not
+rescanning the prefix that pass had already proved clean (3%). And what worked
+outside the scan was removing calls: leaf kinds written in the struct loop
+instead of dispatched to (3%), and again for slice elements.
+
+**The rule.** When six attempts at making an inner loop faster all lose, the
+inner loop is not the problem. Count what it is called on before optimising what
+it does.
