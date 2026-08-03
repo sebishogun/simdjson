@@ -213,10 +213,14 @@ func TestStreamRoundTrip(t *testing.T) {
 		ID   int    `json:"id"`
 		Text string `json:"text"`
 	}
+	n := 20000
+	if testing.Short() {
+		n = 500 // still several refills, which is what this is testing
+	}
 	var enc bytes.Buffer
 	e := NewEncoder(&enc)
 	var want []row
-	for i := 0; i < 20000; i++ {
+	for i := 0; i < n; i++ {
 		r := row{ID: i, Text: strings.Repeat("x", i%97)}
 		want = append(want, r)
 		if err := e.Encode(r); err != nil {

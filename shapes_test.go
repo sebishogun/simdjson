@@ -114,6 +114,12 @@ func repeatInArray(unit string) []byte {
 // that is only benchmarked and never checked is a shape where being fast proves
 // nothing.
 func TestShapesMatchStdlib(t *testing.T) {
+	if testing.Short() {
+		// Nine megabyte documents through five entry points each. Worth every
+		// second on a real machine and several minutes under emulation, which
+		// is the only place -short is passed.
+		t.Skip("nine megabyte documents; -short")
+	}
 	for name, data := range shapeCorpus() {
 		t.Run(name, func(t *testing.T) {
 			if !stdjson.Valid(data) {

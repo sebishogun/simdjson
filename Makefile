@@ -1,0 +1,68 @@
+# Everything that has to pass before a commit, and the lanes that are easy to
+# forget.
+#
+# The cross lane is here because this package reads masks that assembly kernels
+# wrote, and reads them with binary.LittleEndian regardless of what the machine
+# is. That is correct — the kernels write a bit per byte in a fixed order — and
+# it is exactly the kind of correct that stops being true after a refactor and
+# is invisible on amd64. s390x is big-endian and takes 0.4 seconds to ask.
+
+GO ?= go
+DOCKER ?= docker
+
+.PHONY: all verify test test-race test-tiers test-purego test-cross fuzz bench fmt fmt-check vet
+
+all: verify ## The default
+
+verify: fmt-check vet test test-race test-tiers test-purego ## Everything short of the cross lane
+
+test: ## Run the suite
+	$(GO) test ./...
+
+test-race: ## The suite under the race detector
+	$(GO) test -race ./...
+
+test-tiers: ## Once per instruction-set tier simd.go can dispatch to
+	@for t in scalar sse2 avx2 avx512; do \
+		printf '%-10s ' "$$t"; \
+		GOSIMD=$$t $(GO) test -count=1 ./... || exit 1; \
+	done
+
+test-purego: ## Against simd.go's portable reference
+	$(GO) test -count=1 -tags purego ./...
+
+# The tests skipped by -short are the ones that build nine megabyte documents
+# or twenty thousand stream records. They are worth their seconds on a real
+# machine and are minutes under emulation, which is the only place -short is
+# passed.
+test-cross: ## arm64, s390x and ppc64le under docker + qemu
+	@for p in linux/arm64 linux/s390x linux/ppc64le; do \
+		echo "--- $$p"; \
+		$(DOCKER) run --rm --platform $$p -v "$(PWD)":/src -w /src \
+			-e GOFLAGS=-buildvcs=false -e CGO_ENABLED=0 golang:1.26 \
+			sh -c 'go test -short -vet=off -timeout 1200s ./...' || exit 1; \
+	done
+
+FUZZTIME ?= 60s
+
+# Every one of these compares against encoding/json and demands the same bytes
+# and the same error-or-not, which is the only standard worth holding a JSON
+# library to.
+fuzz: ## Fuzz each differential against encoding/json for FUZZTIME each
+	@for f in FuzzAgainstStdlib FuzzUnmarshalAgainstStdlib FuzzMarshalAgainstStdlib \
+	          FuzzTextOpsAgainstStdlib FuzzDecoderAgainstStdlib; do \
+		printf '%-32s ' "$$f"; \
+		$(GO) test -run '^$$' -fuzz $$f -fuzztime $(FUZZTIME) . 2>&1 | tail -1 || exit 1; \
+	done
+
+bench: ## Every benchmark once
+	$(GO) test -run '^$$' -bench . -benchmem ./...
+
+fmt: ## Format
+	$(GO) fmt ./...
+
+fmt-check: ## Fail if anything is not gofmt-clean
+	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "not gofmt-clean:"; echo "$$out"; exit 1; fi
+
+vet: ## go vet
+	$(GO) vet ./...
