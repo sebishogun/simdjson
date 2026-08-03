@@ -272,6 +272,10 @@ func (d *Doc) skip(i int) int {
 	if d.noWS || i >= len(d.data) || d.data[i] > ' ' {
 		return i
 	}
+	// Nothing may be added here. This function inlines at cost 79 against a
+	// budget of 80, it is called once or twice per token, and losing the inline
+	// costs 6% — measured, by adding a fast path for the single-byte runs that
+	// are 46% of the whitespace in twitter.json. See docs/wrong.md.
 	return d.skipRun(i)
 }
 

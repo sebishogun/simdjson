@@ -321,3 +321,35 @@ slower. Instruction counts do not predict this code any more; branch behaviour
 and the length distribution of real strings do. Measure, interleaved, or do not
 change it.
 
+## skip costs 79 against a budget of 80
+
+Whitespace skipping is 40% of `Valid` on twitter.json, which is 27% whitespace,
+and the obvious improvement is sitting right there: 46% of the whitespace runs
+outside strings are exactly one byte — the space after a colon — and answering
+those with a comparison instead of a mask load, a shift and a bit scan should be
+free.
+
+	if i+1 < len(d.data) && d.data[i+1] > ' ' {
+		return i + 1
+	}
+
+6% slower. The branch is reached only by the 7% of calls that meet whitespace at
+all, so it cannot cost 6% by executing. It costs it by existing:
+
+	before  can inline (*Doc).skip with cost 79 ... budget 80
+	after   cannot inline (*Doc).skip: function too complex: cost 100
+
+`skip` is called once or twice per token, several hundred thousand times per
+document, and losing the inline turns every one of those into a call. One unit
+of headroom under the budget.
+
+The file already said this, from the last time: "Doing that instead pushes skip
+past the inlining budget, and losing the inline costs far more than the two
+loads it saves." It was right, and it was about a different change, and the
+number was not written down.
+
+It is now. **`skip` is closed.** Nothing can be added to it — not a fast path,
+not a check, not a comment-worth of code. Making whitespace skipping cheaper has
+to mean calling `skip` less often or making `skipRun` cheaper, and neither is
+the same problem.
+
