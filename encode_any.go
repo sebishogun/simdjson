@@ -48,9 +48,9 @@ func (e *encodeState) encodeAny(v any) (bool, error) {
 		}
 		e.buf = appendFloat(e.buf, x, 64)
 	case int:
-		e.buf = strconv.AppendInt(e.buf, int64(x), 10)
+		e.buf = appendInt(e.buf, int64(x))
 	case int64:
-		e.buf = strconv.AppendInt(e.buf, x, 10)
+		e.buf = appendInt(e.buf, x)
 	case json.Number:
 		// A json.Number is its own digits, already valid, and writing it any
 		// other way would change them.

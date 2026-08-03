@@ -290,10 +290,10 @@ func compileEncoder(t reflect.Type) encodeFn {
 				e.buf = appendFloat(e.buf, f, bits)
 				return nil
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				e.buf = strconv.AppendInt(e.buf, el.Int(), 10)
+				e.buf = appendInt(e.buf, el.Int())
 				return nil
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				e.buf = strconv.AppendUint(e.buf, el.Uint(), 10)
+				e.buf = appendUint(e.buf, el.Uint())
 				return nil
 			}
 			return e.encoderForCached(el.Type())(e, ptrOf(el), el)
@@ -341,27 +341,27 @@ func encodeIntFn(t reflect.Type) encodeFn {
 	switch t.Kind() {
 	case reflect.Int:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendInt(e.buf, int64(*(*int)(p)), 10)
+			e.buf = appendInt(e.buf, int64(*(*int)(p)))
 			return nil
 		}
 	case reflect.Int8:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendInt(e.buf, int64(*(*int8)(p)), 10)
+			e.buf = appendInt(e.buf, int64(*(*int8)(p)))
 			return nil
 		}
 	case reflect.Int16:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendInt(e.buf, int64(*(*int16)(p)), 10)
+			e.buf = appendInt(e.buf, int64(*(*int16)(p)))
 			return nil
 		}
 	case reflect.Int32:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendInt(e.buf, int64(*(*int32)(p)), 10)
+			e.buf = appendInt(e.buf, int64(*(*int32)(p)))
 			return nil
 		}
 	}
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-		e.buf = strconv.AppendInt(e.buf, *(*int64)(p), 10)
+		e.buf = appendInt(e.buf, *(*int64)(p))
 		return nil
 	}
 }
@@ -370,27 +370,27 @@ func encodeUintFn(t reflect.Type) encodeFn {
 	switch t.Kind() {
 	case reflect.Uint:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendUint(e.buf, uint64(*(*uint)(p)), 10)
+			e.buf = appendUint(e.buf, uint64(*(*uint)(p)))
 			return nil
 		}
 	case reflect.Uint8:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendUint(e.buf, uint64(*(*uint8)(p)), 10)
+			e.buf = appendUint(e.buf, uint64(*(*uint8)(p)))
 			return nil
 		}
 	case reflect.Uint16:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendUint(e.buf, uint64(*(*uint16)(p)), 10)
+			e.buf = appendUint(e.buf, uint64(*(*uint16)(p)))
 			return nil
 		}
 	case reflect.Uint32:
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-			e.buf = strconv.AppendUint(e.buf, uint64(*(*uint32)(p)), 10)
+			e.buf = appendUint(e.buf, uint64(*(*uint32)(p)))
 			return nil
 		}
 	}
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-		e.buf = strconv.AppendUint(e.buf, *(*uint64)(p), 10)
+		e.buf = appendUint(e.buf, *(*uint64)(p))
 		return nil
 	}
 }
@@ -448,7 +448,7 @@ func appendFloat(b []byte, f float64, bits int) []byte {
 		lim = 1 << 24
 	}
 	if abs < lim && f == math.Trunc(f) && !(f == 0 && math.Signbit(f)) {
-		return strconv.AppendInt(b, int64(f), 10)
+		return appendInt(b, int64(f))
 	}
 	fmtc := byte('f')
 	if abs != 0 {
@@ -559,9 +559,9 @@ func compileLeafSliceEncoder(leaf encLeaf, esize uintptr) encodeFn {
 			case leafString:
 				e.writeString(*(*string)(ep))
 			case leafInt:
-				e.buf = strconv.AppendInt(e.buf, *(*int64)(ep), 10)
+				e.buf = appendInt(e.buf, *(*int64)(ep))
 			case leafUint:
-				e.buf = strconv.AppendUint(e.buf, *(*uint64)(ep), 10)
+				e.buf = appendUint(e.buf, *(*uint64)(ep))
 			case leafBool:
 				if *(*bool)(ep) {
 					e.buf = append(e.buf, "true"...)
@@ -850,9 +850,9 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				case leafString:
 					b = appendQuotedOpts(b, *(*string)(fp), e.opts)
 				case leafInt:
-					b = strconv.AppendInt(b, *(*int64)(fp), 10)
+					b = appendInt(b, *(*int64)(fp))
 				case leafUint:
-					b = strconv.AppendUint(b, *(*uint64)(fp), 10)
+					b = appendUint(b, *(*uint64)(fp))
 				case leafBool:
 					if *(*bool)(fp) {
 						b = append(b, "true"...)
@@ -922,9 +922,9 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 			case leafString:
 				e.writeString(*(*string)(fp))
 			case leafInt:
-				e.buf = strconv.AppendInt(e.buf, *(*int64)(fp), 10)
+				e.buf = appendInt(e.buf, *(*int64)(fp))
 			case leafUint:
-				e.buf = strconv.AppendUint(e.buf, *(*uint64)(fp), 10)
+				e.buf = appendUint(e.buf, *(*uint64)(fp))
 			case leafBool:
 				if *(*bool)(fp) {
 					e.buf = append(e.buf, "true"...)
