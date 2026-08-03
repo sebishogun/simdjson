@@ -759,3 +759,44 @@ in frontend stalls. One is a change and the other is an address.
 
 **The rule.** Before believing a benchmark moved, count instructions. Before
 believing it did not, remember it can move 8% for free.
+
+## Fusing the five mask calls in Go, for documents too small to pay for them
+
+A 36-byte document is four and a half words, and classifying it costs five calls
+into simd — `MaskBits` twice, `MaskBitsAny` twice, `MaskBitsLess` once. Each is a
+generic dispatch, a threshold check that sends it to the portable path anyway,
+and a loop of four iterations. Profiling a 36-byte `Parse` puts 35% in those
+five calls, and `simd.MaskBitsAny[go.shape.[]uint8]` alone at 14%.
+
+So: do the same arithmetic, in the same order, word at a time, for all five
+masks in one loop. Not a scalar index builder — that is entry 12 and it lost for
+different reasons — just the five calls collapsed into the loop that was already
+running.
+
+It is slower at every size it applies to. Interleaved, two passes, minimum:
+
+	bytes   five calls   one loop
+	   15         87.4      118.3   +35%
+	   29        106.2      126.7   +19%
+	   36        116.6      134.7   +16%
+	   50        135.2      158.0   +17%
+	   64        121.9      119.9    -2%
+
+**The interesting part is that a first measurement said the opposite.** Sweeping
+the threshold and comparing against numbers taken from an *earlier build* showed
+36 bytes going from 138.8 ns to 117.9 — a 15% win, consistent across four
+threshold values. Every one of those numbers came from a separately compiled
+binary, and the entry above this one measured that exact mistake at 8.3%.
+
+The A/B is one binary against one binary, interleaved, and it says the opposite.
+
+Why it loses is not mysterious once believed: eleven SWAR operations per word
+against a compare and a predicate store. The dispatch overhead is real and it is
+smaller than eleven operations per word, even at four words. There is no size at
+which this wins, because the fixed cost it removes is smaller than the variable
+cost it adds at the very first word.
+
+**The rule.** A threshold sweep against remembered numbers is not a measurement.
+Build both, run them alternately, and compare within one pass — and be most
+suspicious when a sweep is *consistent*, because consistency across builds is
+what a layout difference looks like.
