@@ -218,9 +218,24 @@ func cleanRunOpts(s string, html bool) int {
 	i := 0
 	for ; i+8 <= len(s); i += 8 {
 		w := le64str(s, i)
-		// Anything below 0x20, with the high bits masked off first so a byte
-		// above ASCII cannot borrow into its neighbour.
-		if a := w &^ hi; (a-lo*0x20)&^a&hi != 0 {
+		// Anything below 0x20, exactly.
+		//
+		// Masking the high bit off and comparing, which is what cleanRun does,
+		// stops a byte above ASCII borrowing into its neighbour by turning it
+		// into a control character itself: 0x81 masked is 0x01, and 0x81 is a
+		// UTF-8 continuation byte. Setting the high bit instead stops the borrow
+		// without changing the value — 0x80 + low7 - 0x20 never goes negative —
+		// and anding away the bytes that started with their high bit set leaves
+		// bytes genuinely below 0x20 and nothing else.
+		//
+		// It is worth an operation here and not in cleanRun, and the difference
+		// is the rest of the set. This path looks for two bytes, both ASCII, so
+		// an exact control test means the word loop runs through non-ASCII text
+		// to the end. cleanRun also looks for 0xE2, which stops it at that text
+		// anyway, so there the extra operation buys nothing and costs 2.5%.
+		// Measured both ways on both paths: Fast 46.5-47.1 us to 44.8-45.5,
+		// MarshalTo 67.9-68.5 to 68.2-68.6.
+		if d := (w&^hi | hi) - lo*0x20; ^d&^w&hi != 0 {
 			break
 		}
 		if hasByte(w, '"') || hasByte(w, '\\') {
