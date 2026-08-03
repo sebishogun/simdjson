@@ -225,6 +225,50 @@ func unquote(b []byte) (string, bool) {
 
 // unescapeInto appends in's contents to dst with escapes undone and invalid
 // UTF-8 replaced, and returns the result.
+// indexBackslash finds the next backslash at or after i, or -1.
+//
+// bytes.IndexByte is the right call when the next escape is far away and the
+// wrong one when it is four bytes off, because its cost is mostly setup and
+// does not shrink with the distance it covers. On a document whose strings are
+// mostly escapes it was 30% of the decode, hopping four bytes at a time. A
+// bounded scalar run first leaves the vector search for what it is good at: a
+// long stretch of ordinary text, which is what most strings are.
+//
+// Same shape, and the same reason, as the framing scan in stream.go.
+// escHop is how far the scalar run goes here. The framing scan in stream.go
+// uses 80, because its hops are a handful of bytes; escapes are further apart,
+// and the two documents that matter pull in opposite directions -- a document
+// of escapes has one every four bytes, a document of URLs one every thirty.
+//
+//	escHop   twitter   escape-heavy
+//	     8     398.6 us     1971 us
+//	    16     392.7        1963
+//	    32     395.3        1945
+//	  none     392.0        2559
+//
+// All three win the same 23% on escapes, so the choice is between costing the
+// far-apart case something and costing it nothing. 16 costs it nothing.
+const escHop = 16
+
+func indexBackslash(in []byte, i int) int {
+	n := i + escHop
+	if n > len(in) {
+		n = len(in)
+	}
+	for ; i < n; i++ {
+		if in[i] == '\\' {
+			return i
+		}
+	}
+	if i >= len(in) {
+		return -1
+	}
+	if j := bytes.IndexByte(in[i:], '\\'); j >= 0 {
+		return i + j
+	}
+	return -1
+}
+
 func unescapeInto(dst, in []byte) []byte {
 	out := dst
 	for i := 0; i < len(in); {
@@ -237,11 +281,12 @@ func unescapeInto(dst, in []byte) []byte {
 		// the UTF-8 check below applies to the whole result, and returning here
 		// skipped it. The fuzzer found that immediately — a lone 0x9b after an
 		// escape came back unreplaced.
-		n := bytes.IndexByte(in[i:], '\\')
+		n := indexBackslash(in, i)
 		if n < 0 {
 			out = append(out, in[i:]...)
 			break
 		}
+		n -= i
 		if n > 0 {
 			out = append(out, in[i:i+n]...)
 			i += n
