@@ -212,10 +212,17 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 	nw := (len(data) + 63) / 64
 	ix.quote = maskBuf(ix.quote, nw, len(data))
 	ix.esc = maskBuf(ix.esc, nw, len(data))
-	ix.structural = maskBuf(ix.structural, nw, len(data))
 	simd.MaskBits(ix.quote, data, '"')
 	simd.MaskBits(ix.esc, data, '\\')
-	simd.MaskBitsAny(ix.structural, data, structSet)
+	// The bracket mask is only read by the pass that extracts the positions
+	// and pairs them, so a caller that asked not to have that pass does not
+	// need it: Valid, Compact and Indent were paying a vector pass over the
+	// whole document, and a popcount per word of it, for a mask nothing then
+	// looked at.
+	if !noBrackets {
+		ix.structural = maskBuf(ix.structural, nw, len(data))
+		simd.MaskBitsAny(ix.structural, data, structSet)
+	}
 	if validate {
 		ix.ctl = maskBuf(ix.ctl, nw, len(data))
 		ix.ws = maskBuf(ix.ws, nw, len(data))
@@ -265,7 +272,9 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 		strCarry = uint64(int64(in) >> 63)
 		ix.inStr[w] = in
 
-		total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in)
+		if !noBrackets {
+			total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in)
+		}
 
 		if !validate {
 			continue
