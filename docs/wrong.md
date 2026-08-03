@@ -401,7 +401,32 @@ nineteen bytes and mostly digits, so eight-at-a-time should halve it:
 A short, perfectly predicted byte loop that the compiler already understands is
 hard to beat with anything that has setup.
 
+**How much was ever available.** After the eighth loss, the two forms of
+`cleanRun` were measured against each other on their own, instead of through an
+encode:
+
+	shape         seven tests   one mask
+	ascii-140         55.2 ns     48.1     1.15x
+	jp-150            53.0        51.4     1.03x
+	ascii-11           4.25        5.31     0.80x
+
+The best case is 15% and the common case is 25% worse — and the common case is
+the case, because the median string is eleven bytes. That is the whole of the
+in-situ 2.5%, and it is a *bound* rather than another failure: `cleanRun` is 44%
+of an encode, so even winning every long string at 1.15x is about 2% of
+`MarshalTo`. The 1.77x is not in this loop and no amount of work on it will
+find the 1.77x.
+
+The same measurement corrected a second belief. `cleanRun` runs at 2.5 GB/s on
+Japanese text and 2.5 GB/s on ASCII — the same rate. The story that its word
+loop was breaking on continuation bytes and falling into the byte loop, which
+was the reason for attempts 6 and 7, was wrong: the word loop was working the
+whole time, and seven tests that short-circuit beat seventeen operations that
+do not.
+
 **The rule.** Eight attempts at making an inner loop faster, eight losses, in
-two different loops. The loops are not the problem. Count what they are called
-on before optimising what they do — and when the answer is "eleven bytes, a few
-hundred thousand times", the work to remove is the call, not the loop.
+two different loops. The loops are not the problem, and the ninth measurement
+proved it properly by bounding what was there to win. Count what a loop is
+called on, and measure the replacement in isolation before threading it through
+a program — when the answer is "eleven bytes, a few hundred thousand times",
+the work to remove is the call, not the loop.
