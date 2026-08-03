@@ -546,7 +546,6 @@ type Encoder struct {
 	err  error
 
 	prefix, indent string
-	buf            []byte
 	ibuf           bytes.Buffer
 }
 
@@ -574,27 +573,40 @@ func (e *Encoder) Encode(v any) error {
 	if e.err != nil {
 		return e.err
 	}
-	b, err := e.opts.MarshalTo(e.buf[:0], v)
-	if err != nil {
+	// Straight out of the encoder's own buffer rather than through MarshalTo,
+	// which encodes into a pooled buffer and then copies the result into the
+	// caller's. For a stream that copy is the whole record, once per record,
+	// to no purpose: what the buffer is for is being written.
+	es := encoderPool.Get().(*encodeState)
+	es.buf, es.opts = es.buf[:0], e.opts
+	if err := es.marshal(v); err != nil {
+		encoderPool.Put(es)
 		return err
 	}
-	e.buf = b
+	b := es.buf
 	if e.indent != "" || e.prefix != "" {
 		e.ibuf.Reset()
-		if err := Indent(&e.ibuf, b, e.prefix, e.indent); err != nil {
+		err := Indent(&e.ibuf, b, e.prefix, e.indent)
+		encoderPool.Put(es)
+		if err != nil {
 			return err
 		}
+		e.ibuf.WriteByte('\n')
 		b = e.ibuf.Bytes()
+	} else {
+		// The newline is part of the contract: a stream of values written by
+		// an Encoder is newline-delimited JSON, and something is reading it
+		// that way. Appending it here rather than in a second Write keeps the
+		// record one call, and the grown buffer goes back to the pool.
+		b = append(b, '\n')
+		es.buf = b
 	}
-	// The newline is part of the contract: a stream of values written by an
-	// Encoder is newline-delimited JSON, and something is reading it that way.
-	b = append(b, '\n')
-	if _, err := e.w.Write(b); err != nil {
-		e.err = err
-		return err
-	}
+	_, err := e.w.Write(b)
 	if e.indent == "" && e.prefix == "" {
-		e.buf = b[:len(b)-1]
+		encoderPool.Put(es)
 	}
-	return nil
+	if err != nil {
+		e.err = err
+	}
+	return err
 }

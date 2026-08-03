@@ -55,6 +55,29 @@ type encodeState struct {
 	buf     []byte
 	opts    Options
 	scratch [64]byte
+
+	// addrTyp and addrVal give the top-level value somewhere to live that has
+	// an address. A value taken out of an interface has none, and the compiled
+	// encoders work from pointers, so one copy is unavoidable — but allocating
+	// somewhere to put it is not. Held on the pooled encoder, it is one
+	// allocation per type rather than one per call, which on a stream is one
+	// per type rather than one per record.
+	addrTyp reflect.Type
+	addrVal reflect.Value
+}
+
+// addressable returns a pointer to rv's data, reusing this encoder's scratch
+// when rv has no address of its own. marshal is the only caller and is never
+// re-entered, so the scratch cannot be in use by an outer frame.
+func (e *encodeState) addressable(rv reflect.Value) unsafe.Pointer {
+	if rv.CanAddr() {
+		return unsafe.Pointer(rv.UnsafeAddr())
+	}
+	if t := rv.Type(); e.addrTyp != t {
+		e.addrVal, e.addrTyp = reflect.New(t).Elem(), t
+	}
+	e.addrVal.Set(rv)
+	return unsafe.Pointer(e.addrVal.UnsafeAddr())
 }
 
 var encoderPool = sync.Pool{New: func() any { return &encodeState{buf: make([]byte, 0, 512)} }}
@@ -67,7 +90,7 @@ func (e *encodeState) marshal(v any) error {
 	rv := reflect.ValueOf(v)
 	// The value out of an interface is not addressable, and the compiled
 	// encoders work from a pointer. One copy, at the top level only.
-	return encoderFor(rv.Type())(e, ptrOf(rv), rv)
+	return encoderFor(rv.Type())(e, e.addressable(rv), rv)
 }
 
 // encodeFn writes one value.
