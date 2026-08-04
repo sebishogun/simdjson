@@ -63,38 +63,47 @@ competitors are measured in the same process on the same bytes.
 
 | 1 MB–2.3 MB document | this | fastjson | minio | |
 |---|---|---|---|---|
-| twitter, 1.17 MB | 237 µs | 237 µs | 315 µs | parity |
-| citm, 1.73 MB | 636 µs | 711 µs | 692 µs | **1.12×** |
-| canada, 2.25 MB | 1,372 µs | 1,972 µs | 5,609 µs | **1.44×** |
+| twitter, 1.17 MB | **222 µs** | 234 µs | 315 µs | **1.06×** |
+| citm, 1.73 MB | **603 µs** | 703 µs | 692 µs | **1.17×** |
+| canada, 2.25 MB | **1,345 µs** | 1,980 µs | 5,609 µs | **1.47×** |
 
-`Scan`, the index without the grammar descent, is 57 µs / 207 µs / 345 µs on the
-same three — 4.1× fastjson on twitter. It is not the same operation; see below.
+`Scan`, the index without the grammar descent, is 52 µs / 188 µs / 314 µs on the
+same three — 4.5× fastjson on twitter. It is not the same operation; see below.
 
 **Into and out of Go values**, twitter into a struct and back:
 
-| | this | goccy | sonic | encoding/json |
+| twitter into a struct | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
-| `Unmarshal` → struct | **390 µs** | 398 µs | 443 µs | 2,705 µs |
-| `Marshal` | 76 µs | 109 µs | **36 µs** | 127 µs |
-| `MarshalTo`, caller's buffer | 58 µs | — | — | — |
-| `Fast` options | 40 µs | — | 30 µs | — |
+| `Unmarshal` → struct | 329 µs | **300 µs** | 381 µs | 2,431 µs |
 
-**Encoding is the one thing measured here that another library does better, and
-it is not close: sonic's `ConfigStd.Marshal` is 2.1× this.** The same factor
-holds at both option settings, so it is not about what is being escaped. sonic
-compiles an encoder to machine code at run time and calls hand-written assembly
-to quote strings, on amd64 and arm64.
+**Encoding**, a slice of 4,000 structs and a decoded document back out:
 
-This does the second half of that ahead of time — `JSONCopyRun` in simd.go
-scans and copies in one pass, which is 18% of what closed the gap so far — and
-does not do the first half at all. Run-time code generation is the trade this
-package does not make, and what is left of the 2.1× is mostly that.
+| | this | sonic | goccy | encoding/json |
+|---|---|---|---|---|
+| `Marshal`, struct slice | **895 µs** | 1,502 µs | 1,850 µs | 2,148 µs |
+| `MarshalTo`, caller's buffer | **835 µs** | — | — | — |
+| `Marshal`, decoded document | **1,036 µs** | 899 µs | 1,889 µs | 2,380 µs |
+| the same, keys unsorted | **609 µs** | 678 µs | — | — |
+| `Marshal`, canada — all floats | **4,005 µs** | 4,482 µs | 7,560 µs | 8,008 µs |
+
+Encoding was 2.1× behind sonic and is now ahead of it on a struct slice, on a
+float-heavy document, and on a decoded one when neither sorts map keys. **sonic
+does not sort map keys by default** — thirty calls on the same map give five
+different outputs — which is about 30% of the work and a different promise
+rather than a faster implementation. Both orderings are supported here; sorted
+is byte-identical to `encoding/json`.
+
+Where sonic is still ahead is a decoded document with sorted keys, by 1.15×. It
+compiles an encoder to machine code at run time, on amd64 only — on arm64 it
+falls back to an interpreter, and on riscv64, s390x, ppc64le, loong64 and Go
+1.27 or later its whole API becomes `encoding/json`. Run-time code generation is
+the trade this package does not make.
 
 **Text in, text out**, against `encoding/json`, MB/s:
 
 | | twitter | citm | canada | vs stdlib |
 |---|---|---|---|---|
-| `Valid` | 3,637 | 3,779 | 1,673 | **3.0–7.7×** |
+| `Valid` | 3,954 | 4,326 | 2,026 | **4.0–8.0×** |
 | `Compact` | 1,457 | 1,895 | 1,702 | **3.9–5.2×** |
 | `Indent` | 1,046 | 1,074 | 612 | **2.2–3.1×** |
 

@@ -9,6 +9,32 @@ Go with no cgo and no run-time code generation.
 
 ## Where each one leads
 
+Re-measured after a day of work on it; the earlier table is kept below the line
+because half of what it said has changed.
+
+| operation | leader | this | margin |
+|---|---|---|---|
+| parse twitter / citm / canada | **this** | 222 / 603 / 1,345 µs | 1.06× / 1.17× / 1.47× over fastjson |
+| index without validating | **this** | 52 / 188 / 314 µs | 4.5× fastjson on twitter |
+| validate twitter / citm | **this** | 3,954 / 4,326 MB/s | 1.10× / 1.12× over sonic |
+| validate canada | sonic 2,252 MB/s | 2,026 MB/s | sonic 1.11× |
+| unmarshal into a struct | goccy 300 µs | 329 µs | goccy 1.10× |
+| marshal a struct slice | **this** | 835 µs | 1.80× over sonic |
+| marshal a float-heavy document | **this** | 4,005 µs | 1.12× over sonic |
+| marshal a decoded document, unsorted | **this** | 609 µs | 1.11× over sonic |
+| marshal a decoded document, sorted | sonic 899 µs | 1,036 µs | sonic 1.15× |
+| one field by path | **this** | 83 µs | 1.27× over gjson |
+| ten fields by path | **this** | 239 µs | 2.65× over gjson |
+| NDJSON, several cores | **this** | 1,185 MB/s | nothing else parallelises a parse |
+| 10 GB in one piece | **this** | 833 MB/s | `SIMDJSON_MAXSIZE_BYTES` caps a C++ document at 4 GB − 1 |
+
+Two places another library is still ahead, both narrow and both understood:
+goccy on unmarshalling into a struct by 10%, and sonic on marshalling a decoded
+document *when both sort map keys* by 15% — sonic does not sort by default, and
+thirty calls on the same map give five different outputs.
+
+<details><summary>The table this replaced, from before the work</summary>
+
 | operation | leader | this | margin | why they lead |
 |---|---|---|---|---|
 | parse a 631 KB document | fastjson 238 µs | 251 µs | 1.05× | decodes nothing — records extents and defers |
@@ -19,6 +45,8 @@ Go with no cgo and no run-time code generation.
 | one field from a big document | gjson | — | up to 1000× | scans to the field and stops; keeps nothing |
 | validate | sonic | 3,637 MB/s | 1.02× ours on twitter | hand-written assembly state machine |
 | 10 GB in one piece | **this** | 833 MB/s | — | `SIMDJSON_MAXSIZE_BYTES` caps a C++ document at 4 GB − 1 |
+
+</details>
 
 `encoding/json/v2`, new in Go 1.26 behind `GOEXPERIMENT=jsonv2`, is **not** a
 threat yet: 686 µs to unmarshal twitter against v1's 834 and this package's 322,
