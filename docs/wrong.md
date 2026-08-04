@@ -886,3 +886,48 @@ and the disassembly says there is nothing in it to remove.
 **A correction.** The comment that put these two fields on the index claimed
 Doc placement cost 4.8%. It came from the A/B script with the inverted columns
 (entry 16). The direction survived re-measurement and the magnitude did not.
+
+## A size limit the code did not honour, and the off-by-one that nearly hid it
+
+The library documents a 2 GiB limit on `Parse` and `Scan`, set by the int32 the
+bracket positions are stored in. The real limit was half that, and crossing it
+was a panic rather than an error.
+
+The bracket stack packed two things into one int32: the entry index shifted left
+one, with the opening kind — brace or bracket — in the low bit, so a closing
+bracket could check that it matched without a second look at the input. That is
+a good trick and it costs one bit. The cost was never accounted for: the index
+gets 31 bits, not 32, so it overflows the sign at 2^30 entries and the pop's
+`o >> 1` comes back negative.
+
+2^30 entries fit in 1.5 GiB of `[[],[],...,[]]`, which is inside the limit the
+library says it accepts. It panicked with `index out of range [-1073741823]`.
+
+**The off-by-one.** The first attempt at a repro used `N = 2^29` inner pairs,
+which is `2N+2 = 2^30+2` entries, and it parsed correctly. Only *openings* go on
+the stack, and the last opening is at `2N-1 = 2^30-1` — one short. `N = 2^29+100`
+panics. An entry count above the threshold is not the same as a *stack push*
+above it, and a repro that gets that wrong reads as proof the bug is not there.
+
+**The fix is the smallest array.** `stack` is one entry per level of nesting,
+not one per bracket, so it is orders of magnitude smaller than `pos` and `match`
+and int64 costs nothing measurable — 0.9% on Valid/canada against a control,
+inside the 8.3% layout floor. Widening `pos` was never the answer: the index is
+already 0.93x the document.
+
+With the stack widened, an entry index is bounded by the document length and
+fits an int32 for exactly the reason a position does, so 2 GiB is now the limit
+in fact and not only in the comment.
+
+**Rejected: 4 GiB.** Making `pos` and `match` unsigned would double it, which is
+what C++ simdjson does. Not taken. It is a signedness change spread across the
+binary search and every consumer of `match`, in the hottest code here, and the
+answer above the limit does not change with the number — it is `Decoder`, which
+streams and has none. A 2x capability gain is not worth a class of sign bug in
+`matchBracket`.
+
+**The rule.** A constant that names a limit is a claim about the code, and the
+code has to be run at that size to know whether the claim is true. This one was
+wrong for the whole life of the library because nothing in the test suite
+allocated a gigabyte. The tests that check it now are gated on an environment
+variable and skipped by default, which is the price of having them at all.

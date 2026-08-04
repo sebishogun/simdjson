@@ -135,7 +135,7 @@ func (d *Doc) validTokens() bool {
 			// levels. Documents this deep do not exist, which is why the slice
 			// is only touched then.
 			if depth&63 == 0 && depth > 0 {
-				stk = append(stk, int32(lvl), int32(lvl>>32))
+				stk = append(stk, int64(lvl))
 			}
 			lvl = lvl<<1 | 1
 			depth++
@@ -143,7 +143,7 @@ func (d *Doc) validTokens() bool {
 			continue
 		case '[':
 			if depth&63 == 0 && depth > 0 {
-				stk = append(stk, int32(lvl), int32(lvl>>32))
+				stk = append(stk, int64(lvl))
 			}
 			lvl <<= 1
 			depth++
@@ -224,8 +224,8 @@ func (d *Doc) validTokens() bool {
 		lvl >>= 1
 		depth--
 		if depth&63 == 0 && depth > 0 {
-			lvl = uint64(uint32(stk[len(stk)-2])) | uint64(uint32(stk[len(stk)-1]))<<32
-			stk = stk[:len(stk)-2]
+			lvl = uint64(stk[len(stk)-1])
+			stk = stk[:len(stk)-1]
 		}
 		st = stAfterValue
 	}

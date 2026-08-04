@@ -148,7 +148,16 @@ type index struct {
 	wsX uint64
 
 	match []int32 // for each entry of pos, the index of its partner bracket
-	stack []int32 // bracket stack, reused between parses
+	// stack holds one entry per open bracket: the entry index shifted left one,
+	// with the opening kind in the low bit. int64 rather than int32 because the
+	// shift is what sets the real limit -- an int32 entry overflows its sign bit
+	// at 2^30 entries, which "[[],[],...]" reaches in a 1.5 GiB document, well
+	// inside the 2 GiB this is documented to accept. That panicked with
+	// "index out of range [-1073741823]".
+	//
+	// Widening costs nothing: this is one entry per level of nesting, not one
+	// per bracket, so it is the smallest array here by several orders.
+	stack []int64
 
 	// The three fields below are only written in partial mode, where the input
 	// is a prefix of a document rather than a document.
@@ -622,9 +631,9 @@ tail:
 			// through the document rather than jumping around it.
 			switch data[p] {
 			case '{':
-				stack = append(stack, int32(k)<<1)
+				stack = append(stack, int64(k)<<1)
 			case '[':
-				stack = append(stack, int32(k)<<1|1)
+				stack = append(stack, int64(k)<<1|1)
 			case '}', ']':
 				if len(stack) == 0 {
 					if !partial {
@@ -647,7 +656,7 @@ tail:
 				}
 				oi := o >> 1
 				match[oi] = int32(k)
-				match[k] = oi
+				match[k] = int32(oi)
 				if len(stack) == 0 && ix.partErr == nil {
 					// The top level just closed, and nothing wrong has been
 					// seen yet. Everything up to here is a whole number of
@@ -867,9 +876,9 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 				pos[k] = p
 				switch data[p] {
 				case '{':
-					stack = append(stack, int32(k)<<1)
+					stack = append(stack, int64(k)<<1)
 				case '[':
-					stack = append(stack, int32(k)<<1|1)
+					stack = append(stack, int64(k)<<1|1)
 				case '}', ']':
 					if len(stack) == 0 {
 						return nil, errAt("unbalanced brackets", int(p))
@@ -883,7 +892,7 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 					}
 					oi := o >> 1
 					match[oi] = int32(k)
-					match[k] = oi
+					match[k] = int32(oi)
 				}
 				k++
 				st &= st - 1
@@ -928,6 +937,20 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 // 64 KiB is the best or equal at every size, and — the point — it is flat.
 // maxDocument is the largest document Parse and Scan can index in one piece,
 // set by the int32 the bracket positions are stored in. Streaming is unbounded.
+//
+// This used to be a limit the code did not actually honour. The bracket stack
+// packed an entry index and the opening kind into one int32, so the index only
+// got 31 bits and overflowed its sign at 2^30 entries -- which "[[],[],...]"
+// reaches in 1.5 GiB, inside this limit, and panicked with
+// "index out of range [-1073741823]". The stack is int64 now; see its
+// declaration. With that, entries are bounded by the document length and an
+// entry index fits an int32 for the same reason a position does.
+//
+// Raising this to 4 GiB by making pos and match unsigned was considered and
+// not done: it is a 2x capability gain for a signedness change spread across
+// the binary search and every consumer of match, in the hottest code here, and
+// the answer above the limit does not change with the number. That answer is
+// Decoder. C++ simdjson caps at 4 GB for the same reason and documents it.
 const maxDocument = 1<<31 - 1
 
 const chunkBytes = 64 << 10
