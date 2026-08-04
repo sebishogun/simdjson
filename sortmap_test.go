@@ -258,3 +258,94 @@ func BenchmarkSortPrefixed(b *testing.B) {
 		}
 	}
 }
+
+// commonPrefixEnd is checked against every key in the group, not the first and
+// last, and it must stop at the shortest. Both are silent failures if wrong:
+// the result stays a permutation, it is just ordered by a prefix nobody shares.
+func TestCommonPrefixEnd(t *testing.T) {
+	mk := func(keys ...string) []pair[int] {
+		p := make([]pair[int], len(keys))
+		for i, k := range keys {
+			p[i] = pair[int]{k: k, v: i}
+		}
+		return p
+	}
+	cases := []struct {
+		name string
+		keys []string
+		d    int
+		want int
+	}{
+		{"all equal", []string{"abc", "abc", "abc"}, 0, 3},
+		{"differ at 0", []string{"abc", "xbc"}, 0, 0},
+		{"differ at 2", []string{"abc", "abx"}, 0, 2},
+		// The middle key is where a first-and-last comparison goes wrong: the
+		// ends agree to byte 3 and the one between them does not.
+		{"middle differs", []string{"aaaa", "aaba", "aaaa"}, 0, 2},
+		{"short key bounds it", []string{"aaaaaaaaaaaa", "aa", "aaaaaaaaaaaa"}, 0, 2},
+		{"one empty", []string{"aaa", "", "aaa"}, 0, 0},
+		// Past the eight-byte word path, with the difference inside a word.
+		{"word path then differ", []string{
+			"aaaaaaaaaaaaaaaaXb", "aaaaaaaaaaaaaaaaXc"}, 0, 17},
+		{"word path exact", []string{
+			"aaaaaaaabbbbbbbb", "aaaaaaaabbbbbbbb"}, 0, 16},
+		{"start past zero", []string{"zzabc", "zzabx"}, 2, 4},
+		{"long shared", []string{
+			strings.Repeat("k", 100) + "a", strings.Repeat("k", 100) + "b"}, 0, 100},
+	}
+	for _, c := range cases {
+		if got := commonPrefixEnd(mk(c.keys...), c.d); got != c.want {
+			t.Errorf("%s: commonPrefixEnd(%q, %d) = %d, want %d", c.name, c.keys, c.d, got, c.want)
+		}
+	}
+}
+
+// And against a brute-force answer on random groups, since the word path and
+// the byte path have to agree everywhere they overlap.
+func TestCommonPrefixEndRandom(t *testing.T) {
+	rng := rand.New(rand.NewSource(11))
+	for trial := 0; trial < 5000; trial++ {
+		n := 1 + rng.Intn(6)
+		shared := rng.Intn(30)
+		base := make([]byte, shared)
+		for i := range base {
+			base[i] = byte('a' + rng.Intn(3))
+		}
+		keys := make([]string, n)
+		for i := range keys {
+			tail := make([]byte, rng.Intn(6))
+			for j := range tail {
+				tail[j] = byte('a' + rng.Intn(3))
+			}
+			keys[i] = string(base) + string(tail)
+		}
+		p := make([]pair[int], n)
+		for i, k := range keys {
+			p[i] = pair[int]{k: k, v: i}
+		}
+		// Brute force: the first position where any key differs from the first,
+		// bounded by the shortest.
+		want := len(keys[0])
+		for _, k := range keys {
+			if len(k) < want {
+				want = len(k)
+			}
+		}
+		for i := 0; i < want; i++ {
+			same := true
+			for _, k := range keys {
+				if k[i] != keys[0][i] {
+					same = false
+					break
+				}
+			}
+			if !same {
+				want = i
+				break
+			}
+		}
+		if got := commonPrefixEnd(p, 0); got != want {
+			t.Fatalf("commonPrefixEnd(%q) = %d, want %d", keys, got, want)
+		}
+	}
+}

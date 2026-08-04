@@ -109,7 +109,20 @@ func radixQsort[V any](p []pair[V], d, maxDepth int) {
 				// they are all the same string. Nothing left to order.
 				break
 			}
-			d++
+			// The whole group shares byte d, so partitioning again at d+1 would
+			// read all n keys to learn the same thing. Find where the group
+			// stops agreeing and jump straight there.
+			//
+			// A partition costs one byte read per key per level, so a p-byte
+			// common prefix costs p*n of them -- and JSON keys share prefixes by
+			// construction. The scan below reads eight bytes at a time and does
+			// no swapping, so the same prefix costs about p*n/8 with a much
+			// smaller constant.
+			//
+			//	n=256   prefix=0    2,807 ns
+			//	        prefix=11   4,742      +69% before this
+			//	        prefix=64  13,899     +395%
+			d = commonPrefixEnd(p, d+1)
 			continue
 		}
 
@@ -154,6 +167,63 @@ func radixQsort[V any](p []pair[V], d, maxDepth int) {
 		}
 	}
 	insertPairs(p, d)
+}
+
+// commonPrefixEnd returns the first byte position at or after d where the keys
+// in p stop agreeing.
+//
+// Every key already shares everything before d, so this only has to find where
+// that run ends. It is bounded by the shortest key: a key that ends is a key
+// that differs from a longer one, and byteAt's -1 sentinel makes that ordering
+// work, so the run cannot continue past it.
+//
+// Checked against every key rather than against the first and last. Two keys
+// agreeing to byte k says nothing about a third between them, and getting that
+// wrong would sort by a prefix nobody shares -- silently, since the result
+// would still be a permutation.
+func commonPrefixEnd[V any](p []pair[V], d int) int {
+	// The shortest key bounds the answer, and it is cheaper to find than to
+	// re-test len() inside the byte loop for every key.
+	end := len(p[0].k)
+	for i := 1; i < len(p); i++ {
+		if n := len(p[i].k); n < end {
+			end = n
+		}
+	}
+	ref := p[0].k
+	for d < end {
+		// Eight bytes at a time while every key still agrees with the first.
+		if d+8 <= end {
+			w := le64(ref, d)
+			ok := true
+			for i := 1; i < len(p); i++ {
+				if le64(p[i].k, d) != w {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				d += 8
+				continue
+			}
+		}
+		c := ref[d]
+		for i := 1; i < len(p); i++ {
+			if p[i].k[d] != c {
+				return d
+			}
+		}
+		d++
+	}
+	return d
+}
+
+// le64 reads eight bytes of s at i as one word. The caller has checked that
+// i+8 <= len(s).
+func le64(s string, i int) uint64 {
+	_ = s[i+7]
+	return uint64(s[i]) | uint64(s[i+1])<<8 | uint64(s[i+2])<<16 | uint64(s[i+3])<<24 |
+		uint64(s[i+4])<<32 | uint64(s[i+5])<<40 | uint64(s[i+6])<<48 | uint64(s[i+7])<<56
 }
 
 // insertPairs is the small case. Eleven is where the partitioning stops paying
