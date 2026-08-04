@@ -80,12 +80,31 @@ FUZZTIME ?= 60s
 # Every one of these compares against encoding/json and demands the same bytes
 # and the same error-or-not, which is the only standard worth holding a JSON
 # library to.
+#
+# The output is captured rather than piped to tail, because `go test | tail -1`
+# reports tail's exit status and tail always succeeds. This target could not
+# fail: it printed whatever the last line said -- including the word FAIL -- and
+# carried on to the next fuzzer and then exited 0. A found crasher would not
+# have stopped it either.
+#
+# FUZZ_LIST so a single fuzzer can be run at length: make fuzz FUZZ_LIST=FuzzSetPath FUZZTIME=10m
+FUZZ_LIST ?= FuzzAgainstStdlib FuzzUnmarshalAgainstStdlib FuzzMarshalAgainstStdlib \
+             FuzzTextOpsAgainstStdlib FuzzDecoderAgainstStdlib FuzzTokenAgainstStdlib \
+             FuzzValidUTF8Gate
+
 fuzz: ## Fuzz each differential against encoding/json for FUZZTIME each
-	@for f in FuzzAgainstStdlib FuzzUnmarshalAgainstStdlib FuzzMarshalAgainstStdlib \
-	          FuzzTextOpsAgainstStdlib FuzzDecoderAgainstStdlib; do \
+	@fail=0; \
+	for f in $(FUZZ_LIST); do \
 		printf '%-32s ' "$$f"; \
-		$(GO) test -run '^$$' -fuzz $$f -fuzztime $(FUZZTIME) . 2>&1 | tail -1 || exit 1; \
-	done
+		if out=$$($(GO) test -run '^$$' -fuzz $$f -fuzztime $(FUZZTIME) . 2>&1); then \
+			printf '%s\n' "$$out" | tail -1; \
+		else \
+			printf 'FAILED\n'; \
+			printf '%s\n' "$$out" | tail -30; \
+			fail=1; \
+		fi; \
+	done; \
+	if [ $$fail -ne 0 ]; then echo; echo "a fuzzer failed; the output above is its last 30 lines"; exit 1; fi
 
 bench: ## Every benchmark once
 	$(GO) test -run '^$$' -bench . -benchmem ./...

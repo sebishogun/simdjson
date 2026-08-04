@@ -18,7 +18,7 @@ because half of what it said has changed.
 | index without validating | **this** | 52 / 188 / 314 µs | 4.5× fastjson on twitter |
 | validate twitter / citm | **this** | 3,954 / 4,326 MB/s | 1.10× / 1.12× over sonic |
 | validate canada | **this** | 2,430 MB/s | 1.06× over sonic |
-| unmarshal into a struct | goccy 353 µs | 368 µs | goccy 1.04× |
+| unmarshal into a struct | **this** | 330 µs | 1.02× over goccy |
 | marshal a struct slice | **this** | 835 µs | 1.80× over sonic |
 | marshal a float-heavy document | **this** | 4,005 µs | 1.12× over sonic |
 | marshal a decoded document, unsorted | tie | 576 µs | sonic 573 µs |
@@ -28,8 +28,16 @@ because half of what it said has changed.
 | NDJSON, several cores | **this** | 1,185 MB/s | nothing else parallelises a parse |
 | 10 GB in one piece | **this** | 833 MB/s | `SIMDJSON_MAXSIZE_BYTES` caps a C++ document at 4 GB − 1 |
 
-One place another library is still ahead: goccy on unmarshalling into a struct,
-by 4%.
+Nothing else leads any row now. The last one to go was goccy on unmarshalling
+into a struct, and it took three separate things rather than one: not hashing a
+key that is longer than every field name (6.2%), a table instead of a chain of
+byte comparisons to dispatch on a value's first byte (1.1%, inside the noise and
+not counted), and sending strings over 64 bytes to the vector UTF-8 validator
+this already ships instead of the standard library's scalar one (6.1%). Three
+passes, minimum of twelve each, ours ahead in every one by 1.15% to 2.15%.
+
+Two larger ideas were measured and rejected first, which is what left those
+three as the things worth doing — see docs/wrong.md.
 
 The other two closed. Sorting map keys was a three-way radix quicksort in place
 of `slices.SortFunc`, which cut the sort itself from 418 µs to 214 µs and took

@@ -388,10 +388,32 @@ func unescapeInto(dst, in []byte) []byte {
 			return out
 		}
 	}
-	if utf8.Valid(out) {
+	if validUTF8(out) {
 		return out
 	}
 	return []byte(sanitize(string(out)))
+}
+
+// utf8Vector is where simd.ValidUTF8 overtakes unicode/utf8.Valid.
+//
+// Below it the kernel's guard routes to its own scalar reference, which is
+// slower than the standard library's tuned routine; at and above it the vector
+// path takes over. Non-ASCII input, minimum of three, ns:
+//
+//	len         6    15    24    30    48    63     96    126    192    510
+//	stdlib   2.87  6.06  9.63 11.91 18.80 24.60  37.00  48.53  80.45 201.70
+//	simd     4.61  7.97 11.26 13.42 20.28 26.45  12.87  25.57  20.93  58.58
+//
+// The strings that reach here are keys and field values, so most are short and
+// most keep the scalar routine. BenchmarkUTF8Crossover is what these came from.
+const utf8Vector = 64
+
+// validUTF8 reports whether b is well-formed UTF-8, choosing by length.
+func validUTF8(b []byte) bool {
+	if len(b) < utf8Vector {
+		return utf8.Valid(b)
+	}
+	return simd.ValidUTF8(b)
 }
 
 // sanitize replaces invalid UTF-8 with the replacement character, which is what

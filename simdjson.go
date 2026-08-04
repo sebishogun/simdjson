@@ -41,7 +41,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/bits"
-	"unicode/utf8"
 	"unsafe"
 )
 
@@ -792,7 +791,7 @@ func (d *Doc) decodeStr(start, end int) string {
 		// is 17% slower: the strings actually decoded are a small fraction of
 		// the document, so it checks about ten times more bytes than it saves.
 		// Interleaved: 587/582 us against 496/502.
-		if utf8.Valid(in) {
+		if validUTF8(in) {
 			return d.intern(in)
 		}
 		return d.intern([]byte(sanitize(string(in))))
