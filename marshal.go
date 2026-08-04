@@ -653,13 +653,22 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 		mark := len(e.kvbuf)
 		it := rv.MapRange()
 		for it.Next() {
-			k := it.Key()
-			s, err := mapKeyString(k)
+			s, err := mapKeyString(it.Key())
 			if err != nil {
 				e.kvbuf = e.kvbuf[:mark]
 				return err
 			}
-			e.kvbuf = append(e.kvbuf, kv{k: s, v: k})
+			// The value, not the key. Keeping the key meant fetching the value
+			// again with MapIndex after the sort -- a second hash of every key,
+			// for something the range already had in hand. It is not a trade
+			// against an allocation either: MapIndex boxes its result exactly
+			// as MapIter.Value does, so this is the same allocation count with
+			// one less hash. reflect's own SetIterValue documents the boxing.
+			//
+			// Retaining it across Next is safe: MapIter.Value goes through
+			// copyVal, which copies an indirect value into fresh memory and
+			// takes the pointer for a pointer-shaped one.
+			e.kvbuf = append(e.kvbuf, kv{k: s, v: it.Value()})
 		}
 		pairs := e.kvbuf[mark:]
 		// Given back on the way out, whatever happens, so a nested map inside
@@ -681,7 +690,7 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			}
 			e.writeString(pr.k)
 			e.buf = append(e.buf, ':')
-			el := rv.MapIndex(pr.v)
+			el := pr.v
 			if err := e.encoderForCached(el.Type())(e, ptrOf(el), el); err != nil {
 				return err
 			}
