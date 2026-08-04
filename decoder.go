@@ -438,6 +438,10 @@ type compiledStruct struct {
 	byLen  [][]namedField // indexed by len(name), for names up to maxFieldName
 	byName map[string]*compiledField
 	byFold map[string]*compiledField
+	// longName records whether any field name was too long for byLen. When
+	// none was, byLen holds every name, and a key longer than the longest one
+	// cannot match anything -- so the map does not have to be asked.
+	longName bool
 }
 
 type namedField struct {
@@ -454,7 +458,25 @@ type namedField struct {
 const maxFieldName = 64
 
 func (cs *compiledStruct) lookup(key []byte) (*compiledField, bool) {
-	if len(key) == 0 || len(key) >= len(cs.byLen) {
+	if len(key) >= len(cs.byLen) {
+		// Longer than the longest name in the table. Unless a name was too
+		// long to be in the table at all, nothing can match: exact comparison
+		// needs equal lengths and so does the ASCII fold. Asking the map is a
+		// hash and a probe to be told what the length already said.
+		//
+		// This is not a rare path on real documents. byLen is sized by the
+		// struct's longest field name, and a document's keys are not -- the
+		// struct behind these benchmarks has nothing as long as
+		// in_reply_to_status_id_str, so every occurrence of that key and its
+		// neighbours was hashed. runtime.mapaccess2_faststr was 7.1% of
+		// unmarshalling twitter.json into a struct.
+		if !cs.longName {
+			return nil, false
+		}
+		f, ok := cs.byName[string(key)]
+		return f, ok
+	}
+	if len(key) == 0 {
 		f, ok := cs.byName[string(key)]
 		return f, ok
 	}
@@ -548,7 +570,9 @@ func compileStruct(t reflect.Type) decodeFn {
 	for name, f := range plan.byName {
 		cf := build(f)
 		cs.byName[name] = cf
-		if len(name) <= maxFieldName && len(name) > maxLen {
+		if len(name) > maxFieldName {
+			cs.longName = true
+		} else if len(name) > maxLen {
 			maxLen = len(name)
 		}
 	}
