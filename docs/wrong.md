@@ -1043,3 +1043,44 @@ load is not a slow benchmark, it is no benchmark". It could not refuse the
 second time: by then the load average had decayed, and the damage was in a file
 written minutes earlier. A guard on the machine at write time does not see what
 the machine was doing at measure time.
+
+## Validating the document once instead of per skipped field
+
+Unmarshal sets `strictSkip`, so a field the struct does not name is proved
+well-formed by a grammar descent rather than stepped over with a bracket
+lookup. That descent is 25.4% of unmarshalling twitter.json into a struct,
+measured by turning it off — which is incorrect, and is exactly why it is only
+an experiment:
+
+	descent (correct)                 355,662 ns
+	no validation of skipped fields   265,262      the floor, 1.28x past goccy
+
+So 90 us is on the table, and it cannot simply be dropped: the index proves
+brackets balanced and strings terminated, but not that numbers are well-formed
+or that colons and commas are where the grammar wants them.
+
+The obvious replacement is the mask walk. `Valid` already chooses between the
+two and the comment there records the mask walk as 33% faster on twitter-shaped
+whitespace, so proving the whole document once up front and then skipping with
+a bracket lookup should be cheaper than descending most of it.
+
+	descent per skipped field    355,662 ns
+	validTokens once, then skip  396,971      11.6% slower
+
+The 33% does not transfer. The mask walk costs about 132 us over the whole
+document; the descent costs 90 us over the roughly 70% of it the struct skips.
+Per byte they are within 2% of each other. What made the mask walk look faster
+in `Valid` was everything else that differs between those two paths, not the
+token loop.
+
+**Which also kills the bounded version.** The plan behind this measurement was a
+`validRange(start, end)` — the same state machine stopped at a subtree — so that
+skipped fields got the fast validator instead of the descent. That is about a
+hundred and eighty lines of delicate state machine, and it would have been worth
+roughly 2%, not the 8% the 33% figure implied. The four-line whole-document
+version answered the same question for nothing.
+
+**The rule.** A ratio measured between two whole code paths is not a ratio
+between the loops inside them. Before building the fast one into a second place,
+check the cheap version of the same idea — it costs an afternoon less and
+answers it.

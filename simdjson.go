@@ -666,6 +666,33 @@ func (d *Doc) stringEndSlow(i int) (int, error) {
 	return 0, errAt("unterminated string", i)
 }
 
+// What kind of value a byte can begin. Zero -- vsInvalid -- for every byte that
+// can begin none, which is most of them.
+const (
+	vsInvalid uint8 = iota
+	vsNumber
+	vsString
+	vsObject
+	vsArray
+	vsTrue
+	vsFalse
+	vsNull
+)
+
+var valueStart = func() (t [256]uint8) {
+	for c := '0'; c <= '9'; c++ {
+		t[c] = vsNumber
+	}
+	t['-'] = vsNumber
+	t['"'] = vsString
+	t['{'] = vsObject
+	t['['] = vsArray
+	t['t'] = vsTrue
+	t['f'] = vsFalse
+	t['n'] = vsNull
+	return t
+}()
+
 // validateValue is value() without the Value.
 //
 // The descent throws away every Value it builds — validateObject and
@@ -683,29 +710,40 @@ func (d *Doc) validateValue(i int) (int, error) {
 	if i >= len(data) {
 		return 0, errAt("unexpected end of input", i)
 	}
-	switch c := data[i]; {
-	case c == '{':
-		return d.validateObject(i)
-	case c == '[':
-		return d.validateArray(i)
-	case c == '"':
-		end, ok := d.stringEnd(i)
-		if !ok {
-			return d.stringEndSlow(i)
-		}
-		return end, nil
-	case c == 't':
-		return d.litEnd(i, "true")
-	case c == 'f':
-		return d.litEnd(i, "false")
-	case c == 'n':
-		return d.litEnd(i, "null")
-	case c == '-' || (c >= '0' && c <= '9'):
+	// A table, not a chain of byte comparisons. The chain tested `{`, `[`, `"`,
+	// `t`, `f` and `n` before it reached numbers, and numbers are what
+	// canada.json is made of: this function's own instructions -- not its
+	// callees' -- were 14.5% of validating it, and 4.0% of unmarshalling
+	// twitter.json into a struct, where the descent runs over every field the
+	// struct does not name.
+	//
+	// The kinds are dense and small, so the switch below is a jump table rather
+	// than a search. A tagged switch on the byte itself would not be: seventeen
+	// cases spread over ninety values is too sparse for one, and Go would
+	// binary-search instead.
+	switch valueStart[data[i]] {
+	case vsNumber:
 		end, ok := d.number(i)
 		if !ok {
 			return 0, errAt("invalid number", i)
 		}
 		return end, nil
+	case vsString:
+		end, ok := d.stringEnd(i)
+		if !ok {
+			return d.stringEndSlow(i)
+		}
+		return end, nil
+	case vsObject:
+		return d.validateObject(i)
+	case vsArray:
+		return d.validateArray(i)
+	case vsTrue:
+		return d.litEnd(i, "true")
+	case vsFalse:
+		return d.litEnd(i, "false")
+	case vsNull:
+		return d.litEnd(i, "null")
 	}
 	return 0, errAt("unexpected character", i)
 }
