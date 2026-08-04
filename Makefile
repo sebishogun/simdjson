@@ -14,7 +14,7 @@ DOCKER ?= docker
 
 all: verify ## The default
 
-verify: fmt-check vet test test-race test-tiers test-purego ## Everything short of the cross lane and the gate
+verify: fmt-check vet vet-vs test test-race test-tiers test-purego ## Everything short of the cross lane and the gate
 
 test: ## Run the suite
 	$(GO) test ./...
@@ -60,7 +60,7 @@ BENCH_BASELINE = testdata/bench/$(shell $(GO) env GOARCH).txt
 BENCH_COUNT   ?= 6
 BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
 
-.PHONY: bench-run bench-check bench-update
+.PHONY: bench-run bench-check bench-update bench-vs bench-vs-test vet-vs
 
 bench-run: ## Run the gate benchmarks and write the raw output
 	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT)
@@ -86,6 +86,27 @@ fuzz: ## Fuzz each differential against encoding/json for FUZZTIME each
 
 bench: ## Every benchmark once
 	$(GO) test -run '^$$' -bench . -benchmem ./...
+
+# The comparison against the other Go JSON libraries. A separate module, so
+# `go get` of this one does not pull sonic, goccy, gjson and the rest, and so
+# their versions move independently of ours.
+#
+# This is where docs/competition.md's numbers come from. It used to live in a
+# temporary directory on one machine, read its corpora from /tmp and skip when
+# they were missing -- so the table was reproducible by nobody, including on the
+# machine that produced it once the files aged out.
+VS_COUNT ?= 8
+VS_BENCH ?= .
+
+bench-vs: ## Measure against sonic, goccy, gjson, fastjson, minio and the stdlib
+	cd bench && $(GO) test -run '^$$' -bench '$(VS_BENCH)' -count $(VS_COUNT) .
+
+bench-vs-test: ## The agreement checks: do the libraries produce the same bytes
+	cd bench && $(GO) test ./...
+
+vet-vs: ## go vet the comparison module
+	cd bench && $(GO) vet ./...
+	@out=$$(cd bench && gofmt -l .); if [ -n "$$out" ]; then echo "not gofmt-clean:"; echo "$$out"; exit 1; fi
 
 fmt: ## Format
 	$(GO) fmt ./...
