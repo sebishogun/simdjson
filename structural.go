@@ -89,6 +89,11 @@ type index struct {
 	// Masks used only by validateStrings, kept here for the same reason.
 	ctl []byte
 
+	// masks is the one buffer the five above are slices of. simd.JSONMasks
+	// writes them end to end in a fixed order, so they are carved out of it
+	// rather than allocated apart.
+	masks []byte
+
 	// ws is the whitespace mask as words, and noWS records that the document
 	// has none at all outside its strings.
 	//
@@ -341,24 +346,40 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 	// one. The bytes between the end of the document and the end of its last
 	// word are zeroed rather than left over, so they match nothing.
 	nw := (len(data) + 63) / 64
-	ix.quote = maskBuf(ix.quote, nw, len(data))
-	ix.esc = maskBuf(ix.esc, nw, len(data))
-	simd.MaskBits(ix.quote, data, '"')
-	simd.MaskBits(ix.esc, data, '\\')
-	// The bracket mask is only read by the pass that extracts the positions
-	// and pairs them, so a caller that asked not to have that pass does not
-	// need it: Valid, Compact and Indent were paying a vector pass over the
-	// whole document, and a popcount per word of it, for a mask nothing then
-	// looked at.
+	// All five masks from one pass. Asking for them one at a time is five
+	// passes over the document and five dispatches; simd.JSONMasks is one load
+	// per block and five predicate stores, and it is about twice as fast --
+	// 2 MB goes from 102,230 ns to 46,205, and the three an index-only pass
+	// wants from 27,066 to 12,456.
+	//
+	// The five regions are laid out end to end whatever is asked for, so the
+	// slices below are the same offsets either way, and a mask nobody wants is
+	// simply not written. That is what the bracket mask needed: Valid, Compact
+	// and Indent were paying a whole pass, and a popcount per word of it, for
+	// something nothing then looked at.
+	stride := simd.MaskWords(len(data))
+	need := 5 * stride
+	if cap(ix.masks) < need {
+		ix.masks = make([]byte, need)
+	}
+	ix.masks = ix.masks[:need]
+	want := uint32(simd.JSONMaskQuote | simd.JSONMaskEscape)
 	if !noBrackets {
-		ix.structural = maskBuf(ix.structural, nw, len(data))
-		simd.MaskBitsAny(ix.structural, data, structSet)
+		want |= simd.JSONMaskStructural
 	}
 	if validate {
-		ix.ctl = maskBuf(ix.ctl, nw, len(data))
-		ix.ws = maskBuf(ix.ws, nw, len(data))
-		simd.MaskBitsLess(ix.ctl, data, 0x20)
-		simd.MaskBitsAny(ix.ws, data, wsSet)
+		want |= simd.JSONMaskControl | simd.JSONMaskSpace
+	}
+	simd.JSONMasks(ix.masks, data, want)
+	ix.quote = ix.masks[0:stride]
+	ix.esc = ix.masks[stride : 2*stride]
+	ix.structural = ix.masks[2*stride : 3*stride]
+	ix.ctl = ix.masks[3*stride : 4*stride]
+	ix.ws = ix.masks[4*stride : 5*stride]
+	// No tail to clear: the regions are whole words and the kernel zeroes the
+	// bytes past the document, which is why its stride is word-aligned rather
+	// than (n+7)/8.
+	if validate {
 		if cap(ix.wsw) < nw {
 			ix.wsw = make([]uint64, nw)
 		}
