@@ -202,3 +202,59 @@ func TestHeapPairs(t *testing.T) {
 		}
 	}
 }
+
+// Keys sharing a long prefix, which is what JSON keys are.
+//
+// This is the shape that sent the sort into its introsort escape: every level
+// that only advanced the radix used to spend a unit of the depth budget, and an
+// eleven-byte common prefix spent eleven of the fourteen available at n=64. The
+// escape hatch for adversarial input fired on the ordinary case. Sorting is
+// still correct when that happens -- heapsort is a sort -- so only a benchmark
+// or a counter shows it, which is why BenchmarkSortPrefixed is here too.
+func TestSortPairsSharedPrefixes(t *testing.T) {
+	for _, prefix := range []string{
+		"", "f_", "field_name_",
+		"a_very_long_common_field_name_prefix_",
+		strings.Repeat("x", 200),
+	} {
+		for _, n := range []int{12, 16, 41, 64, 256, 1000} {
+			keys := make([]string, n)
+			for i := range keys {
+				// Scattered, so the input is not already ordered.
+				keys[i] = fmt.Sprintf("%s%06d", prefix, (i*7919)%n)
+			}
+			checkSort(t, fmt.Sprintf("prefix=%d/n=%d", len(prefix), n), keys)
+		}
+	}
+
+	// A prefix longer than the depth budget could ever be, with the keys
+	// differing only in their last byte.
+	long := strings.Repeat("k", 500)
+	keys := make([]string, 64)
+	for i := range keys {
+		keys[i] = long + string(rune('A'+i))
+	}
+	checkSort(t, "500-byte prefix", keys)
+}
+
+// Sorting keys that share a prefix must not cost more than sorting keys that do
+// not. If the depth budget is ever charged for advancing the radix again, the
+// prefixed rows here go several times slower than the bare one while every test
+// still passes.
+func BenchmarkSortPrefixed(b *testing.B) {
+	for _, prefix := range []string{"", "field_name_", strings.Repeat("x", 64)} {
+		for _, n := range []int{16, 64, 256} {
+			src := make([]pair[int], n)
+			for i := range src {
+				src[i] = pair[int]{k: fmt.Sprintf("%s%06d", prefix, (i*7919)%n), v: i}
+			}
+			work := make([]pair[int], n)
+			b.Run(fmt.Sprintf("prefix=%d/n=%d", len(prefix), n), func(b *testing.B) {
+				for b.Loop() {
+					copy(work, src)
+					sortPairs(work)
+				}
+			})
+		}
+	}
+}

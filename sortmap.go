@@ -67,15 +67,6 @@ func sortPairs[V any](p []pair[V]) {
 // this cheaper than a comparison sort: that prefix is never looked at again.
 func radixQsort[V any](p []pair[V], d, maxDepth int) {
 	for len(p) > 11 {
-		// Introsort's escape. Three-way radix partitioning degrades on inputs
-		// built to defeat the pivot choice, and a JSON encoder takes its keys
-		// from whatever the caller decoded, which can be an attacker.
-		if maxDepth == 0 {
-			heapPairs(p)
-			return
-		}
-		maxDepth--
-
 		// Three-way partition on byte d: less, equal, greater. The equal group
 		// is the one that advances to d+1, and it is why a shared prefix costs
 		// one pass rather than one pass per comparison.
@@ -94,6 +85,42 @@ func radixQsort[V any](p []pair[V], d, maxDepth int) {
 				i++
 			}
 		}
+
+		// A level that split nothing only moved the radix along, and that must
+		// not be charged to the introsort budget.
+		//
+		// The budget exists for pivots that split badly, and a level where every
+		// key shares the byte has not split at all -- it has advanced d, which is
+		// guaranteed progress, because keys are finite and d running past the
+		// longest one ends the loop. Charging it was a real defect rather than a
+		// tuning question: JSON keys in one object share prefixes constantly, and
+		// with a budget of 2*ceil(log2(n+1)) -- 14 at n=64 -- an eleven-byte
+		// common prefix spent eleven of it before any partitioning began. The
+		// escape hatch for adversarial input was firing on the ordinary case.
+		//
+		//	shared prefix   n=16   n=64   n=256    heapPairs calls
+		//	none               0      0       0
+		//	2 bytes            0      0       0
+		//	11 bytes           1      2       1
+		//	37 bytes           1      1       1
+		if lt == 0 && gt == len(p) {
+			if pv < 0 {
+				// Every key ended at d and they share the first d bytes, so
+				// they are all the same string. Nothing left to order.
+				break
+			}
+			d++
+			continue
+		}
+
+		// Introsort's escape. Three-way radix partitioning degrades on inputs
+		// built to defeat the pivot choice, and a JSON encoder takes its keys
+		// from whatever the caller decoded, which can be an attacker.
+		if maxDepth == 0 {
+			heapPairs(p)
+			return
+		}
+		maxDepth--
 
 		// Recurse into the two smaller parts and loop on the largest, so the
 		// stack is bounded by log n however the partition falls.
