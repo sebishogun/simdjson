@@ -1142,3 +1142,59 @@ sized for noise are, by construction, sized to hide interference too. Also: a
 comment describing what the code should do is not evidence that it does. That
 one had been right and wrong in the same paragraph for as long as it existed,
 and only writing a test that depended on it found out.
+
+## Arguing about runtime internals instead of measuring what they were worth
+
+The compiled map encoder allocated three times per entry. goccy allocates twice
+for a whole map of any size, and it gets there with `//go:linkname` into
+`runtime.mapiterinit`, `reflect.mapiterkey`, `reflect.mapiternext` and
+`reflect.mapiterelem` -- walking the map's iterator with raw pointers, never
+building a reflect.Value.
+
+The question was whether to do the same, and the case against it was being
+assembled before the case for it had a number attached. Two facts had already
+turned up, and both cut against the caution:
+
+  - Go ships `runtime/linkname_shim.go`, whose header reads "Legacy
+    //go:linkname compatibility shims. The functions below are unused by the
+    toolchain, and exist only for compatibility with existing //go:linkname use
+    in the ecosystem." When Go 1.24 replaced maps with Swiss tables, the team
+    kept these working on purpose, emulating a `hiter` layout that no longer
+    exists.
+  - goccy's `map112.go` / `map113.go` split shows the failure mode when one does
+    break: `reflect.mapitervalue` became `reflect.mapiterelem`, and the fix was
+    two files and a build tag.
+
+None of that decided anything, because the missing number was how much the
+technique was worth here. With plain reflect:
+
+	n=64 struct        allocs      ns
+	before                194  12,273
+	after                   4   7,235
+	goccy (linkname)        2   8,218
+	sonic                   3   5,866
+
+Four allocations, flat in n, against goccy's two. What linkname would buy from
+here is one or two allocations per map, against thirty microseconds of encoding
+at n=256 -- nothing. And sonic is still 1.23x ahead while allocating three
+times, which says its remaining lead is not allocation at all, so the technique
+would not have closed that either.
+
+The three commits that did it are ordinary reflect: hoist the key's
+TextMarshaler test to the type (`k.Interface()` boxes, and whether a type
+implements an interface is not a per-value question), fill one reused Value with
+`SetIterKey` instead of allocating one per entry, and hold every value in a
+single `reflect.MakeSlice` sized by `rv.Len()`.
+
+That last one carried a cost nobody would look for. `ptrOf` allocates and copies
+whenever its argument is not addressable, and a Value from `MapIter.Value` is
+not addressable -- `copyVal` does not set `flagAddr`. So every value cost two
+allocations, not one: the box, and then a second copy to get a pointer to it.
+Slice elements are addressable, so putting the values in a slice removed both.
+
+**The rule.** "Depends on unstable internals" is a statement about risk, and
+risk is only half of a decision. The other half is what the technique is worth,
+and that is a measurement. Here it was worth approximately zero, which is a
+better reason to skip it than the one that was about to be written down -- and
+if it had been worth 40%, the shim and the build-tag precedent say the risk was
+smaller than the hedge implied.
