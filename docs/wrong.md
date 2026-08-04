@@ -839,3 +839,50 @@ and check it against the recorded baseline before believing anything the harness
 says about the modified one — and if the two disagree, the harness is wrong
 until proven otherwise. A measurement tool is code, and it is the one piece of
 code whose bugs are invisible in its own output.
+
+## Whitespace skipping is a quarter of a parse and near its floor
+
+After the fused mask kernel, `Parse` on citm_catalog.json spends 25% of its time
+stepping over whitespace — `skip` 25.5% cumulative, `skipRun` 13.9%,
+`skipRunAcross` 4.6% — against 4.6% in the whole vector stage. The document is
+71% whitespace, four spaces of indentation at a time.
+
+That looks like the obvious next thing and it is mostly already done. The run is
+a bit scan over the whitespace mask, so a run of any length costs the same as a
+run of one; `noWS` proves the machine-generated case has none at all; and
+`skipRun` caches the last mask word it read.
+
+Disassembling `skipRun` says where the rest goes, and it is not one thing:
+
+	4.40%  push %rbp                      the prologue -- it is a call
+	2.41%  mov 0x18(%rax),%rdx            loading d.ix
+	7.63%  test %rdx,%rdx                 the nil check on it
+	4.76%  cmp %rbx,0xe8(%rdx); jne       the cached-word check
+	3.75%  mov 0xa0(%rax),%rsi            the mask slice header
+
+Ten percent of it is reaching the cache through `d.ix`, so moving those two
+fields to `Doc` should pay. Measured, control first: Parse/citm 602,295 →
+599,060, Parse/twitter 221,943 → 220,647, Valid/citm 412,943 → **417,487**. A
+wash — about 1% better where there is little whitespace and about 1% worse where
+there is a lot, because `Doc` is read by everything and sixteen more bytes of it
+cost more than the indirection saves.
+
+**The rest is call overhead spread thin.** `skipRun` cannot be inlined into
+`skip`: `skip` sits at cost 79 against a budget of 80, and a single-byte fast
+path that pushed it over cost 6%. So the floor is one call per token, and citm
+has a quarter of a million of them.
+
+What would actually remove it is not making the skip cheaper but not skipping:
+indexing token *starts* rather than bracket positions, which is what C++
+simdjson's pseudo-structural characters are. That was tried and is entry 2 —
+slower here, because extracting the extra positions costs more than the scan it
+saves.
+
+**The rule.** A number being large is not the same as a number being available.
+Twenty-five percent spread across a quarter of a million calls, each doing eight
+operations, has no single place to attack; the profile says where the time is
+and the disassembly says there is nothing in it to remove.
+
+**A correction.** The comment that put these two fields on the index claimed
+Doc placement cost 4.8%. It came from the A/B script with the inverted columns
+(entry 16). The direction survived re-measurement and the magnitude did not.

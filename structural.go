@@ -132,10 +132,15 @@ type index struct {
 	// big for L1: an L2 access per token for a value already in a register.
 	//
 	// They live here rather than on Doc, where they belong logically, because
-	// Doc is read by everything and sixteen more bytes of it cost Valid/citm
-	// 4.8% -- measured by adding them and not using them, which was just as
-	// slow, and unchanged by moving them to the end of the struct. An index is
-	// one allocation per Parser and nothing reads it in a hot loop.
+	// Doc is read by everything and sixteen more bytes of it cost about 1% on
+	// Valid/citm -- 412,943 ns against 417,487, three runs each, the control
+	// checked against the recorded baseline first.
+	//
+	// It is close. Doc placement is about 1% BETTER on Parse/twitter (221,943
+	// against 220,647), so this is a wash chosen on the benchmark with more
+	// whitespace in it rather than a clear win. An earlier note here said 4.8%;
+	// that number came from an A/B script whose columns were inverted, and the
+	// direction survived re-measurement while the magnitude did not.
 	//
 	// wsW is reset to -1 for every document, because an index is reused between
 	// them and word zero of the last one is not word zero of this one.
