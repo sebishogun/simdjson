@@ -79,8 +79,31 @@ func main() {
 	threshold := flag.Float64("threshold", 8, "percent slower before a benchmark fails")
 	update := flag.Bool("update", false, "overwrite the baseline with the new run instead of comparing")
 	verbose := flag.Bool("v", false, "print every benchmark's delta, not only the ones that failed")
-	maxLoad := flag.Float64("maxload", 4, "refuse to run when the one-minute load average is above this")
+	// -agree asks a different question: not "did this change make something
+	// slower" but "do two runs of the SAME code produce the same numbers". A
+	// baseline is only worth recording if they do, and the ordinary comparison
+	// cannot answer it -- it fires in one direction, so a run that came out
+	// faster passes silently. Recording a baseline once, two runs disagreed by
+	// 10.8% and 12.3% on the two allocation-heavy benchmarks and this tool
+	// reported no regressions, because the second run was the faster one.
+	agree := flag.Bool("agree", false,
+		"compare two runs of the same code: fail on a difference in either direction")
 	flag.Parse()
+
+	// Whether -threshold was given rather than defaulted. The exemptions in
+	// wideThreshold only loosen, and the comment on the switch below has always
+	// said a tighter flag must beat them -- but the code only ever compared
+	// magnitudes, so `-threshold 1` raised the limit back to 12 or 15 for the
+	// three benchmarks in the table and reported nothing. Found by testing
+	// -agree at a threshold under the exemptions and getting a pass on two runs
+	// that differ by 9.7% and 10.9%.
+	strictAsked := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "threshold" {
+			strictAsked = true
+		}
+	})
+	maxLoad := flag.Float64("maxload", 4, "refuse to run when the one-minute load average is above this")
 
 	if err := requireQuiet(*maxLoad); err != nil {
 		fmt.Fprintln(os.Stderr, "benchcheck:", err)
@@ -157,7 +180,7 @@ func main() {
 		// entry in the table is a deliberate ask for a stricter run and has to
 		// win, or -threshold 1 would silently do nothing for three of fourteen.
 		lim := *threshold
-		if w, ok := wideThreshold[n]; ok && w > lim {
+		if w, ok := wideThreshold[n]; ok && w > lim && !strictAsked {
 			lim = w
 		}
 		if *verbose {
@@ -169,6 +192,13 @@ func main() {
 				fmt.Sprintf("  %-52s %9.2f -> %9.2f ns/op  %+6.1f%%%s", n, b, c, delta, note))
 		}
 		switch {
+		case *agree && (delta > lim || delta < -lim):
+			// Either direction is a disagreement, and per benchmark: an
+			// aggregate pass hides one row differing by 12%.
+			regressed = append(regressed,
+				fmt.Sprintf("  %-52s %9.2f vs %9.2f ns/op  %+6.1f%%  (limit ±%.0f%%)", n, b, c, delta, lim))
+		case *agree:
+			// Nothing: in agree mode a smaller number is not good news.
 		case delta > lim:
 			regressed = append(regressed,
 				fmt.Sprintf("  %-52s %9.2f -> %9.2f ns/op  %+6.1f%%  (limit %.0f%%)", n, b, c, delta, lim))
@@ -178,8 +208,12 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%d benchmarks compared against %s (threshold %.0f%%)\n",
-		len(base), *baseline, *threshold)
+	what := "compared against"
+	if *agree {
+		what = "checked for agreement with"
+	}
+	fmt.Printf("%d benchmarks %s %s (threshold %.0f%%)\n",
+		len(base), what, *baseline, *threshold)
 	if len(all) > 0 {
 		fmt.Printf("\n%s\n", strings.Join(all, "\n"))
 	}
@@ -191,10 +225,18 @@ func main() {
 			len(missing), strings.Join(missing, "\n  "))
 	}
 	if len(regressed) > 0 {
-		fmt.Printf("\n%d SLOWER:\n%s\n", len(regressed), strings.Join(regressed, "\n"))
+		label := "SLOWER"
+		if *agree {
+			label = "DISAGREE between the two runs"
+		}
+		fmt.Printf("\n%d %s:\n%s\n", len(regressed), label, strings.Join(regressed, "\n"))
 	}
 	if len(regressed) > 0 || len(missing) > 0 {
-		if len(regressed) > 0 {
+		if len(regressed) > 0 && *agree {
+			fmt.Fprintln(os.Stderr, "\nbenchcheck: the two runs disagree, so neither is a "+
+				"baseline. Something was using the machine -- see docs/wrong.md entries 21 "+
+				"and 23 -- or these benchmarks need more samples.")
+		} else if len(regressed) > 0 {
 			fmt.Fprintln(os.Stderr, "\nbenchcheck: regressions above the threshold; "+
 				"re-run to rule out noise, then either fix them or update the baseline "+
 				"with -update and say why in the commit.")

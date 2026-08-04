@@ -1,252 +1,245 @@
 goos: linux
 goarch: amd64
 pkg: github.com/sebishogun/simdjson
-cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S          
-BenchmarkGateParse/twitter-32    	    5425	    222259 ns/op	2841.35 MB/s
-BenchmarkGateParse/twitter-32    	    4837	    223012 ns/op	2831.75 MB/s
-BenchmarkGateParse/twitter-32    	    5402	    221960 ns/op	2845.17 MB/s
-BenchmarkGateParse/twitter-32    	    5192	    221949 ns/op	2845.31 MB/s
-BenchmarkGateParse/twitter-32    	    5418	    221483 ns/op	2851.30 MB/s
-BenchmarkGateParse/twitter-32    	    4944	    223473 ns/op	2825.92 MB/s
-BenchmarkGateParse/twitter-32    	    5374	    220542 ns/op	2863.46 MB/s
-BenchmarkGateParse/twitter-32    	    5398	    219921 ns/op	2871.55 MB/s
-BenchmarkGateParse/citm-32       	    2046	    599574 ns/op	2880.72 MB/s
-BenchmarkGateParse/citm-32       	    1958	    604294 ns/op	2858.22 MB/s
-BenchmarkGateParse/citm-32       	    1988	    601242 ns/op	2872.73 MB/s
-BenchmarkGateParse/citm-32       	    1990	    602777 ns/op	2865.41 MB/s
-BenchmarkGateParse/citm-32       	    2034	    599590 ns/op	2880.64 MB/s
-BenchmarkGateParse/citm-32       	    2043	    600685 ns/op	2875.39 MB/s
-BenchmarkGateParse/citm-32       	    1965	    600514 ns/op	2876.21 MB/s
-BenchmarkGateParse/citm-32       	    2010	    602602 ns/op	2866.25 MB/s
-BenchmarkGateParse/canada-32     	     898	   1334475 ns/op	1686.84 MB/s
-BenchmarkGateParse/canada-32     	     896	   1331539 ns/op	1690.56 MB/s
-BenchmarkGateParse/canada-32     	     915	   1327395 ns/op	1695.84 MB/s
-BenchmarkGateParse/canada-32     	     898	   1349192 ns/op	1668.44 MB/s
-BenchmarkGateParse/canada-32     	     901	   1323629 ns/op	1700.67 MB/s
-BenchmarkGateParse/canada-32     	     914	   1331154 ns/op	1691.05 MB/s
-BenchmarkGateParse/canada-32     	     902	   1315943 ns/op	1710.60 MB/s
-BenchmarkGateParse/canada-32     	     858	   1316373 ns/op	1710.04 MB/s
-BenchmarkGateScan/twitter-32     	   22774	     53220 ns/op	11866.09 MB/s
-BenchmarkGateScan/twitter-32     	   22790	     53036 ns/op	11907.30 MB/s
-BenchmarkGateScan/twitter-32     	   22188	     52966 ns/op	11922.95 MB/s
-BenchmarkGateScan/twitter-32     	   22806	     52858 ns/op	11947.29 MB/s
-BenchmarkGateScan/twitter-32     	   22593	     52711 ns/op	11980.70 MB/s
-BenchmarkGateScan/twitter-32     	   22501	     52542 ns/op	12019.20 MB/s
-BenchmarkGateScan/twitter-32     	   22731	     52967 ns/op	11922.73 MB/s
-BenchmarkGateScan/twitter-32     	   22731	     52780 ns/op	11965.08 MB/s
-BenchmarkGateScan/citm-32        	    6217	    189027 ns/op	9137.35 MB/s
-BenchmarkGateScan/citm-32        	    6333	    188470 ns/op	9164.36 MB/s
-BenchmarkGateScan/citm-32        	    6327	    188566 ns/op	9159.69 MB/s
-BenchmarkGateScan/citm-32        	    6301	    188103 ns/op	9182.24 MB/s
-BenchmarkGateScan/citm-32        	    6454	    189520 ns/op	9113.58 MB/s
-BenchmarkGateScan/citm-32        	    6205	    190829 ns/op	9051.03 MB/s
-BenchmarkGateScan/citm-32        	    6277	    188045 ns/op	9185.06 MB/s
-BenchmarkGateScan/citm-32        	    6382	    190436 ns/op	9069.76 MB/s
-BenchmarkGateScan/canada-32      	    3748	    317321 ns/op	7093.92 MB/s
-BenchmarkGateScan/canada-32      	    3758	    317621 ns/op	7087.22 MB/s
-BenchmarkGateScan/canada-32      	    3756	    321338 ns/op	7005.24 MB/s
-BenchmarkGateScan/canada-32      	    3776	    316793 ns/op	7105.74 MB/s
-BenchmarkGateScan/canada-32      	    3784	    317120 ns/op	7098.43 MB/s
-BenchmarkGateScan/canada-32      	    3808	    314190 ns/op	7164.61 MB/s
-BenchmarkGateScan/canada-32      	    3750	    317164 ns/op	7097.43 MB/s
-BenchmarkGateScan/canada-32      	    3825	    314180 ns/op	7164.85 MB/s
-BenchmarkGateValid/twitter-32    	    7326	    160754 ns/op	3928.44 MB/s
-BenchmarkGateValid/twitter-32    	    7420	    160494 ns/op	3934.81 MB/s
-BenchmarkGateValid/twitter-32    	    7390	    161142 ns/op	3919.00 MB/s
-BenchmarkGateValid/twitter-32    	    7430	    160635 ns/op	3931.37 MB/s
-BenchmarkGateValid/twitter-32    	    7636	    162012 ns/op	3897.96 MB/s
-BenchmarkGateValid/twitter-32    	    7610	    162510 ns/op	3886.02 MB/s
-BenchmarkGateValid/twitter-32    	    7222	    161971 ns/op	3898.93 MB/s
-BenchmarkGateValid/twitter-32    	    7132	    162092 ns/op	3896.02 MB/s
-BenchmarkGateValid/citm-32       	    2911	    413104 ns/op	4181.04 MB/s
-BenchmarkGateValid/citm-32       	    2955	    408529 ns/op	4227.86 MB/s
-BenchmarkGateValid/citm-32       	    2973	    415137 ns/op	4160.56 MB/s
-BenchmarkGateValid/citm-32       	    2919	    412092 ns/op	4191.31 MB/s
-BenchmarkGateValid/citm-32       	    2955	    409536 ns/op	4217.47 MB/s
-BenchmarkGateValid/citm-32       	    2949	    409121 ns/op	4221.74 MB/s
-BenchmarkGateValid/citm-32       	    2888	    410368 ns/op	4208.92 MB/s
-BenchmarkGateValid/citm-32       	    2893	    410755 ns/op	4204.95 MB/s
-BenchmarkGateValid/canada-32     	     990	   1128195 ns/op	1995.27 MB/s
-BenchmarkGateValid/canada-32     	    1006	   1158516 ns/op	1943.05 MB/s
-BenchmarkGateValid/canada-32     	    1078	   1210799 ns/op	1859.15 MB/s
-BenchmarkGateValid/canada-32     	    1114	   1168173 ns/op	1926.98 MB/s
-BenchmarkGateValid/canada-32     	    1059	   1212640 ns/op	1856.32 MB/s
-BenchmarkGateValid/canada-32     	    1098	   1190264 ns/op	1891.22 MB/s
-BenchmarkGateValid/canada-32     	    1041	   1152786 ns/op	1952.70 MB/s
-BenchmarkGateValid/canada-32     	    1032	   1187242 ns/op	1896.03 MB/s
-BenchmarkGateMarshal/Marshal-32  	    7782	    147305 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7262	    146982 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7749	    147285 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7878	    146578 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7771	    145265 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7621	    148129 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7851	    148621 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7130	    147433 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8347	    135875 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8637	    137588 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8668	    136947 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8420	    138446 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8589	    137939 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8958	    137189 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8070	    137621 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8137	    137734 ns/op
-BenchmarkGateMarshalFloats-32             	     303	   3776682 ns/op	 596.04 MB/s
-BenchmarkGateMarshalFloats-32             	     308	   3764752 ns/op	 597.93 MB/s
-BenchmarkGateMarshalFloats-32             	     308	   3773754 ns/op	 596.50 MB/s
-BenchmarkGateMarshalFloats-32             	     307	   3813271 ns/op	 590.32 MB/s
-BenchmarkGateMarshalFloats-32             	     304	   3801378 ns/op	 592.17 MB/s
-BenchmarkGateMarshalFloats-32             	     304	   3796612 ns/op	 592.91 MB/s
-BenchmarkGateMarshalFloats-32             	     306	   3795577 ns/op	 593.07 MB/s
-BenchmarkGateMarshalFloats-32             	     307	   3787460 ns/op	 594.34 MB/s
-BenchmarkGateUnmarshal-32                 	    2870	    405446 ns/op	 525.72 MB/s
-BenchmarkGateUnmarshal-32                 	    2979	    408016 ns/op	 522.41 MB/s
-BenchmarkGateUnmarshal-32                 	    3019	    411174 ns/op	 518.39 MB/s
-BenchmarkGateUnmarshal-32                 	    2917	    405797 ns/op	 525.26 MB/s
-BenchmarkGateUnmarshal-32                 	    2794	    415960 ns/op	 512.43 MB/s
-BenchmarkGateUnmarshal-32                 	    2840	    406017 ns/op	 524.98 MB/s
-BenchmarkGateUnmarshal-32                 	    2702	    408697 ns/op	 521.54 MB/s
-BenchmarkGateUnmarshal-32                 	    2856	    407595 ns/op	 522.95 MB/s
-BenchmarkGateStream/Decode-32             	    2515	    467244 ns/op	 456.18 MB/s
-BenchmarkGateStream/Decode-32             	    2518	    470300 ns/op	 453.22 MB/s
-BenchmarkGateStream/Decode-32             	    2545	    468148 ns/op	 455.30 MB/s
-BenchmarkGateStream/Decode-32             	    2545	    484094 ns/op	 440.30 MB/s
-BenchmarkGateStream/Decode-32             	    2292	    473621 ns/op	 450.04 MB/s
-BenchmarkGateStream/Decode-32             	    2511	    472890 ns/op	 450.74 MB/s
-BenchmarkGateStream/Decode-32             	    2506	    474325 ns/op	 449.37 MB/s
-BenchmarkGateStream/Decode-32             	    2492	    469353 ns/op	 454.13 MB/s
-BenchmarkGateStream/Encode-32             	    5592	    208808 ns/op	1020.79 MB/s
-BenchmarkGateStream/Encode-32             	    5538	    207858 ns/op	1025.45 MB/s
-BenchmarkGateStream/Encode-32             	    5599	    208613 ns/op	1021.74 MB/s
-BenchmarkGateStream/Encode-32             	    5449	    208714 ns/op	1021.25 MB/s
-BenchmarkGateStream/Encode-32             	    5418	    208747 ns/op	1021.09 MB/s
-BenchmarkGateStream/Encode-32             	    5536	    209877 ns/op	1015.59 MB/s
-BenchmarkGateStream/Encode-32             	    5658	    207364 ns/op	1027.90 MB/s
-BenchmarkGateStream/Encode-32             	    5481	    208309 ns/op	1023.24 MB/s
+BenchmarkGateParse/twitter-32    	    5412	    220674 ns/op	2861.75 MB/s
+BenchmarkGateParse/twitter-32    	    5468	    219689 ns/op	2874.58 MB/s
+BenchmarkGateParse/twitter-32    	    4738	    220944 ns/op	2858.26 MB/s
+BenchmarkGateParse/twitter-32    	    5306	    220812 ns/op	2859.96 MB/s
+BenchmarkGateParse/twitter-32    	    5451	    220106 ns/op	2869.14 MB/s
+BenchmarkGateParse/twitter-32    	    5464	    221647 ns/op	2849.19 MB/s
+BenchmarkGateParse/twitter-32    	    5448	    221349 ns/op	2853.02 MB/s
+BenchmarkGateParse/twitter-32    	    5431	    221133 ns/op	2855.82 MB/s
+BenchmarkGateParse/citm-32       	    2012	    591036 ns/op	2922.33 MB/s
+BenchmarkGateParse/citm-32       	    2011	    593583 ns/op	2909.79 MB/s
+BenchmarkGateParse/citm-32       	    2028	    593759 ns/op	2908.93 MB/s
+BenchmarkGateParse/citm-32       	    1945	    589796 ns/op	2928.48 MB/s
+BenchmarkGateParse/citm-32       	    2007	    591932 ns/op	2917.91 MB/s
+BenchmarkGateParse/citm-32       	    2025	    594688 ns/op	2904.38 MB/s
+BenchmarkGateParse/citm-32       	    2041	    593509 ns/op	2910.16 MB/s
+BenchmarkGateParse/citm-32       	    2052	    593823 ns/op	2908.62 MB/s
+BenchmarkGateParse/canada-32     	    1062	   1136472 ns/op	1980.74 MB/s
+BenchmarkGateParse/canada-32     	    1069	   1135114 ns/op	1983.11 MB/s
+BenchmarkGateParse/canada-32     	    1066	   1129621 ns/op	1992.75 MB/s
+BenchmarkGateParse/canada-32     	    1041	   1133709 ns/op	1985.56 MB/s
+BenchmarkGateParse/canada-32     	    1054	   1134726 ns/op	1983.78 MB/s
+BenchmarkGateParse/canada-32     	    1068	   1134792 ns/op	1983.67 MB/s
+BenchmarkGateParse/canada-32     	    1052	   1130564 ns/op	1991.09 MB/s
+BenchmarkGateParse/canada-32     	    1041	   1133509 ns/op	1985.91 MB/s
+BenchmarkGateScan/twitter-32     	   22603	     52403 ns/op	12051.15 MB/s
+BenchmarkGateScan/twitter-32     	   22812	     52828 ns/op	11954.20 MB/s
+BenchmarkGateScan/twitter-32     	   22749	     53045 ns/op	11905.19 MB/s
+BenchmarkGateScan/twitter-32     	   22581	     52855 ns/op	11948.06 MB/s
+BenchmarkGateScan/twitter-32     	   22891	     52612 ns/op	12003.22 MB/s
+BenchmarkGateScan/twitter-32     	   23016	     53086 ns/op	11896.00 MB/s
+BenchmarkGateScan/twitter-32     	   22656	     52941 ns/op	11928.76 MB/s
+BenchmarkGateScan/twitter-32     	   22784	     52999 ns/op	11915.59 MB/s
+BenchmarkGateScan/citm-32        	    6278	    187936 ns/op	9190.39 MB/s
+BenchmarkGateScan/citm-32        	    6394	    188566 ns/op	9159.70 MB/s
+BenchmarkGateScan/citm-32        	    6265	    188877 ns/op	9144.60 MB/s
+BenchmarkGateScan/citm-32        	    6396	    188939 ns/op	9141.61 MB/s
+BenchmarkGateScan/citm-32        	    6438	    188572 ns/op	9159.41 MB/s
+BenchmarkGateScan/citm-32        	    6123	    189660 ns/op	9106.85 MB/s
+BenchmarkGateScan/citm-32        	    6374	    188248 ns/op	9175.18 MB/s
+BenchmarkGateScan/citm-32        	    6146	    188216 ns/op	9176.72 MB/s
+BenchmarkGateScan/canada-32      	    3796	    320222 ns/op	7029.65 MB/s
+BenchmarkGateScan/canada-32      	    3776	    314423 ns/op	7159.30 MB/s
+BenchmarkGateScan/canada-32      	    3783	    319593 ns/op	7043.50 MB/s
+BenchmarkGateScan/canada-32      	    3681	    314665 ns/op	7153.80 MB/s
+BenchmarkGateScan/canada-32      	    3637	    318066 ns/op	7077.30 MB/s
+BenchmarkGateScan/canada-32      	    3736	    317196 ns/op	7096.73 MB/s
+BenchmarkGateScan/canada-32      	    3662	    318692 ns/op	7063.41 MB/s
+BenchmarkGateScan/canada-32      	    3734	    318102 ns/op	7076.51 MB/s
+BenchmarkGateValid/twitter-32    	    7363	    162326 ns/op	3890.41 MB/s
+BenchmarkGateValid/twitter-32    	    6794	    161307 ns/op	3914.98 MB/s
+BenchmarkGateValid/twitter-32    	    7468	    162884 ns/op	3877.07 MB/s
+BenchmarkGateValid/twitter-32    	    7473	    160648 ns/op	3931.05 MB/s
+BenchmarkGateValid/twitter-32    	    7237	    162871 ns/op	3877.40 MB/s
+BenchmarkGateValid/twitter-32    	    7657	    161917 ns/op	3900.24 MB/s
+BenchmarkGateValid/twitter-32    	    7268	    160830 ns/op	3926.59 MB/s
+BenchmarkGateValid/twitter-32    	    7582	    160716 ns/op	3929.38 MB/s
+BenchmarkGateValid/citm-32       	    2946	    409690 ns/op	4215.88 MB/s
+BenchmarkGateValid/citm-32       	    2967	    412028 ns/op	4191.96 MB/s
+BenchmarkGateValid/citm-32       	    2876	    409319 ns/op	4219.70 MB/s
+BenchmarkGateValid/citm-32       	    2932	    409923 ns/op	4213.48 MB/s
+BenchmarkGateValid/citm-32       	    2942	    407421 ns/op	4239.36 MB/s
+BenchmarkGateValid/citm-32       	    2978	    409903 ns/op	4213.69 MB/s
+BenchmarkGateValid/citm-32       	    2971	    409050 ns/op	4222.47 MB/s
+BenchmarkGateValid/citm-32       	    2967	    406690 ns/op	4246.98 MB/s
+BenchmarkGateValid/canada-32     	    1347	    885509 ns/op	2542.10 MB/s
+BenchmarkGateValid/canada-32     	    1340	    891431 ns/op	2525.21 MB/s
+BenchmarkGateValid/canada-32     	    1353	    896438 ns/op	2511.11 MB/s
+BenchmarkGateValid/canada-32     	    1351	    894403 ns/op	2516.82 MB/s
+BenchmarkGateValid/canada-32     	    1342	    894836 ns/op	2515.60 MB/s
+BenchmarkGateValid/canada-32     	    1327	    896144 ns/op	2511.93 MB/s
+BenchmarkGateValid/canada-32     	    1359	    891525 ns/op	2524.94 MB/s
+BenchmarkGateValid/canada-32     	    1336	    892013 ns/op	2523.56 MB/s
+BenchmarkGateMarshal/Marshal-32  	    7447	    148250 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7629	    148645 ns/op
+BenchmarkGateMarshal/Marshal-32  	    8085	    149456 ns/op
+BenchmarkGateMarshal/Marshal-32  	    8068	    150035 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7999	    149736 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7761	    149533 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7584	    148968 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7597	    149741 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8904	    145408 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8656	    141944 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8186	    141279 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8893	    141539 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8434	    140225 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8780	    141764 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8796	    141012 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8419	    139196 ns/op
+BenchmarkGateMarshalFloats-32             	     304	   3762621 ns/op	 598.27 MB/s
+BenchmarkGateMarshalFloats-32             	     309	   3761141 ns/op	 598.50 MB/s
+BenchmarkGateMarshalFloats-32             	     308	   3780655 ns/op	 595.41 MB/s
+BenchmarkGateMarshalFloats-32             	     304	   3763021 ns/op	 598.20 MB/s
+BenchmarkGateMarshalFloats-32             	     307	   3774069 ns/op	 596.45 MB/s
+BenchmarkGateMarshalFloats-32             	     297	   3773787 ns/op	 596.50 MB/s
+BenchmarkGateMarshalFloats-32             	     308	   3776740 ns/op	 596.03 MB/s
+BenchmarkGateMarshalFloats-32             	     306	   3773240 ns/op	 596.58 MB/s
+BenchmarkGateUnmarshal-32                 	    2834	    415419 ns/op	 513.10 MB/s
+BenchmarkGateUnmarshal-32                 	    2820	    415489 ns/op	 513.01 MB/s
+BenchmarkGateUnmarshal-32                 	    2877	    418036 ns/op	 509.88 MB/s
+BenchmarkGateUnmarshal-32                 	    2918	    416074 ns/op	 512.29 MB/s
+BenchmarkGateUnmarshal-32                 	    2884	    412976 ns/op	 516.13 MB/s
+BenchmarkGateUnmarshal-32                 	    2848	    413330 ns/op	 515.69 MB/s
+BenchmarkGateUnmarshal-32                 	    2845	    410322 ns/op	 519.47 MB/s
+BenchmarkGateUnmarshal-32                 	    2894	    415430 ns/op	 513.08 MB/s
+BenchmarkGateStream/Decode-32             	    2512	    472611 ns/op	 451.00 MB/s
+BenchmarkGateStream/Decode-32             	    2547	    477659 ns/op	 446.24 MB/s
+BenchmarkGateStream/Decode-32             	    2533	    467628 ns/op	 455.81 MB/s
+BenchmarkGateStream/Decode-32             	    2529	    478513 ns/op	 445.44 MB/s
+BenchmarkGateStream/Decode-32             	    2324	    466298 ns/op	 457.11 MB/s
+BenchmarkGateStream/Decode-32             	    2563	    476199 ns/op	 447.60 MB/s
+BenchmarkGateStream/Decode-32             	    2556	    473720 ns/op	 449.95 MB/s
+BenchmarkGateStream/Decode-32             	    2430	    468772 ns/op	 454.70 MB/s
+BenchmarkGateStream/Encode-32             	    5756	    209335 ns/op	1018.22 MB/s
+BenchmarkGateStream/Encode-32             	    5962	    213113 ns/op	1000.17 MB/s
+BenchmarkGateStream/Encode-32             	    5418	    211146 ns/op	1009.49 MB/s
+BenchmarkGateStream/Encode-32             	    5512	    211744 ns/op	1006.64 MB/s
+BenchmarkGateStream/Encode-32             	    5420	    209928 ns/op	1015.34 MB/s
+BenchmarkGateStream/Encode-32             	    5659	    211223 ns/op	1009.12 MB/s
+BenchmarkGateStream/Encode-32             	    5173	    211638 ns/op	1007.14 MB/s
+BenchmarkGateStream/Encode-32             	    5474	    210301 ns/op	1013.54 MB/s
 PASS
-ok  	github.com/sebishogun/simdjson	154.382s
-goos: linux
-goarch: amd64
-pkg: github.com/sebishogun/simdjson
-cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S          
-BenchmarkGateParse/twitter-32    	    4875	    221235 ns/op	2854.50 MB/s
-BenchmarkGateParse/twitter-32    	    5269	    221541 ns/op	2850.55 MB/s
-BenchmarkGateParse/twitter-32    	    5164	    221249 ns/op	2854.32 MB/s
-BenchmarkGateParse/twitter-32    	    5515	    219687 ns/op	2874.61 MB/s
-BenchmarkGateParse/twitter-32    	    4831	    220962 ns/op	2858.02 MB/s
-BenchmarkGateParse/twitter-32    	    5425	    222226 ns/op	2841.77 MB/s
-BenchmarkGateParse/twitter-32    	    4802	    221981 ns/op	2844.91 MB/s
-BenchmarkGateParse/twitter-32    	    5281	    219617 ns/op	2875.52 MB/s
-BenchmarkGateParse/citm-32       	    2044	    594862 ns/op	2903.54 MB/s
-BenchmarkGateParse/citm-32       	    1996	    595905 ns/op	2898.45 MB/s
-BenchmarkGateParse/citm-32       	    2013	    594017 ns/op	2907.67 MB/s
-BenchmarkGateParse/citm-32       	    2038	    591187 ns/op	2921.59 MB/s
-BenchmarkGateParse/citm-32       	    2043	    592082 ns/op	2917.17 MB/s
-BenchmarkGateParse/citm-32       	    2010	    598369 ns/op	2886.52 MB/s
-BenchmarkGateParse/citm-32       	    1976	    598562 ns/op	2885.59 MB/s
-BenchmarkGateParse/citm-32       	    1964	    594884 ns/op	2903.43 MB/s
-BenchmarkGateParse/canada-32     	     914	   1318859 ns/op	1706.82 MB/s
-BenchmarkGateParse/canada-32     	     909	   1314737 ns/op	1712.17 MB/s
-BenchmarkGateParse/canada-32     	     910	   1329554 ns/op	1693.09 MB/s
-BenchmarkGateParse/canada-32     	     909	   1340922 ns/op	1678.73 MB/s
-BenchmarkGateParse/canada-32     	     913	   1313379 ns/op	1713.94 MB/s
-BenchmarkGateParse/canada-32     	     901	   1332265 ns/op	1689.64 MB/s
-BenchmarkGateParse/canada-32     	     902	   1336139 ns/op	1684.74 MB/s
-BenchmarkGateParse/canada-32     	     895	   1333073 ns/op	1688.62 MB/s
-BenchmarkGateScan/twitter-32     	   22842	     52495 ns/op	12030.00 MB/s
-BenchmarkGateScan/twitter-32     	   22818	     52234 ns/op	12090.09 MB/s
-BenchmarkGateScan/twitter-32     	   22483	     52676 ns/op	11988.73 MB/s
-BenchmarkGateScan/twitter-32     	   22532	     53113 ns/op	11890.13 MB/s
-BenchmarkGateScan/twitter-32     	   22797	     52837 ns/op	11952.08 MB/s
-BenchmarkGateScan/twitter-32     	   22963	     52528 ns/op	12022.40 MB/s
-BenchmarkGateScan/twitter-32     	   22838	     52615 ns/op	12002.47 MB/s
-BenchmarkGateScan/twitter-32     	   22830	     52624 ns/op	12000.57 MB/s
-BenchmarkGateScan/citm-32        	    5847	    187764 ns/op	9198.81 MB/s
-BenchmarkGateScan/citm-32        	    6129	    188105 ns/op	9182.11 MB/s
-BenchmarkGateScan/citm-32        	    6343	    188969 ns/op	9140.16 MB/s
-BenchmarkGateScan/citm-32        	    6171	    189214 ns/op	9128.29 MB/s
-BenchmarkGateScan/citm-32        	    6488	    188421 ns/op	9166.74 MB/s
-BenchmarkGateScan/citm-32        	    6223	    188952 ns/op	9140.95 MB/s
-BenchmarkGateScan/citm-32        	    6580	    188772 ns/op	9149.70 MB/s
-BenchmarkGateScan/citm-32        	    6433	    189421 ns/op	9118.34 MB/s
-BenchmarkGateScan/canada-32      	    3768	    319675 ns/op	7041.68 MB/s
-BenchmarkGateScan/canada-32      	    3872	    318874 ns/op	7059.37 MB/s
-BenchmarkGateScan/canada-32      	    3835	    319337 ns/op	7049.13 MB/s
-BenchmarkGateScan/canada-32      	    3790	    318918 ns/op	7058.41 MB/s
-BenchmarkGateScan/canada-32      	    3585	    318068 ns/op	7077.25 MB/s
-BenchmarkGateScan/canada-32      	    3847	    319144 ns/op	7053.41 MB/s
-BenchmarkGateScan/canada-32      	    3670	    319389 ns/op	7047.99 MB/s
-BenchmarkGateScan/canada-32      	    3794	    315378 ns/op	7137.63 MB/s
-BenchmarkGateValid/twitter-32    	    7291	    161147 ns/op	3918.87 MB/s
-BenchmarkGateValid/twitter-32    	    7210	    160696 ns/op	3929.87 MB/s
-BenchmarkGateValid/twitter-32    	    7239	    160206 ns/op	3941.90 MB/s
-BenchmarkGateValid/twitter-32    	    7608	    160215 ns/op	3941.66 MB/s
-BenchmarkGateValid/twitter-32    	    7473	    162279 ns/op	3891.53 MB/s
-BenchmarkGateValid/twitter-32    	    7206	    163424 ns/op	3864.28 MB/s
-BenchmarkGateValid/twitter-32    	    7652	    161624 ns/op	3907.30 MB/s
-BenchmarkGateValid/twitter-32    	    7410	    162285 ns/op	3891.39 MB/s
-BenchmarkGateValid/citm-32       	    2986	    411592 ns/op	4196.40 MB/s
-BenchmarkGateValid/citm-32       	    2952	    409229 ns/op	4220.63 MB/s
-BenchmarkGateValid/citm-32       	    2938	    409666 ns/op	4216.12 MB/s
-BenchmarkGateValid/citm-32       	    2946	    405724 ns/op	4257.09 MB/s
-BenchmarkGateValid/citm-32       	    2852	    409574 ns/op	4217.07 MB/s
-BenchmarkGateValid/citm-32       	    2930	    409819 ns/op	4214.55 MB/s
-BenchmarkGateValid/citm-32       	    2983	    406407 ns/op	4249.93 MB/s
-BenchmarkGateValid/citm-32       	    2878	    408865 ns/op	4224.39 MB/s
-BenchmarkGateValid/canada-32     	    1047	   1141630 ns/op	1971.79 MB/s
-BenchmarkGateValid/canada-32     	     975	   1133360 ns/op	1986.17 MB/s
-BenchmarkGateValid/canada-32     	    1036	   1153619 ns/op	1951.29 MB/s
-BenchmarkGateValid/canada-32     	     951	   1161893 ns/op	1937.40 MB/s
-BenchmarkGateValid/canada-32     	    1106	   1115041 ns/op	2018.81 MB/s
-BenchmarkGateValid/canada-32     	    1010	   1143071 ns/op	1969.30 MB/s
-BenchmarkGateValid/canada-32     	    1008	   1145953 ns/op	1964.35 MB/s
-BenchmarkGateValid/canada-32     	     998	   1239650 ns/op	1815.88 MB/s
-BenchmarkGateMarshal/Marshal-32  	    7776	    147744 ns/op
-BenchmarkGateMarshal/Marshal-32  	    8168	    147153 ns/op
-BenchmarkGateMarshal/Marshal-32  	    8103	    145694 ns/op
-BenchmarkGateMarshal/Marshal-32  	    8016	    144457 ns/op
-BenchmarkGateMarshal/Marshal-32  	    8048	    145007 ns/op
-BenchmarkGateMarshal/Marshal-32  	    8090	    145592 ns/op
-BenchmarkGateMarshal/Marshal-32  	    8121	    146461 ns/op
-BenchmarkGateMarshal/Marshal-32  	    7454	    146129 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    9061	    135918 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8706	    136501 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8534	    136206 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8247	    137422 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8805	    136438 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8822	    135905 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8564	    135597 ns/op
-BenchmarkGateMarshal/MarshalTo-32         	    8685	    135375 ns/op
-BenchmarkGateMarshalFloats-32             	     306	   3747946 ns/op	 600.61 MB/s
-BenchmarkGateMarshalFloats-32             	     307	   3778959 ns/op	 595.68 MB/s
-BenchmarkGateMarshalFloats-32             	     307	   3805991 ns/op	 591.45 MB/s
-BenchmarkGateMarshalFloats-32             	     308	   3795983 ns/op	 593.01 MB/s
-BenchmarkGateMarshalFloats-32             	     307	   3759493 ns/op	 598.76 MB/s
-BenchmarkGateMarshalFloats-32             	     307	   3766183 ns/op	 597.70 MB/s
-BenchmarkGateMarshalFloats-32             	     307	   3782623 ns/op	 595.10 MB/s
-BenchmarkGateMarshalFloats-32             	     306	   3779893 ns/op	 595.53 MB/s
-BenchmarkGateUnmarshal-32                 	    2912	    409305 ns/op	 520.76 MB/s
-BenchmarkGateUnmarshal-32                 	    2872	    407242 ns/op	 523.40 MB/s
-BenchmarkGateUnmarshal-32                 	    2799	    405569 ns/op	 525.56 MB/s
-BenchmarkGateUnmarshal-32                 	    2835	    407908 ns/op	 522.54 MB/s
-BenchmarkGateUnmarshal-32                 	    2949	    405146 ns/op	 526.11 MB/s
-BenchmarkGateUnmarshal-32                 	    2974	    402452 ns/op	 529.63 MB/s
-BenchmarkGateUnmarshal-32                 	    2991	    406911 ns/op	 523.82 MB/s
-BenchmarkGateUnmarshal-32                 	    2881	    406865 ns/op	 523.88 MB/s
-BenchmarkGateStream/Decode-32             	    2535	    470659 ns/op	 452.87 MB/s
-BenchmarkGateStream/Decode-32             	    2132	    480060 ns/op	 444.00 MB/s
-BenchmarkGateStream/Decode-32             	    2506	    470823 ns/op	 452.72 MB/s
-BenchmarkGateStream/Decode-32             	    2552	    473883 ns/op	 449.79 MB/s
-BenchmarkGateStream/Decode-32             	    2390	    471906 ns/op	 451.68 MB/s
-BenchmarkGateStream/Decode-32             	    2542	    468003 ns/op	 455.44 MB/s
-BenchmarkGateStream/Decode-32             	    2542	    467715 ns/op	 455.72 MB/s
-BenchmarkGateStream/Decode-32             	    2527	    466893 ns/op	 456.53 MB/s
-BenchmarkGateStream/Encode-32             	    5514	    207636 ns/op	1026.55 MB/s
-BenchmarkGateStream/Encode-32             	    5607	    206831 ns/op	1030.55 MB/s
-BenchmarkGateStream/Encode-32             	    5775	    207735 ns/op	1026.06 MB/s
-BenchmarkGateStream/Encode-32             	    5775	    209247 ns/op	1018.65 MB/s
-BenchmarkGateStream/Encode-32             	    5647	    209826 ns/op	1015.84 MB/s
-BenchmarkGateStream/Encode-32             	    5295	    207011 ns/op	1029.65 MB/s
-BenchmarkGateStream/Encode-32             	    5677	    208470 ns/op	1022.45 MB/s
-BenchmarkGateStream/Encode-32             	    5704	    208394 ns/op	1022.82 MB/s
-PASS
-ok  	github.com/sebishogun/simdjson	155.219s
+ok  	github.com/sebishogun/simdjson	153.722s
+BenchmarkGateParse/twitter-32    	    5054	    221859 ns/op	2846.47 MB/s
+BenchmarkGateParse/twitter-32    	    5026	    222714 ns/op	2835.55 MB/s
+BenchmarkGateParse/twitter-32    	    4999	    219812 ns/op	2872.97 MB/s
+BenchmarkGateParse/twitter-32    	    5335	    221058 ns/op	2856.79 MB/s
+BenchmarkGateParse/twitter-32    	    5172	    221418 ns/op	2852.14 MB/s
+BenchmarkGateParse/twitter-32    	    5199	    220374 ns/op	2865.65 MB/s
+BenchmarkGateParse/twitter-32    	    5442	    220075 ns/op	2869.55 MB/s
+BenchmarkGateParse/twitter-32    	    5492	    217963 ns/op	2897.35 MB/s
+BenchmarkGateParse/citm-32       	    2037	    593739 ns/op	2909.03 MB/s
+BenchmarkGateParse/citm-32       	    2025	    594507 ns/op	2905.27 MB/s
+BenchmarkGateParse/citm-32       	    1965	    597111 ns/op	2892.60 MB/s
+BenchmarkGateParse/citm-32       	    1995	    597231 ns/op	2892.02 MB/s
+BenchmarkGateParse/citm-32       	    1974	    592835 ns/op	2913.46 MB/s
+BenchmarkGateParse/citm-32       	    2037	    593587 ns/op	2909.77 MB/s
+BenchmarkGateParse/citm-32       	    2006	    594226 ns/op	2906.65 MB/s
+BenchmarkGateParse/citm-32       	    2022	    597420 ns/op	2891.10 MB/s
+BenchmarkGateParse/canada-32     	    1058	   1139753 ns/op	1975.03 MB/s
+BenchmarkGateParse/canada-32     	    1041	   1135039 ns/op	1983.24 MB/s
+BenchmarkGateParse/canada-32     	    1054	   1139157 ns/op	1976.07 MB/s
+BenchmarkGateParse/canada-32     	    1054	   1134075 ns/op	1984.92 MB/s
+BenchmarkGateParse/canada-32     	    1066	   1134216 ns/op	1984.68 MB/s
+BenchmarkGateParse/canada-32     	    1066	   1140186 ns/op	1974.28 MB/s
+BenchmarkGateParse/canada-32     	    1059	   1138279 ns/op	1977.59 MB/s
+BenchmarkGateParse/canada-32     	    1053	   1136080 ns/op	1981.42 MB/s
+BenchmarkGateScan/twitter-32     	   22692	     52602 ns/op	12005.43 MB/s
+BenchmarkGateScan/twitter-32     	   22921	     52804 ns/op	11959.59 MB/s
+BenchmarkGateScan/twitter-32     	   22916	     52449 ns/op	12040.57 MB/s
+BenchmarkGateScan/twitter-32     	   22850	     52527 ns/op	12022.72 MB/s
+BenchmarkGateScan/twitter-32     	   22573	     52914 ns/op	11934.66 MB/s
+BenchmarkGateScan/twitter-32     	   22875	     52442 ns/op	12042.12 MB/s
+BenchmarkGateScan/twitter-32     	   22910	     52900 ns/op	11937.90 MB/s
+BenchmarkGateScan/twitter-32     	   22724	     52459 ns/op	12038.35 MB/s
+BenchmarkGateScan/citm-32        	    6331	    189329 ns/op	9122.78 MB/s
+BenchmarkGateScan/citm-32        	    6038	    188202 ns/op	9177.42 MB/s
+BenchmarkGateScan/citm-32        	    6400	    187917 ns/op	9191.30 MB/s
+BenchmarkGateScan/citm-32        	    6385	    188111 ns/op	9181.82 MB/s
+BenchmarkGateScan/citm-32        	    6429	    188404 ns/op	9167.57 MB/s
+BenchmarkGateScan/citm-32        	    6418	    188762 ns/op	9150.15 MB/s
+BenchmarkGateScan/citm-32        	    6430	    188518 ns/op	9161.99 MB/s
+BenchmarkGateScan/citm-32        	    6409	    187451 ns/op	9214.17 MB/s
+BenchmarkGateScan/canada-32      	    3728	    318924 ns/op	7058.28 MB/s
+BenchmarkGateScan/canada-32      	    3738	    317336 ns/op	7093.59 MB/s
+BenchmarkGateScan/canada-32      	    3807	    321110 ns/op	7010.21 MB/s
+BenchmarkGateScan/canada-32      	    3838	    320205 ns/op	7030.03 MB/s
+BenchmarkGateScan/canada-32      	    3781	    318447 ns/op	7068.84 MB/s
+BenchmarkGateScan/canada-32      	    3834	    318717 ns/op	7062.84 MB/s
+BenchmarkGateScan/canada-32      	    3796	    316782 ns/op	7106.00 MB/s
+BenchmarkGateScan/canada-32      	    3877	    316284 ns/op	7117.19 MB/s
+BenchmarkGateValid/twitter-32    	    7423	    160686 ns/op	3930.13 MB/s
+BenchmarkGateValid/twitter-32    	    7393	    160463 ns/op	3935.57 MB/s
+BenchmarkGateValid/twitter-32    	    7357	    160472 ns/op	3935.37 MB/s
+BenchmarkGateValid/twitter-32    	    6733	    160876 ns/op	3925.47 MB/s
+BenchmarkGateValid/twitter-32    	    7069	    161116 ns/op	3919.62 MB/s
+BenchmarkGateValid/twitter-32    	    7531	    160478 ns/op	3935.21 MB/s
+BenchmarkGateValid/twitter-32    	    7285	    161095 ns/op	3920.13 MB/s
+BenchmarkGateValid/twitter-32    	    7536	    160739 ns/op	3928.83 MB/s
+BenchmarkGateValid/citm-32       	    2932	    411062 ns/op	4201.81 MB/s
+BenchmarkGateValid/citm-32       	    2919	    412809 ns/op	4184.03 MB/s
+BenchmarkGateValid/citm-32       	    2914	    411070 ns/op	4201.72 MB/s
+BenchmarkGateValid/citm-32       	    2875	    411258 ns/op	4199.81 MB/s
+BenchmarkGateValid/citm-32       	    2971	    409423 ns/op	4218.63 MB/s
+BenchmarkGateValid/citm-32       	    2932	    408961 ns/op	4223.39 MB/s
+BenchmarkGateValid/citm-32       	    2968	    409124 ns/op	4221.72 MB/s
+BenchmarkGateValid/citm-32       	    2922	    416005 ns/op	4151.89 MB/s
+BenchmarkGateValid/canada-32     	    1310	    893110 ns/op	2520.46 MB/s
+BenchmarkGateValid/canada-32     	    1308	    895583 ns/op	2513.50 MB/s
+BenchmarkGateValid/canada-32     	    1353	    888887 ns/op	2532.44 MB/s
+BenchmarkGateValid/canada-32     	    1352	    893345 ns/op	2519.80 MB/s
+BenchmarkGateValid/canada-32     	    1346	    883866 ns/op	2546.82 MB/s
+BenchmarkGateValid/canada-32     	    1345	    889717 ns/op	2530.07 MB/s
+BenchmarkGateValid/canada-32     	    1352	    890426 ns/op	2528.06 MB/s
+BenchmarkGateValid/canada-32     	    1364	    893463 ns/op	2519.47 MB/s
+BenchmarkGateMarshal/Marshal-32  	    7621	    152660 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7600	    151591 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7850	    149681 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7730	    149916 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7936	    149685 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7868	    150339 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7839	    148952 ns/op
+BenchmarkGateMarshal/Marshal-32  	    7977	    149267 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8944	    142014 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8582	    142620 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8522	    153715 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8379	    140930 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    9012	    142221 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8048	    140109 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8712	    140687 ns/op
+BenchmarkGateMarshal/MarshalTo-32         	    8478	    140171 ns/op
+BenchmarkGateMarshalFloats-32             	     306	   3773665 ns/op	 596.52 MB/s
+BenchmarkGateMarshalFloats-32             	     309	   3758963 ns/op	 598.85 MB/s
+BenchmarkGateMarshalFloats-32             	     308	   3775125 ns/op	 596.29 MB/s
+BenchmarkGateMarshalFloats-32             	     307	   3782813 ns/op	 595.07 MB/s
+BenchmarkGateMarshalFloats-32             	     308	   3763991 ns/op	 598.05 MB/s
+BenchmarkGateMarshalFloats-32             	     309	   3803478 ns/op	 591.84 MB/s
+BenchmarkGateMarshalFloats-32             	     303	   3782546 ns/op	 595.12 MB/s
+BenchmarkGateMarshalFloats-32             	     308	   3789890 ns/op	 593.96 MB/s
+BenchmarkGateUnmarshal-32                 	    2839	    417385 ns/op	 510.68 MB/s
+BenchmarkGateUnmarshal-32                 	    2774	    416655 ns/op	 511.57 MB/s
+BenchmarkGateUnmarshal-32                 	    2862	    417142 ns/op	 510.98 MB/s
+BenchmarkGateUnmarshal-32                 	    2926	    416013 ns/op	 512.36 MB/s
+BenchmarkGateUnmarshal-32                 	    2724	    417311 ns/op	 510.77 MB/s
+BenchmarkGateUnmarshal-32                 	    2858	    416387 ns/op	 511.90 MB/s
+BenchmarkGateUnmarshal-32                 	    2882	    417147 ns/op	 510.97 MB/s
+BenchmarkGateUnmarshal-32                 	    2905	    420156 ns/op	 507.31 MB/s
+BenchmarkGateStream/Decode-32             	    2522	    478093 ns/op	 445.83 MB/s
+BenchmarkGateStream/Decode-32             	    2485	    477077 ns/op	 446.78 MB/s
+BenchmarkGateStream/Decode-32             	    2484	    485763 ns/op	 438.79 MB/s
+BenchmarkGateStream/Decode-32             	    2439	    482230 ns/op	 442.01 MB/s
+BenchmarkGateStream/Decode-32             	    2409	    471273 ns/op	 452.28 MB/s
+BenchmarkGateStream/Decode-32             	    2311	    473794 ns/op	 449.88 MB/s
+BenchmarkGateStream/Decode-32             	    2438	    478571 ns/op	 445.39 MB/s
+BenchmarkGateStream/Decode-32             	    2438	    485982 ns/op	 438.59 MB/s
+BenchmarkGateStream/Encode-32             	    5619	    213072 ns/op	1000.36 MB/s
+BenchmarkGateStream/Encode-32             	    5443	    215560 ns/op	 988.82 MB/s
+BenchmarkGateStream/Encode-32             	    5604	    212259 ns/op	1004.19 MB/s
+BenchmarkGateStream/Encode-32             	    5412	    213847 ns/op	 996.73 MB/s
+BenchmarkGateStream/Encode-32             	    5642	    215407 ns/op	 989.52 MB/s
+BenchmarkGateStream/Encode-32             	    5547	    213094 ns/op	1000.26 MB/s
+BenchmarkGateStream/Encode-32             	    5451	    212851 ns/op	1001.40 MB/s
+BenchmarkGateStream/Encode-32             	    5736	    212200 ns/op	1004.47 MB/s

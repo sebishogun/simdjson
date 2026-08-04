@@ -1084,3 +1084,61 @@ version answered the same question for nothing.
 between the loops inside them. Before building the fast one into a second place,
 check the cheap version of the same idea — it costs an afternoon less and
 answers it.
+
+## Doing it again, three hours after writing it down
+
+Entry 21 says: do not run anything else while a benchmark runs, because a
+control measured before the interference certifies nothing after it. Recording
+the gate baseline again, the procedure was two independent runs with the two
+agreeing as the control -- the usual control being unavailable, since that
+change touched Parse, Scan and Valid on every corpus and left nothing untouched
+to re-measure.
+
+Two of fifteen disagreed:
+
+	                      run 1     run 2
+	GateStream/Decode   516,649   466,298   10.8%
+	GateUnmarshal       460,652   410,322   12.3%
+
+Both are the allocation-heavy ones, and both moved the way contention moves
+them, because `gofmt -l` and `go vet` were run on the bench module during run 1.
+The rule was followed except for the part where it was not: a vet in a different
+module felt like it did not count, and the scheduler does not know what a module
+is.
+
+Run 3, with nothing else touching the machine, agrees with run 2 across every
+benchmark within 1.4% and most within 0.8% -- including those two. The baseline
+is the minimum over runs 2 and 3, sixteen samples.
+
+**And benchcheck said the disagreeing runs were fine**, for two reasons, and
+the first one I got wrong before checking. It compares in one direction, so a
+run that came out *faster* is never a regression -- but that is not why these
+passed. `GateUnmarshal` and `GateStream/Decode` are two of the three benchmarks
+in `wideThreshold`, exempted at 12% and 15% because they allocate per value and
+their timing includes whichever collections landed inside it. Measured from the
+baseline the disagreements are 10.9% and 9.7%, inside their own exemptions. The
+exemptions were doing exactly what they were written to do, and they are wide
+enough to swallow a contaminated run.
+
+So `-agree` was added: same comparison, both directions, per benchmark. And
+testing it found a second defect, in code whose comment already described the
+right behaviour:
+
+	lim := *threshold
+	if w, ok := wideThreshold[n]; ok && w > lim {
+		lim = w
+	}
+
+The comment above it reads "A flag tighter than an entry in the table is a
+deliberate ask for a stricter run and has to win, or -threshold 1 would silently
+do nothing for three of fourteen." The code compares magnitudes only, so the
+exemption wins whenever it is larger -- and `-threshold 1` did silently do
+nothing for those three, which is the thing the comment says must not happen. It
+now applies the exemption only when the threshold was not given explicitly.
+
+**The rule.** When the question is "do these two runs agree", a threshold check
+that only fires downward is the wrong instrument -- and per-benchmark exemptions
+sized for noise are, by construction, sized to hide interference too. Also: a
+comment describing what the code should do is not evidence that it does. That
+one had been right and wrong in the same paragraph for as long as it existed,
+and only writing a test that depended on it found out.

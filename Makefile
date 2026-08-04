@@ -63,13 +63,28 @@ BENCH_BASELINE = testdata/bench/$(shell $(GO) env GOARCH).txt
 BENCH_COUNT   ?= 8
 BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
 
-.PHONY: bench-run bench-check bench-update bench-vs bench-vs-test vet-vs
+.PHONY: bench-run bench-check bench-update bench-agree bench-vs bench-vs-test vet-vs
 
 bench-run: ## Run the gate benchmarks and write the raw output
 	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT)
 
 bench-check: bench-run ## Benchmark and fail on anything slower than the baseline
 	cd tools && $(GO) run ./benchcheck -baseline ../$(BENCH_BASELINE) $(BENCH_OUT)
+
+# Two independent runs, and they have to agree before either is a baseline.
+#
+# The usual control -- re-measure something the change cannot touch -- is not
+# always available: a change to the number scanner is on Parse, Scan and Valid
+# for every corpus and leaves nothing untouched. Two runs agreeing is the check
+# that is always available. See docs/wrong.md entries 21 and 23; both times a
+# baseline was nearly recorded from a run something else was using.
+bench-agree: ## Record twice and fail unless the two runs agree
+	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT).1
+	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT).2
+	cd tools && $(GO) run ./benchcheck -agree -threshold 5 -baseline ../$(BENCH_OUT).1 ../$(BENCH_OUT).2
+	@cat $(BENCH_OUT).1 > $(BENCH_OUT)
+	@grep '^Benchmark' $(BENCH_OUT).2 >> $(BENCH_OUT)
+	@echo "the two runs agree; $(BENCH_OUT) holds both, $(shell expr $(BENCH_COUNT) \* 2) samples each"
 
 bench-update: bench-run ## Re-record the baseline. Say why in the commit message.
 	cd tools && $(GO) run ./benchcheck -update -baseline ../$(BENCH_BASELINE) $(BENCH_OUT)
