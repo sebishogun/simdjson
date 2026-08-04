@@ -637,7 +637,13 @@ func compileArrayEncoder(t reflect.Type) encodeFn {
 // kv is a map key as it will be written and as it must be looked up.
 // kv is one entry of a map being encoded through reflect. The sort is shared
 // with the map[string]any path; see sortmap.go for why it is generic.
-type kv = pair[reflect.Value]
+// kv is a key and the index of its value in the slice built for this map.
+//
+// An index, not the reflect.Value itself, for two reasons. The values live in
+// one slice rather than one box each -- see compileMapEncoder -- so there is
+// something to index. And it makes the sort's element eight bytes instead of
+// twenty-four, so every swap in the radix partition moves a third as much.
+type kv = pair[int]
 
 func compileMapEncoder(t reflect.Type) encodeFn {
 	// Three things decided once for the type, which were being decided once per
@@ -667,6 +673,21 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 		}
 		// MapRange rather than MapKeys: MapKeys builds a slice of every key
 		// before anything is written, and the keys are wanted one at a time.
+		// Every value in one slice, not one box each.
+		//
+		// MapIter.Value allocates a fresh Value per entry, and then ptrOf
+		// allocates a SECOND time and copies: a Value from MapIter.Value is not
+		// addressable, because reflect's copyVal does not set flagAddr, so
+		// ptrOf falls to its reflect.New-and-Set path. Two allocations and a
+		// copy for every value in the map.
+		//
+		// A slice of the element type costs one allocation for all of them, and
+		// its elements ARE addressable, so ptrOf takes the UnsafeAddr fast path
+		// and copies nothing. rv.Len() gives the count before the walk starts,
+		// so it is sized once and never grown.
+		n := rv.Len()
+		vals := reflect.MakeSlice(reflect.SliceOf(et), n, n)
+
 		mark := len(e.kvbuf)
 		it := rv.MapRange()
 		// One Value for the key, filled in place. MapIter.Key allocates a fresh
@@ -696,7 +717,14 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			// Retaining it across Next is safe: MapIter.Value goes through
 			// copyVal, which copies an indirect value into fresh memory and
 			// takes the pointer for a pointer-shaped one.
-			e.kvbuf = append(e.kvbuf, kv{k: s, v: it.Value()})
+			i := len(e.kvbuf) - mark
+			if i >= n {
+				// A map that grew during the walk. Go does not define what
+				// iteration returns then, but it must not write past the slice.
+				break
+			}
+			vals.Index(i).SetIterValue(it)
+			e.kvbuf = append(e.kvbuf, kv{k: s, v: i})
 		}
 		pairs := e.kvbuf[mark:]
 		// Given back on the way out, whatever happens, so a nested map inside
@@ -726,7 +754,7 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			}
 			e.writeString(pr.k)
 			e.buf = append(e.buf, ':')
-			el := pr.v
+			el := vals.Index(pr.v)
 			fn := valFn
 			if fn == nil {
 				fn = e.encoderForCached(el.Type())
