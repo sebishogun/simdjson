@@ -17,21 +17,34 @@ because half of what it said has changed.
 | parse twitter / citm / canada | **this** | 222 / 603 / 1,345 µs | 1.06× / 1.17× / 1.47× over fastjson |
 | index without validating | **this** | 52 / 188 / 314 µs | 4.5× fastjson on twitter |
 | validate twitter / citm | **this** | 3,954 / 4,326 MB/s | 1.10× / 1.12× over sonic |
-| validate canada | sonic 2,252 MB/s | 2,026 MB/s | sonic 1.11× |
-| unmarshal into a struct | goccy 300 µs | 329 µs | goccy 1.10× |
+| validate canada | sonic 2,255 MB/s | 1,921 MB/s | sonic 1.17× |
+| unmarshal into a struct | goccy 353 µs | 368 µs | goccy 1.04× |
 | marshal a struct slice | **this** | 835 µs | 1.80× over sonic |
 | marshal a float-heavy document | **this** | 4,005 µs | 1.12× over sonic |
-| marshal a decoded document, unsorted | **this** | 609 µs | 1.11× over sonic |
-| marshal a decoded document, sorted | sonic 899 µs | 1,036 µs | sonic 1.15× |
+| marshal a decoded document, unsorted | tie | 576 µs | sonic 573 µs |
+| marshal a decoded document, sorted | **this** | 796 µs | 1.05× over sonic |
 | one field by path | **this** | 83 µs | 1.27× over gjson |
 | ten fields by path | **this** | 239 µs | 2.65× over gjson |
 | NDJSON, several cores | **this** | 1,185 MB/s | nothing else parallelises a parse |
 | 10 GB in one piece | **this** | 833 MB/s | `SIMDJSON_MAXSIZE_BYTES` caps a C++ document at 4 GB − 1 |
 
-Two places another library is still ahead, both narrow and both understood:
-goccy on unmarshalling into a struct by 10%, and sonic on marshalling a decoded
-document *when both sort map keys* by 15% — sonic does not sort by default, and
-thirty calls on the same map give five different outputs.
+Two places another library is still ahead: sonic on validating canada.json by
+17%, and goccy on unmarshalling into a struct by 4%.
+
+The third was sonic on marshalling a decoded document *when both sort map keys*,
+and that one is closed — a three-way radix quicksort in place of
+`slices.SortFunc` cut the sort from 418 µs to 214 µs and took the row from 1.20×
+behind to 1.05× ahead. It is 1.51× ahead on citm_catalog and 1.21× on canada.
+Note which sonic that is: `sonic.Marshal` does not sort by default, and thirty
+calls on the same map give five different outputs, so `sonic.ConfigStd` is the
+only one of the two that compares like with like.
+
+Re-measured on the harness that now lives in [bench/](../bench). The one that
+produced the original table read its corpora from /tmp and skipped when they
+were missing — so a competitor with no line in the output read exactly like a
+competitor that had been run — and two rows moved when it was re-run against the
+vendored corpus: goccy's lead on unmarshalling narrowed from 10% to 4%, and our
+lead on *unsorted* marshalling turned out to be a tie.
 
 <details><summary>The table this replaced, from before the work</summary>
 

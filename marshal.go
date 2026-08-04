@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"math"
 	"reflect"
-	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"unsafe"
 )
@@ -637,10 +635,9 @@ func compileArrayEncoder(t reflect.Type) encodeFn {
 // compileMapEncoder writes a map with its keys sorted, which is what
 // encoding/json does and what makes its output reproducible.
 // kv is a map key as it will be written and as it must be looked up.
-type kv struct {
-	s string
-	v reflect.Value
-}
+// kv is one entry of a map being encoded through reflect. The sort is shared
+// with the map[string]any path; see sortmap.go for why it is generic.
+type kv = pair[reflect.Value]
 
 func compileMapEncoder(t reflect.Type) encodeFn {
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
@@ -662,17 +659,19 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 				e.kvbuf = e.kvbuf[:mark]
 				return err
 			}
-			e.kvbuf = append(e.kvbuf, kv{s, k})
+			e.kvbuf = append(e.kvbuf, kv{k: s, v: k})
 		}
 		pairs := e.kvbuf[mark:]
 		// Given back on the way out, whatever happens, so a nested map inside
 		// this one gets the space after it.
 		defer func() { e.kvbuf = e.kvbuf[:mark] }()
 		if e.opts.SortMapKeys {
-			// slices.SortFunc over a concrete slice, not sort.Slice: sort.Slice
-			// swaps through reflect, and its insertion sort plus the string
-			// compares under it were 18% of marshalling a decoded document.
-			slices.SortFunc(pairs, func(a, b kv) int { return strings.Compare(a.s, b.s) })
+			// A three-way radix quicksort, not slices.SortFunc: no comparator
+			// call and no re-walking the prefix that map keys in one object
+			// share. See sortmap.go. It replaced sort.Slice before that, which
+			// swapped through reflect and was 18% of marshalling a decoded
+			// document on its own.
+			sortPairs(pairs)
 		}
 
 		e.buf = append(e.buf, '{')
@@ -680,7 +679,7 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			if i > 0 {
 				e.buf = append(e.buf, ',')
 			}
-			e.writeString(pr.s)
+			e.writeString(pr.k)
 			e.buf = append(e.buf, ':')
 			el := rv.MapIndex(pr.v)
 			if err := e.encoderForCached(el.Type())(e, ptrOf(el), el); err != nil {

@@ -931,3 +931,52 @@ code has to be run at that size to know whether the claim is true. This one was
 wrong for the whole life of the library because nothing in the test suite
 allocated a gigabyte. The tests that check it now are gated on an environment
 variable and skipped by default, which is the price of having them at all.
+
+## The comparison sort was 18% of an encode, and that was not the floor
+
+Not a rejection. A correction to a number recorded here, and the reason it was
+wrong.
+
+Sorting a decoded document's map keys was `sort.Slice`, which swaps through
+reflect. Replacing it with `slices.SortFunc` over a concrete slice was measured
+at 18% of marshalling a decoded document, and that 18% is real. What went with
+it was the assumption that a comparison sort was the shape of the answer and
+only the swap had been wrong.
+
+It was not. `slices.SortFunc` still pays two costs a comparison sort cannot
+avoid:
+
+  - The comparator is a function value. Every one of the n log n comparisons is
+    an indirect call the compiler cannot see through, and the body is small
+    enough that the call is a large fraction of it.
+  - Each comparison walks the keys from byte zero. JSON keys in one object share
+    prefixes constantly -- twitter.json's status objects hold `id`, `id_str`,
+    `in_reply_to_status_id`, `in_reply_to_status_id_str`, `in_reply_to_user_id`,
+    `in_reply_to_user_id_str`, `in_reply_to_screen_name` -- so the same prefix is
+    re-walked on every comparison that touches those keys.
+
+A three-way radix quicksort has neither. It partitions on one byte at a time, so
+a prefix is examined once for a whole subarray rather than once per comparison,
+and the byte is read inline with no call.
+
+	twitter, marshal a decoded document        sorted      sort alone
+	slices.SortFunc                            986,932 ns    418,158
+	three-way radix quicksort                  796,355       217,850
+
+The sort itself is 1.92x, the whole encode is 19.3%, and the encode goes from
+1.20x behind sonic to 1.05x ahead. On citm_catalog the sort nearly vanishes:
+sorted is 4.6% above unsorted, where it used to be 41%.
+
+**Two things this is not.** It is not a faster comparison -- `cmpString` was
+already `strings.Compare` written out to avoid the call, and it is now deleted,
+because the radix sort never compares two whole keys in the partition loop at
+all. And it is not codegen: sonic reaches the same place with the same
+algorithm, in plain Go, called from its JIT rather than compiled by it. That was
+worth reading before starting, because it settled that the gap was reachable
+without a code generator.
+
+**The rule.** A measured improvement to a thing is not evidence that the thing
+is the right shape. `sort.Slice` -> `slices.SortFunc` was 18% and made the next
+question "which comparison sort", when the answer was that a comparison sort was
+paying for an ordering property -- a total order on whole keys -- that emitting
+sorted JSON does not need.

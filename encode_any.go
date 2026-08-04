@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"math"
 	"reflect"
-	"slices"
 	"strconv"
 )
 
@@ -100,14 +99,14 @@ func (e *encodeState) encodeStringMap(m map[string]any) error {
 	// key, for something the range already had in hand.
 	mark := len(e.anybuf)
 	for k, v := range m {
-		e.anybuf = append(e.anybuf, kvAny{k, v})
+		e.anybuf = append(e.anybuf, kvAny{k: k, v: v})
 	}
 	pairs := e.anybuf[mark:]
 	// Given back on the way out so a nested map gets the space after this one.
 	defer func() { e.anybuf = e.anybuf[:mark] }()
 
 	if e.opts.SortMapKeys {
-		slices.SortFunc(pairs, func(a, b kvAny) int { return cmpString(a.k, b.k) })
+		sortPairs(pairs)
 	}
 	e.buf = append(e.buf, '{')
 	for i := range pairs {
@@ -124,46 +123,6 @@ func (e *encodeState) encodeStringMap(m map[string]any) error {
 	return nil
 }
 
-// kvAny is one entry of a map[string]any, held while the keys are sorted.
-type kvAny struct {
-	k string
-	v any
-}
-
-// cmpString is strings.Compare without the call.
-//
-// Sorting is a third of encoding a decoded document -- there are thousands of
-// small maps in one -- so the comparison is worth writing out. Most JSON keys
-// differ in their first few bytes or in their length, and both are answered
-// before any byte-by-byte comparison starts.
-func cmpString(a, b string) int {
-	if len(a) != len(b) {
-		// Not a valid ordering on its own; only used after the loop below
-		// finds a common prefix, where the shorter string sorts first.
-		n := len(a)
-		if len(b) < n {
-			n = len(b)
-		}
-		for i := 0; i < n; i++ {
-			if a[i] != b[i] {
-				if a[i] < b[i] {
-					return -1
-				}
-				return 1
-			}
-		}
-		if len(a) < len(b) {
-			return -1
-		}
-		return 1
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			if a[i] < b[i] {
-				return -1
-			}
-			return 1
-		}
-	}
-	return 0
-}
+// kvAny is one entry of a map[string]any, held while the keys are sorted. The
+// sort is shared with the reflect path; see sortmap.go.
+type kvAny = pair[any]
