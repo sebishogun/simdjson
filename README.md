@@ -45,13 +45,13 @@ doc.Get("items").ForEach(func(v simdjson.Value) bool {
 
 `Marshal`, `Unmarshal`, `Valid`, `Compact`, `Indent`, `MarshalIndent`,
 `HTMLEscape`, `NewDecoder`, `NewEncoder`, `RawMessage`, `Marshaler`,
-`TextMarshaler`, `UseNumber`, `DisallowUnknownFields`, and the `omitempty`,
+`encoding.TextMarshaler` and `encoding.TextUnmarshaler`, `UseNumber`, `DisallowUnknownFields`, and the `omitempty`,
 `omitzero` and `,string` tags. Every one is checked against `encoding/json` by
 a fuzzer that demands the same bytes and the same error-or-not, not merely the
 same meaning.
 
-Not implemented: `Decoder.Token`, which is a cursor over the syntax rather than
-over the values. It says so rather than half-working.
+`Decoder.Token` too — a cursor over the syntax rather than over the values —
+checked against the standard library's token stream by the same fuzzer.
 
 ## Where it stands
 
@@ -426,9 +426,15 @@ go test -run '^$' -fuzz FuzzAgainstStdlib -fuzztime 60s
 
 ## What this is not
 
-**Not a replacement for `encoding/json`.** No struct unmarshalling, no tags, no
-interfaces, no streaming, no encoding. If you want a Go value, use the standard
-library.
+**Not unlimited in document size.** `Parse` and `Scan` index a document in one
+piece and cap at 2 GiB, because a bracket position is an int32 and the index is
+already 0.93x the document; int64 positions would take it past 1.4x and charge
+every ordinary parse for a size that has a better answer. That answer is
+`Decoder`, which streams in 64 KiB buffers and has no limit — including one
+huge top-level array, read with `Token` for the opening bracket and then `More`
+and `Decode`, exactly as the standard library does it. Over the cap you get an
+error naming the way out, not a panic, which was not true until it was tested at
+that size: [docs/wrong.md](docs/wrong.md).
 
 **Not faster at everything.** `Parse`, which validates every value, costs about
 what `encoding/json` costs and builds an index on top; use it for untrusted
