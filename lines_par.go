@@ -38,9 +38,23 @@ import (
 )
 
 // parChunk is the unit of work: a run of whole records, and where it started.
+//
+// buf and ix come from the free list and go back to it when the consumer has
+// finished with the Doc built over them. Without that this allocated a megabyte
+// and an index per chunk -- 30.6 MB per pass over a 200,000-record stream
+// against the sequential path's 1.29 -- which is bounded live memory and
+// unbounded garbage.
 type parChunk struct {
 	data []byte
 	base int64
+	buf  *parBuf
+}
+
+// parBuf is a chunk's reusable storage: the bytes read into it and the index
+// built over them.
+type parBuf struct {
+	data []byte
+	ix   *index
 }
 
 // parResult is one chunk, indexed, and where each record starts in it.
@@ -57,21 +71,32 @@ type parResult struct {
 	offs []int
 	base int64
 	err  error
+	buf  *parBuf // returned to the free list once the consumer is done
 }
 
 // lineWorkers is how many goroutines index chunks.
 //
-// GOMAXPROCS/2, which is minio's choice and a reasonable one: the reader and
-// the consumer both need a core, and this work is memory-heavy enough that
-// filling every core with it mostly buys memory contention. Capped, because
-// each worker's chunk is a megabyte.
+// GOMAXPROCS/2, which is minio's choice, capped at four — and the cap is where
+// the measurement put it, not a guess. Throughput against GOMAXPROCS, 200,000
+// records:
+//
+//	GOMAXPROCS    2      4      8     16     32
+//	MB/s        649  1,185  1,180  1,185  1,153
+//
+// Two workers saturate it and the rest is contention. The reason is that the
+// parallelism is in the indexing while the consumer still constructs every
+// Value and runs the callback on one goroutine, so the consumer is the wall and
+// no number of workers moves it.
+//
+// The cap matters because memory is workers times the chunk size: sixteen
+// workers is sixteen megabytes in flight for the throughput four gets.
 func lineWorkers() int {
 	n := runtime.GOMAXPROCS(0) / 2
 	if n < 1 {
 		return 1
 	}
-	if n > 16 {
-		return 16
+	if n > 4 {
+		return 4
 	}
 	return n
 }
@@ -113,6 +138,12 @@ func ForEachLineReaderParallel(r io.Reader, fn func(Value) bool) error {
 
 	queue := make(chan chan parResult, workers)
 	jobs := make(chan parJob, workers)
+	// One buffer per in-flight chunk, and there are at most as many in flight
+	// as the queue is deep. Buffered so a return never blocks the consumer.
+	free := make(chan *parBuf, workers+2)
+	for i := 0; i < workers+2; i++ {
+		free <- &parBuf{}
+	}
 
 	var cancelOnce sync.Once
 	cancel := make(chan struct{})
@@ -136,7 +167,13 @@ func ForEachLineReaderParallel(r io.Reader, fn func(Value) bool) error {
 		br := bufio.NewReaderSize(r, parChunkBytes)
 		var base int64
 		for {
-			chunk, err := readChunk(br, parChunkBytes)
+			var buf *parBuf
+			select {
+			case buf = <-free:
+			case <-cancel:
+				return
+			}
+			chunk, err := readChunk(br, buf, parChunkBytes)
 			if len(chunk) > 0 {
 				out := make(chan parResult, 1)
 				select {
@@ -145,7 +182,7 @@ func ForEachLineReaderParallel(r io.Reader, fn func(Value) bool) error {
 					return
 				}
 				select {
-				case jobs <- parJob{parChunk{chunk, base}, out}:
+				case jobs <- parJob{parChunk{chunk, base, buf}, out}:
 				case <-cancel:
 					// The future is already in the queue and no worker will
 					// ever fill it, so close it or the consumer's drain waits
@@ -194,6 +231,14 @@ func ForEachLineReaderParallel(r io.Reader, fn func(Value) bool) error {
 		if !done && res.err != nil {
 			ret, done = res.err, true
 		}
+		// The Doc built over this chunk is dead the moment the callback has
+		// seen the last value in it, so the buffer and its index go back.
+		if res.buf != nil {
+			select {
+			case free <- res.buf:
+			default:
+			}
+		}
 		if done {
 			stop()
 			break
@@ -215,9 +260,16 @@ func ForEachLineReaderParallel(r io.Reader, fn func(Value) bool) error {
 // outlives the worker's next job. One index per megabyte is not the allocation
 // worth chasing.
 func splitChunk(c parChunk) parResult {
-	ix, err := buildIndexMode(c.data, nil, true, false, true)
+	var reuse *index
+	if c.buf != nil {
+		reuse = c.buf.ix
+	}
+	ix, err := buildIndexMode(c.data, reuse, true, false, true)
+	if c.buf != nil {
+		c.buf.ix = ix
+	}
 	if err != nil {
-		return parResult{base: c.base, err: rebase(err, c.base)}
+		return parResult{base: c.base, err: rebase(err, c.base), buf: c.buf}
 	}
 	d := &Doc{data: c.data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 	d.navigating = true
@@ -234,12 +286,12 @@ func splitChunk(c parChunk) parResult {
 			// offset too overshoots by exactly that, which the stream-offset
 			// test catches to the byte.
 			return parResult{doc: d, offs: offs, base: c.base,
-				err: rebase(verr, c.base)}
+				err: rebase(verr, c.base), buf: c.buf}
 		}
 		offs = append(offs, i)
 		i = d.skip(end)
 	}
-	return parResult{doc: d, offs: offs, base: c.base}
+	return parResult{doc: d, offs: offs, base: c.base, buf: c.buf}
 }
 
 // rebase moves a SyntaxError's offset onto the whole stream. minio does not do
@@ -254,14 +306,18 @@ func rebase(err error, base int64) error {
 
 // readChunk reads about n bytes and then to the end of the line, so a chunk
 // never cuts a record in half.
-func readChunk(br *bufio.Reader, n int) ([]byte, error) {
-	buf := make([]byte, 0, n+4096)
+func readChunk(br *bufio.Reader, pb *parBuf, n int) ([]byte, error) {
+	buf := pb.data[:0]
+	if cap(buf) < n+4096 {
+		buf = make([]byte, 0, n+4096)
+	}
 	for {
 		chunk, err := br.ReadSlice('\n')
 		buf = append(buf, chunk...)
 		if err == bufio.ErrBufferFull {
 			continue
 		}
+		pb.data = buf
 		if err != nil {
 			return buf, err
 		}
