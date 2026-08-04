@@ -57,7 +57,10 @@ test-cross: ## arm64, s390x and ppc64le under docker + qemu
 # skip without them.
 
 BENCH_BASELINE = testdata/bench/$(shell $(GO) env GOARCH).txt
-BENCH_COUNT   ?= 6
+# Eight, not six. The baseline is a minimum, and a minimum over fewer samples
+# sits further above the true floor -- so recording at six and comparing against
+# a baseline taken at eight makes every benchmark look slower than it is.
+BENCH_COUNT   ?= 8
 BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
 
 .PHONY: bench-run bench-check bench-update bench-vs bench-vs-test vet-vs

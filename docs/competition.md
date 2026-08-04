@@ -17,7 +17,7 @@ because half of what it said has changed.
 | parse twitter / citm / canada | **this** | 222 / 603 / 1,345 µs | 1.06× / 1.17× / 1.47× over fastjson |
 | index without validating | **this** | 52 / 188 / 314 µs | 4.5× fastjson on twitter |
 | validate twitter / citm | **this** | 3,954 / 4,326 MB/s | 1.10× / 1.12× over sonic |
-| validate canada | sonic 2,255 MB/s | 1,921 MB/s | sonic 1.17× |
+| validate canada | **this** | 2,430 MB/s | 1.06× over sonic |
 | unmarshal into a struct | goccy 353 µs | 368 µs | goccy 1.04× |
 | marshal a struct slice | **this** | 835 µs | 1.80× over sonic |
 | marshal a float-heavy document | **this** | 4,005 µs | 1.12× over sonic |
@@ -28,13 +28,16 @@ because half of what it said has changed.
 | NDJSON, several cores | **this** | 1,185 MB/s | nothing else parallelises a parse |
 | 10 GB in one piece | **this** | 833 MB/s | `SIMDJSON_MAXSIZE_BYTES` caps a C++ document at 4 GB − 1 |
 
-Two places another library is still ahead: sonic on validating canada.json by
-17%, and goccy on unmarshalling into a struct by 4%.
+One place another library is still ahead: goccy on unmarshalling into a struct,
+by 4%.
 
-The third was sonic on marshalling a decoded document *when both sort map keys*,
-and that one is closed — a three-way radix quicksort in place of
-`slices.SortFunc` cut the sort from 418 µs to 214 µs and took the row from 1.20×
-behind to 1.05× ahead. It is 1.51× ahead on citm_catalog and 1.21× on canada.
+The other two closed. Sorting map keys was a three-way radix quicksort in place
+of `slices.SortFunc`, which cut the sort itself from 418 µs to 214 µs and took
+that row from 1.20× behind to 1.05× ahead — 1.51× ahead on citm_catalog and
+1.21× on canada. Validating canada.json was the number scanner's fraction loop,
+which walked the last few digits of every number one byte at a time; computing
+the end of the digit run from the SWAR mask instead took Valid from 1,103 µs to
+923 µs against sonic's 979, and Parse from 1,313 to 1,156 with it.
 Note which sonic that is: `sonic.Marshal` does not sort by default, and thirty
 calls on the same map give five different outputs, so `sonic.ConfigStd` is the
 only one of the two that compares like with like.

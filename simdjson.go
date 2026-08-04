@@ -530,16 +530,31 @@ func (d *Doc) number(i int) (int, bool) {
 		// for '0'..'9' and 10 or more for every other byte, so adding 0x76 to each
 		// byte carries into its high bit precisely when that byte was not a digit;
 		// the `| d` catches bytes at 0x80 and above, which would not carry.
-		for j+4 <= n {
-			v := binary.LittleEndian.Uint32(b[j:])
-			d := v ^ 0x30303030
-			if (d+0x76767676|d)&0x80808080 != 0 {
+		for {
+			if j+8 <= n {
+				v := binary.LittleEndian.Uint64(b[j:])
+				x := v ^ 0x3030303030303030
+				m := (x + 0x7676767676767676 | x) & 0x8080808080808080
+				if m == 0 {
+					j += 8
+					continue
+				}
+				// The end, exactly, rather than a break into a byte loop.
+				// Only bit 7 of each byte can be set, so the lowest set bit is
+				// 8k+7 for the first non-digit byte k. A non-digit always sets
+				// its own bit -- 0x76 plus 10 or more carries into it, and the
+				// `| x` catches bytes at 0x80 and above, whose sum wraps past
+				// it -- and a digit never sets an earlier byte's, because a
+				// carry out of a byte needs 0x8A there and a digit is 9 at
+				// most. So the lowest set bit is the first non-digit and
+				// nothing before it.
+				j += uint(bits.TrailingZeros64(m)) >> 3
 				break
 			}
-			j += 4
-		}
-		for j < n && isDigit(b[j]) {
-			j++
+			for j < n && isDigit(b[j]) {
+				j++
+			}
+			break
 		}
 	}
 	if j < n && (b[j] == 'e' || b[j] == 'E') {

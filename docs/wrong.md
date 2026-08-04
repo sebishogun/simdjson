@@ -401,6 +401,32 @@ nineteen bytes and mostly digits, so eight-at-a-time should halve it:
 A short, perfectly predicted byte loop that the compiler already understands is
 hard to beat with anything that has setup.
 
+**That conclusion was wrong, and this is the correction.** Eight-at-a-time is
+worth 16% on Valid and 12% on Parse. What lost here was not the width. It was
+`all eight or break` — a break leaves the byte loop to walk from the start of
+the block, and a *wider* block breaks *earlier* relative to what it covers, so
+widening while keeping the tail hands the tail more work, not less. canada's
+fractions are six or seven digits: four-at-a-time breaks with two or three bytes
+left, eight-at-a-time breaks with seven.
+
+The mask already holds the answer. `TrailingZeros64` of it is the first
+non-digit byte exactly, so there is no tail to walk:
+
+	                            4-wide, break   8-wide, exact position
+	canada Valid                  1,103 us        923      16% faster
+	canada Parse (gate)           1,313           1,156    12% faster
+
+Only bit 7 of each byte survives the mask, so the lowest set bit is 8k+7 for the
+first non-digit byte k. A non-digit always sets its own bit — 0x76 plus ten or
+more carries into it, and the `| x` catches bytes at 0x80 and above whose sum
+wraps past it — and a digit never sets an earlier byte's, because carrying out of
+a byte needs 0x8A there and a digit is nine at most.
+
+**The rule.** A rejected idea is rejected in the form it was tried. This one was
+recorded as "eight-at-a-time loses" when what it showed was "eight-at-a-time
+*with a byte-loop tail* loses", and the tail was the part worth removing. Two
+years of that entry would have kept anyone from trying it again.
+
 **How much was ever available.** After the eighth loss, the two forms of
 `cleanRun` were measured against each other on their own, instead of through an
 encode:
@@ -980,3 +1006,40 @@ is the right shape. `sort.Slice` -> `slices.SortFunc` was 18% and made the next
 question "which comparison sort", when the answer was that a comparison sort was
 paying for an ordering property -- a total order on whole keys -- that emitting
 sorted JSON does not need.
+
+## A control taken from the first benchmark says nothing about the last
+
+The rule from entry 16 is that an A/B harness needs a control: re-measure
+something the change cannot touch and check it reproduces its recorded value. It
+caught an inverted script once and a noisy machine twice. Here it passed and the
+measurement was still wrong.
+
+Re-recording the gate baseline after the number-scanner change, the control was
+`GateParse/twitter` -- the first benchmark the gate runs, and one the change
+cannot reach. It came out at 219,462 against a recorded 219,921, matching to
+0.2% at a load average of 0.72. On that basis the baseline was updated.
+
+`GateValid/canada` in the same file read 2,266,582 ns. It had just been measured
+at 917,263.
+
+The benchmark run had started quiet. `make verify` and `make fuzz` were started
+while it was still going, and thirty-two fuzz workers took the machine. Twitter
+had already finished; canada had not. The control was clean because it ran
+before the interference, and every benchmark after it was garbage -- and a
+baseline recorded from that file would have locked a 2.2 ms floor under a 917 µs
+benchmark, so a real regression to twice the correct time would have passed the
+gate silently.
+
+**The rule.** A control has to be exposed to the same conditions as the thing it
+validates, and "the same conditions" includes *when*. One measured at the start
+of a run only certifies the start of the run. Either interleave it, or check
+every benchmark the change cannot touch rather than one, or do not run anything
+else for the duration -- which is the actual fix here, since the interference was
+self-inflicted.
+
+`benchcheck` already refuses to record above a load average of 4 and had
+refused this file once, on an earlier attempt, with "a benchmark taken under
+load is not a slow benchmark, it is no benchmark". It could not refuse the
+second time: by then the load average had decayed, and the damage was in a file
+written minutes earlier. A guard on the machine at write time does not see what
+the machine was doing at measure time.
