@@ -640,6 +640,23 @@ func compileArrayEncoder(t reflect.Type) encodeFn {
 type kv = pair[reflect.Value]
 
 func compileMapEncoder(t reflect.Type) encodeFn {
+	// Three things decided once for the type, which were being decided once per
+	// entry. All of them are properties of the map's key or value type, and a
+	// map's key and value types do not vary between its entries.
+	//
+	//   - whether the key needs MarshalText. mapKeyString asked by calling
+	//     k.Interface() and asserting, and k.Interface() boxes -- an allocation
+	//     per key to learn something the type already answered.
+	//   - whether the key is a plain string, so its text is k.String() and not a
+	//     conversion.
+	//   - which encoder writes the value. encoderForCached was called per entry
+	//     on el.Type(), and el.Type() is t.Elem() every time unless the value
+	//     type is an interface, where the dynamic type is the point.
+	kt, et := t.Key(), t.Elem()
+	keyText := kt.Implements(textMarshalerType)
+	keyIsString := !keyText && kt.Kind() == reflect.String
+	elemIsIface := et.Kind() == reflect.Interface
+
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
 		if !rv.IsValid() {
 			rv = reflect.NewAt(t, p).Elem()
@@ -652,11 +669,22 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 		// before anything is written, and the keys are wanted one at a time.
 		mark := len(e.kvbuf)
 		it := rv.MapRange()
+		// One Value for the key, filled in place. MapIter.Key allocates a fresh
+		// one per entry; SetIterKey writes into this one and does not, which is
+		// what reflect documents it for. The string is taken out immediately, so
+		// nothing needs the Value to survive the next iteration.
+		keyV := reflect.New(kt).Elem()
 		for it.Next() {
-			s, err := mapKeyString(it.Key())
-			if err != nil {
-				e.kvbuf = e.kvbuf[:mark]
-				return err
+			keyV.SetIterKey(it)
+			var s string
+			if keyIsString {
+				s = keyV.String()
+			} else {
+				var err error
+				if s, err = mapKeyString(keyV); err != nil {
+					e.kvbuf = e.kvbuf[:mark]
+					return err
+				}
 			}
 			// The value, not the key. Keeping the key meant fetching the value
 			// again with MapIndex after the sort -- a second hash of every key,
@@ -683,6 +711,14 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			sortPairs(pairs)
 		}
 
+		// The value encoder, once. Looked up here rather than before the range
+		// so a map whose value type contains itself still compiles: this runs
+		// after compileMapEncoder has returned and been cached.
+		var valFn encodeFn
+		if !elemIsIface {
+			valFn = e.encoderForCached(et)
+		}
+
 		e.buf = append(e.buf, '{')
 		for i, pr := range pairs {
 			if i > 0 {
@@ -691,7 +727,11 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			e.writeString(pr.k)
 			e.buf = append(e.buf, ':')
 			el := pr.v
-			if err := e.encoderForCached(el.Type())(e, ptrOf(el), el); err != nil {
+			fn := valFn
+			if fn == nil {
+				fn = e.encoderForCached(el.Type())
+			}
+			if err := fn(e, ptrOf(el), el); err != nil {
 				return err
 			}
 		}
