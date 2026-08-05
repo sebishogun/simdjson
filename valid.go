@@ -184,6 +184,12 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	if err != nil {
 		return err
 	}
+	// Large documents lay out across workers; see indent_parallel.go. The
+	// serial writer below stays the authority the differential compares
+	// against.
+	if indentParallel(dst, src, ix, prefix, indent, end) {
+		return nil
+	}
 	dst.Grow(len(src) * 2)
 	writeIndent(dst, src, ix, prefix, indent, end)
 	return nil
