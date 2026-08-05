@@ -311,19 +311,6 @@ func FuzzWindowElements(f *testing.F) {
 		f.Add([]byte(s))
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		// Arrays only. Draining an OBJECT this way calls Decode where the key
-		// is, and there this package and encoding/json disagree for reasons
-		// that have nothing to do with batching: it returns the key as a
-		// string, the stdlib refuses with "not at beginning of value". That is
-		// a real difference and it has its own task; fuzzing it here would
-		// bury the thing this target exists to check.
-		i := 0
-		for i < len(data) && isJSONSpace[data[i]] {
-			i++
-		}
-		if i == len(data) || data[i] != '[' {
-			t.Skip()
-		}
 		want, wErr := tokenDecodeAllStd(t, stdjson.NewDecoder(bytes.NewReader(data)))
 		for _, chunk := range []int{0, 8, 64} {
 			old := streamChunk
@@ -347,4 +334,76 @@ func FuzzWindowElements(f *testing.F) {
 			}
 		}
 	})
+}
+
+// FuzzWindowObject walks an object the documented way -- Token for the key,
+// Decode for the value -- against encoding/json doing the same.
+//
+// Nothing covered this. Token on its own had a fuzzer and Decode inside an
+// array had one, and the combination was broken for every object there is:
+// Token left the colon for whoever read the value and Decode did not consume
+// it, so `{"a":1}` failed on the first value. Two green fuzzers either side of
+// a broken interaction.
+func FuzzWindowObject(f *testing.F) {
+	for _, s := range []string{
+		`{"a":1}`, `{"a":1,"b":"x"}`, `{}`, `{"a":{"b":[1,2]},"c":null}`,
+		`{"a":1,}`, `{"a"1}`, `{"a":}`, `{"a":1 "b":2}`, `{"":""}`,
+		`{"a":"\u00e9"}`, `{"a":[{"b":1}]}`, `{"a":1:2}`,
+	} {
+		f.Add([]byte(s))
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		want, wErr := objectWalk(stdjson.NewDecoder(bytes.NewReader(data)))
+		for _, chunk := range []int{0, 8, 64} {
+			old := streamChunk
+			if chunk != 0 {
+				streamChunk = chunk
+			}
+			got, gErr := objectWalk(NewDecoder(bytes.NewReader(data)))
+			streamChunk = old
+
+			if got != want {
+				t.Fatalf("chunk=%d: got %q (%v), want %q (%v)", chunk, got, gErr, want, wErr)
+			}
+			if (gErr == nil) != (wErr == nil) {
+				t.Fatalf("chunk=%d: stopped with %v, stdlib with %v", chunk, gErr, wErr)
+			}
+		}
+	})
+}
+
+// objectWalk reads an object as Token-for-the-key, Decode-for-the-value, and
+// renders what it saw so two decoders can be compared on the sequence and not
+// only on the final error.
+func objectWalk(dec interface {
+	Token() (stdjson.Token, error)
+	More() bool
+	Decode(any) error
+}) (string, error) {
+	var sb strings.Builder
+	tok, err := dec.Token()
+	if err != nil {
+		return "", err
+	}
+	fmt.Fprintf(&sb, "open=%v;", tok)
+	for dec.More() {
+		k, err := dec.Token()
+		if err != nil {
+			return sb.String(), err
+		}
+		var v stdjson.RawMessage
+		if err := dec.Decode(&v); err != nil {
+			return sb.String(), err
+		}
+		var c bytes.Buffer
+		if err := stdjson.Compact(&c, v); err != nil {
+			return sb.String(), err
+		}
+		fmt.Fprintf(&sb, "%v=%s;", k, c.String())
+	}
+	if tok, err = dec.Token(); err != nil {
+		return sb.String(), err
+	}
+	fmt.Fprintf(&sb, "close=%v", tok)
+	return sb.String(), nil
 }

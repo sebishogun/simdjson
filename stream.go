@@ -168,6 +168,41 @@ func (d *Decoder) peek() (byte, error) {
 // gave three. Token had the check (see token.go); these two did not, so it only
 // showed up decoding array elements. encoding/json stops after the 0.
 func (d *Decoder) separator() error {
+	if d.afterKey {
+		// Token has returned an object key and left the colon behind it, which
+		// it consumes on its next call so that a key followed by something
+		// other than a colon comes back as a key and then an error. Whoever
+		// reads the VALUE has to consume it instead, and Decode and Value did
+		// not: they began parsing at the colon and reported an unexpected
+		// character, without advancing.
+		//
+		// That broke the documented way to walk an object -- Token for the key,
+		// Decode for the value -- on every object, including {"a":1}. Token on
+		// its own was right, and Decode inside an ARRAY was right, so both
+		// fuzzers were green.
+		c, err := d.peek()
+		if err != nil {
+			return err
+		}
+		if c != ':' {
+			return errAt("expected ':' after object key", d.off)
+		}
+		d.off++
+		d.afterKey = false
+		// Whatever index exists describes bytes Token has already stepped past,
+		// which is why Token drops it on entry too.
+		d.doc, d.data = nil, nil
+		return nil
+	}
+	if len(d.tstack) > 0 && d.wantKey {
+		// Inside an object with a key expected. encoding/json gives Decode only
+		// the values -- the key belongs to Token -- and refuses here rather than
+		// handing back the key as a string, which is what this did.
+		//
+		// Anything below this point is therefore the array case: an object only
+		// ever reaches Decode through the afterKey branch above.
+		return errAt("not at beginning of value", d.off)
+	}
 	if len(d.tstack) == 0 || !d.inItem {
 		return nil
 	}

@@ -290,7 +290,24 @@ target for that reason.
 
 A single enormous array works as well as line-delimited records. Read the
 opening bracket with `Token`, then `More` and `Decode`, as with the standard
-library.
+library:
+
+```go
+dec := simdjson.NewDecoder(r)
+if _, err := dec.Token(); err != nil { // the opening [
+	return err
+}
+for dec.More() {
+	var rec Record
+	if err := dec.Decode(&rec); err != nil {
+		return err
+	}
+	process(rec)
+}
+```
+
+An object works the same way, with `Token` for each key and `Decode` for the
+value after it.
 
 ### Nine shapes
 

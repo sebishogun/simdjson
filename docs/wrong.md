@@ -1707,3 +1707,45 @@ and the answer invalidated both the microbenchmark and the plan built on it.
 Keeping the SWAR was then the right call for the same reason the change was
 wrong: there is no evidence to move shipped code either way, and "the simpler
 one also wins a benchmark that does not apply" is not evidence.
+
+## Two green fuzzers either side of a broken interaction
+
+Walking an object the way encoding/json documents -- Token for the key, Decode
+for the value -- did not work. At all. On `{"a":1}`:
+
+	d.Token()          -> {          ok
+	d.Token()          -> "a"        ok
+	d.Decode(&v)       ->            "unexpected character at byte 0"
+	d.Token()          -> 1          the value, as a token
+
+Decode failed AND did not advance, so the next Token returned the value the
+Decode should have read. Every object, not an edge case.
+
+A colon belongs to the key before it and Token consumes it on its next call, so
+that a key followed by something other than a colon comes back as a key and then
+an error, which is where encoding/json reports it. That is right. But then
+whoever reads the VALUE has to consume that colon, and Decode and Value did not
+-- they began parsing at the `:`.
+
+**Nothing found it, and the reason is the interesting part.** Token had a
+differential fuzzer and passed: a pure token stream never asks Decode for
+anything. Decode had a differential fuzzer and passed: it decodes at the top
+level and inside arrays, where there is no colon. The bug lives exactly in the
+seam between them, and neither target crosses it. Two green fuzzers, one broken
+API, and the README recommending it.
+
+`Decode` where an object KEY is expected was wrong in the other direction at the
+same time: it returned the key as a string where encoding/json refuses with "not
+at beginning of value". Found the same day, by scoping a new array fuzzer away
+from objects to keep it focused -- the scope restriction was the evidence.
+
+**The rule.** Fuzz the SEAMS. A target per API tells you each API works alone,
+which is not the claim anyone depends on; callers interleave them. The three
+bugs found in this file this week -- this one, `[01]` becoming two elements, and
+the hang on `[1,2` -- were all in code reachable only by combining two calls,
+and all three were invisible to targets that each exercised one call.
+
+FuzzWindowObject now walks objects as Token-then-Decode against the standard
+library and compares the whole sequence, not just the final error: a decoder
+that returns the right values in the wrong order passes any check that only
+looks at where it stopped.
