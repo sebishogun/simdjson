@@ -336,6 +336,13 @@ no Go value and is the parser's own rate; `map[string]any` allocates a map and
 an interface per field and is 8× slower on identical bytes. Each row names its
 target for that reason.
 
+Whole-document `Unmarshal` of a root array eight megabytes and up decodes
+across cores: element extents come from the parallel index, workers decode
+straight into the result slice, and any anomaly falls back to the serial
+decode, which owns the error. 32 MB of tweets into structs runs at 15.3 GB/s
+against 1.95 single-threaded — 7.9×, minimum of three — with values and errors
+identical to the serial path by differential.
+
 A single enormous array works as well as line-delimited records. Read the
 opening bracket with `Token`, then `More` and `Decode`, as with the standard
 library:

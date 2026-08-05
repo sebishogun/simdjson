@@ -53,6 +53,15 @@ func Unmarshal(data []byte, v any) error {
 		return err
 	}
 	d.strictSkip = true
+	// A large root array of containers into a slice decodes across workers;
+	// see unmarshal_parallel.go. It commits only when the whole document is
+	// clean -- any anomaly falls through to the serial decode below, which
+	// then owns the error exactly as it always did.
+	if len(data) >= parallelMinBytes {
+		if err, ok := unmarshalParallel(data, d, v); ok {
+			return err
+		}
+	}
 	if err := d.Root().Decode(v); err != nil {
 		return err
 	}
