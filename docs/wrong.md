@@ -1321,3 +1321,51 @@ doing similar work; that is not evidence they are doing the *same* work. The
 check is cheap -- how long are the runs each one gets -- and it is the same check
 that would have predicted the other three: how often is the path that got faster
 actually taken, and on what.
+
+## The floor was slower than the thing it was supposed to be a floor for
+
+Nothing in the profile accounted for sonic's lead on struct encoding, and the
+one structural difference left was that sonic compiles the field sequence to
+machine code at run time while this makes an encodeFn call per field. That fits
+a deficit spread thinly with no hotspot, and it is the kind of explanation that
+survives because it cannot be checked by looking harder at the same profile.
+
+So it was measured. A hand-written encoder for the exact struct: same fields,
+same order, no reflection, no dispatch, no options consulted -- what perfect
+codegen would emit -- checked byte-identical to encoding/json so it is doing the
+same job.
+
+	hand-written, no dispatch    61,311 ns
+	ours, MarshalTo, Std         52,300
+	ours, no options             35,189
+	sonic ConfigStd              31,650
+
+The floor is 17% SLOWER than the thing it was meant to bound. Per-field dispatch
+is not the gap, and a code generator -- which was the next thing on the list --
+would have been weeks of work to arrive somewhere worse than where the code
+already is.
+
+It is slower because it uses strconv.AppendInt and a byte-at-a-time escape scan,
+and this package's own primitives beat both. Which is the actual finding: the
+dispatch overhead is real but smaller than what the primitives buy back, so the
+compiled-closure design is not what is costing anything.
+
+**Where the gap is instead**, from sonic's native/quote.c:
+
+	if (*dn >= nb * MAX_ESCAPED_BYTES) {
+	    *dn = memcchr_quote_unsafe(sp, nb, dp, tab);
+	    return nb;
+	}
+
+It reserves six bytes of output per input byte and then runs a vector pass that
+writes the escapes inline with no per-byte bounds check. simd.JSONCopyRun stops
+at the first byte needing an escape and returns to Go, which emits it and calls
+back. Five escapes in a tweet is five round-trips against one call. Our escaping
+costs 17,452 ns on top of a 35,189 base; sonic's escaping and UTF-8 validation
+are both inside its 31,650 total.
+
+**The rule.** An explanation that fits the evidence and cannot be tested by more
+of the same evidence is where to spend a measurement, not where to start
+building. This one cost one benchmark and killed a multi-week direction. The
+same measurement also produced the real answer, because knowing the floor tells
+you which side of it to look on.
