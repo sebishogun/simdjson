@@ -2029,3 +2029,29 @@ The rule, which this file keeps re-earning: the fix for a memory-bound loop
 has to reduce total misses, not relocate them onto the hotter access path.
 Entry closed with #151; the pair sort as shipped is the right shape at every
 size measured.
+
+## Removing matchBracket from the struct loop, after it worked twice on arrays
+
+compileLeafArray and compileLeafSlice both won by walking to the closing
+bracket instead of binary-searching the structural positions, so the same
+surgery on compileStruct — citm is a hundred thousand small objects, and
+matchBracket plus lowerBound showed 60ms of a 440ms profile — looked like
+the third win in a row.
+
+	citm into structs, minimum of three, interleaved:
+	with matchBracket        1,333 MB/s
+	walking to the brace     1,143 MB/s     -14%
+	canada rode along        858 -> 844
+
+The disassembly says why the arrays won and the struct lost. The frame
+SHRANK (248 to 224 bytes) — no spill story — but the body grew 8%, and the
+old loop's bound `i < vEnd-1` was the proof the compiler used to elide the
+bounds checks on every data[i] in the member loop; the walking version
+re-checks length at the loop top, per member, and pays an extra branch for
+the '}' test. The leaf arrays had two-element bodies where matchBracket was
+a third of the per-value work; a struct member's body is fifty times that,
+so the search amortizes and the loop shape is what matters.
+
+The rule: a win is a property of the loop it happened in, not of the
+technique. Reverted whole; the arrays keep their version, the struct keeps
+its bracket match.
