@@ -113,6 +113,12 @@ func Compact(dst *bytes.Buffer, src []byte) error {
 		dst.Write(src)
 		return nil
 	}
+	// Large documents strip across workers; see compact_parallel.go. The
+	// serial copier below is the same word-run loop, one segment, and stays
+	// the authority the differential compares against.
+	if compactParallel(dst, src, ix) {
+		return nil
+	}
 	dst.Grow(len(src))
 	writeCompact(dst, src, ix)
 	return nil
@@ -395,6 +401,38 @@ func docFront(data []byte, ix *index) (*Doc, int, error) {
 // anything: encoding/json reports a syntax error rather than emitting a
 // prefix.
 func indexAndValidate(src []byte, ix *index) (*index, *Doc, int, error) {
+	// A large document takes the bracket index -- the parallel path -- and,
+	// for a root array of containers, validates its elements across workers
+	// exactly as Parse and Valid do. Any anomaly falls through to the serial
+	// walk below over the same index; masks-only versus brackets changes
+	// nothing the callers here read beyond what both modes fill.
+	if len(src) >= parallelMinBytes {
+		ix2, err2, ran := buildIndexParallel(src, ix, true, false)
+		if ran {
+			if err2 != nil {
+				return ix, nil, 0, err2
+			}
+			ix = ix2
+			if elems, rootClose, shaped := enumerateTopContainers(ix, src, 2); shaped {
+				if end, ok := walkTopParallel(src, ix, elems, rootClose); ok {
+					d := &Doc{data: src, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
+					return ix, d, end, nil
+				}
+			}
+			d, start, err := docFront(src, ix)
+			if err != nil {
+				return ix, nil, 0, err
+			}
+			end, err := d.validateValue(start)
+			if err != nil {
+				return ix, nil, 0, err
+			}
+			if d.skip(end) < len(src) {
+				return ix, nil, 0, errSyntax("trailing data after top-level value")
+			}
+			return ix, d, end, nil
+		}
+	}
 	ix, err := buildIndexMode(src, ix, true, masksOnly, false)
 	if err != nil {
 		return ix, nil, 0, err

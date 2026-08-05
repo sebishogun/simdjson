@@ -15,22 +15,18 @@ import (
 	"sync"
 )
 
-var parseParallelMinElems = 2
-
-// finishParallel builds the Doc for a large root array of containers, or
-// declines.
-func finishParallel(data []byte, ix *index) (*Doc, bool) {
-	elems, rootClose, shaped := enumerateTopContainers(ix, data, parseParallelMinElems)
-	if !shaped {
-		return nil, false
-	}
+// walkTopParallel validates a root array's elements across workers, ranges
+// byte-balanced, and returns one past the root's closing bracket. ok=false
+// means a worker found an element wanting -- or the split declined -- and the
+// caller's serial walk owns whatever is wrong.
+func walkTopParallel(data []byte, ix *index, elems []topExtent, rootClose int) (int, bool) {
 	maxw := runtime.GOMAXPROCS(0)
 	if maxw > parallelMaxProcs {
 		maxw = parallelMaxProcs
 	}
 	ranges := splitTopWork(elems, maxw)
 	if ranges == nil {
-		return nil, false
+		return 0, false
 	}
 	fail := make([]bool, len(ranges))
 	var wg sync.WaitGroup
@@ -54,8 +50,23 @@ func finishParallel(data []byte, ix *index) (*Doc, bool) {
 	wg.Wait()
 	for _, f := range fail {
 		if f {
-			return nil, false
+			return 0, false
 		}
+	}
+	return int(ix.pos[rootClose]) + 1, true
+}
+
+var parseParallelMinElems = 2
+
+// finishParallel builds the Doc for a large root array of containers, or
+// declines.
+func finishParallel(data []byte, ix *index) (*Doc, bool) {
+	elems, rootClose, shaped := enumerateTopContainers(ix, data, parseParallelMinElems)
+	if !shaped {
+		return nil, false
+	}
+	if _, ok := walkTopParallel(data, ix, elems, rootClose); !ok {
+		return nil, false
 	}
 	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 	d.root = Value{d: d, kind: Array, start: int(ix.pos[0]), end: int(ix.pos[rootClose]) + 1}

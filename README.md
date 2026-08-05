@@ -314,7 +314,9 @@ twenty-eight two-megabyte documents split as well as three million records.
 At 64 MB: `Valid` 2.2 → 12.2 GB/s, `Parse` 1.8 → 11.5 GB/s, and `Unmarshal`
 into a struct slice 1.95 → 15.3 GB/s — each held identical to its serial path
 by a differential, errors included; other shapes walk serially over the same
-index.
+index. `Compact` joins them — validation through the same parallel walk and
+the whitespace strip itself sharded two-phase off the masks — at 0.5 → 2.5
+GB/s on a 60 MB pretty-printed document.
 
 Past 2 GiB, `Parse` and `Scan` return an error naming the alternative — see
 [Limits](#limits). That alternative is `Decoder`, which has no size limit. Ten
