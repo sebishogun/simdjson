@@ -172,6 +172,21 @@ func appendQuotedOpts(dst []byte, s string, o Options) []byte {
 	if o.EscapeHTML && o.ValidateStrings {
 		return appendQuoted(dst, s)
 	}
+	// Validation, when it was asked for and the fused path above did not run.
+	//
+	// This was missing, and the comment above -- "the two dimensions are
+	// independent" -- described the intent rather than the code. Only the
+	// both-flags path validated, so Options{ValidateStrings: true} with
+	// EscapeHTML off wrote an undecodable byte straight through: marshalling
+	// "a\xffb" gave "a\xffb" where encoding/json and this package's own Std
+	// give "a\ufffdb". That is not merely a missing replacement, it is invalid
+	// JSON out of a call that asked for the opposite.
+	//
+	// The check costs a pass per string, which is what the option is for. The
+	// replacement itself only runs for input that was already malformed.
+	if o.ValidateStrings && !validUTF8String(s) {
+		return appendQuotedInvalidOpts(dst, s, o)
+	}
 	dst = append(dst, '"')
 	// The same fused copy the stdlib-compatible path uses, once before the
 	// loop. The loop below is what handles a string that has something to
@@ -422,6 +437,61 @@ func appendBody(dst []byte, s string) []byte {
 // Rare enough to be worth no cleverness. It exists because a raw byte written
 // through looks identical to the replacement character when printed and is not
 // the same bytes, which is exactly the kind of difference that ships unnoticed.
+// appendQuotedInvalidOpts is appendQuotedInvalid for the paths that are not
+// escaping HTML.
+//
+// It writes the escaped \ufffd rather than the replacement rune's own bytes,
+// which is what encoding/json does and what appendQuotedInvalid already did --
+// the two must not disagree, or the same malformed input would come out one way
+// under Std and another under Options{ValidateStrings: true}.
+// appendPlainRune appends one already-decoded rune, escaping only what JSON
+// requires and not what HTML would.
+func appendPlainRune(dst []byte, s string) []byte {
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '"':
+			dst = append(dst, '\\', '"')
+		case c == '\\':
+			dst = append(dst, '\\', '\\')
+		case c == '\b':
+			dst = append(dst, '\\', 'b')
+		case c == '\f':
+			dst = append(dst, '\\', 'f')
+		case c == '\n':
+			dst = append(dst, '\\', 'n')
+		case c == '\r':
+			dst = append(dst, '\\', 'r')
+		case c == '\t':
+			dst = append(dst, '\\', 't')
+		case c < 0x20:
+			dst = append(dst, '\\', 'u', '0', '0', hexDigits[c>>4], hexDigits[c&0xF])
+		default:
+			dst = append(dst, c)
+		}
+	}
+	return dst
+}
+
+func appendQuotedInvalidOpts(dst []byte, s string, o Options) []byte {
+	if o.EscapeHTML {
+		return appendQuotedInvalid(dst, s)
+	}
+	dst = append(dst, '"')
+	for len(s) > 0 {
+		r, size := utf8.DecodeRuneInString(s)
+		if r == utf8.RuneError && size == 1 {
+			dst = append(dst, '\\', 'u', 'f', 'f', 'f', 'd')
+			s = s[1:]
+			continue
+		}
+		// A decoded rune needs only the escapes JSON requires. The
+		// HTML-specific ones are exactly what this branch is not doing.
+		dst = appendPlainRune(dst, s[:size])
+		s = s[size:]
+	}
+	return append(dst, '"')
+}
+
 func appendQuotedInvalid(dst []byte, s string) []byte {
 	dst = append(dst, '"')
 	for len(s) > 0 {

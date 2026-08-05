@@ -48,6 +48,32 @@ func BenchmarkMarshalStruct(b *testing.B) {
 			}
 		}
 	})
+	// The options, one at a time, all through MarshalTo so the allocation is
+	// held constant. "ours" allocates and "ours-Fast" does not, so the gap
+	// between those two is the options AND the allocation together, which is
+	// not a decomposition of anything.
+	for _, o := range []struct {
+		name string
+		opt  ours.Options
+	}{
+		{"opts=none", ours.Options{SortMapKeys: true}},
+		{"opts=html", ours.Options{SortMapKeys: true, EscapeHTML: true}},
+		{"opts=validate", ours.Options{SortMapKeys: true, ValidateStrings: true}},
+		{"opts=both", ours.Options{SortMapKeys: true, EscapeHTML: true, ValidateStrings: true}},
+	} {
+		opt := o.opt
+		b.Run("ours-"+o.name, func(b *testing.B) {
+			buf := make([]byte, 0, len(a))
+			b.SetBytes(int64(len(a)))
+			for b.Loop() {
+				var err error
+				buf, err = opt.MarshalTo(buf[:0], v)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 	b.Run("ours-Fast", func(b *testing.B) {
 		buf := make([]byte, 0, len(a))
 		b.SetBytes(int64(len(a)))
