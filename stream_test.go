@@ -249,24 +249,37 @@ func FuzzDecoderAgainstStdlib(f *testing.F) {
 	for _, s := range streamInputs {
 		f.Add([]byte(s))
 	}
+	// Each input goes through at three batch sizes. At the shipped 64 KB the
+	// window path in loadWindow needs 64 KB of lookahead before it runs at all,
+	// and a fuzzer's inputs are bytes, not kilobytes -- so this target covered
+	// every streaming path EXCEPT that one until the sizes were varied.
 	f.Fuzz(func(t *testing.T, data []byte) {
-		got, gErr := decodeAll(NewDecoder(bytes.NewReader(data)))
-		want, wErr := decodeAll(stdjson.NewDecoder(bytes.NewReader(data)))
-		if len(got) != len(want) {
-			t.Fatalf("got %d values %q, want %d %q", len(got), got, len(want), want)
-		}
-		for i := range got {
-			var g, w bytes.Buffer
-			if err := stdjson.Compact(&g, []byte(got[i])); err != nil {
-				t.Fatalf("value %d %q is not JSON: %v", i, got[i], err)
+		for _, chunk := range []int{0, 8, 64} {
+			old := streamChunk
+			if chunk != 0 {
+				streamChunk = chunk
 			}
-			_ = stdjson.Compact(&w, []byte(want[i]))
-			if !bytes.Equal(g.Bytes(), w.Bytes()) {
-				t.Fatalf("value %d = %s, want %s", i, g.Bytes(), w.Bytes())
+			got, gErr := decodeAll(NewDecoder(bytes.NewReader(data)))
+			streamChunk = old
+
+			want, wErr := decodeAll(stdjson.NewDecoder(bytes.NewReader(data)))
+			if len(got) != len(want) {
+				t.Fatalf("chunk=%d: got %d values %q, want %d %q",
+					chunk, len(got), got, len(want), want)
 			}
-		}
-		if (gErr == io.EOF) != (wErr == io.EOF) {
-			t.Fatalf("stopped with %v, stdlib with %v", gErr, wErr)
+			for i := range got {
+				var g, w bytes.Buffer
+				if err := stdjson.Compact(&g, []byte(got[i])); err != nil {
+					t.Fatalf("chunk=%d: value %d %q is not JSON: %v", chunk, i, got[i], err)
+				}
+				_ = stdjson.Compact(&w, []byte(want[i]))
+				if !bytes.Equal(g.Bytes(), w.Bytes()) {
+					t.Fatalf("chunk=%d: value %d = %s, want %s", chunk, i, g.Bytes(), w.Bytes())
+				}
+			}
+			if (gErr == io.EOF) != (wErr == io.EOF) {
+				t.Fatalf("chunk=%d: stopped with %v, stdlib with %v", chunk, gErr, wErr)
+			}
 		}
 	})
 }

@@ -180,13 +180,13 @@ That answer is `Decoder`, and it has no limit. Ten gigabytes of tweets,
 
 | 10 GB | decoded into | time | throughput | peak heap |
 |---|---|---|---|---|
-| line-delimited | `Value` | 3.89 s | **2,570 MB/s** | 7.5 MB |
-| line-delimited | struct, 4 fields | 5.15 s | 1,943 | 8.3 MB |
-| line-delimited | `map[string]any` | 29.93 s | 334 | 8.8 MB |
-| one array | `Value` | 6.85 s | 1,460 | 7.7 MB |
-| one array | struct, 4 fields | 8.31 s | 1,203 | 8.0 MB |
-| one array | `map[string]any` | 33.20 s | 301 | 8.1 MB |
-| one array, 300 M small elements | struct, 3 fields | 29.92 s | 334 | 8.4 MB |
+| line-delimited | `Value` | 3.74 s | **2,676 MB/s** | 7.4 MB |
+| line-delimited | struct, 4 fields | 5.14 s | 1,944 | 8.3 MB |
+| line-delimited | `map[string]any` | 30.23 s | 331 | 8.5 MB |
+| one array | `Value` | 3.76 s | 2,662 | 7.6 MB |
+| one array | struct, 4 fields | 5.27 s | 1,899 | 8.2 MB |
+| one array | `map[string]any` | 31.64 s | 316 | 8.4 MB |
+| one array, 300 M small elements | struct, 3 fields | 23.54 s | 425 | 8.3 MB |
 
 Under nine megabytes for ten gigabytes, because nothing is ever held whole.
 
@@ -199,9 +199,10 @@ each row here names one.
 A single enormous *array* works too, which C++ simdjson does not do at all — it
 caps a document at 4 GB for the same reason this one caps at 2 GiB, structural
 indices that are 32 bits wide. Read the opening bracket with [`Decoder.Token`]
-and then decode the elements. It is currently 1.76× slower than the same
-records line-delimited: finding where each element ends is a byte scan that
-duplicates what the structural index already computes, and it is half the run.
+and then decode the elements. It runs at the same rate as the same records
+line-delimited, because the batch boundary comes from the structural index
+rather than from a scan looking for it — finding brackets outside strings is
+what the index computes, and doing it twice was half the run.
 
 The elements are indexed in batches rather than one at a time, which is what
 C++ simdjson's `parse_many` does and for the same reason: stage one is a fixed

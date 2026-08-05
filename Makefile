@@ -105,7 +105,7 @@ FUZZTIME ?= 60s
 # FUZZ_LIST so a single fuzzer can be run at length: make fuzz FUZZ_LIST=FuzzSetPath FUZZTIME=10m
 FUZZ_LIST ?= FuzzAgainstStdlib FuzzUnmarshalAgainstStdlib FuzzMarshalAgainstStdlib \
              FuzzTextOpsAgainstStdlib FuzzDecoderAgainstStdlib FuzzTokenAgainstStdlib \
-             FuzzValidUTF8Gate
+             FuzzWindowElements FuzzValidUTF8Gate
 
 fuzz: ## Fuzz each differential against encoding/json for FUZZTIME each
 	@fail=0; \

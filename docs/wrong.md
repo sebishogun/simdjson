@@ -1565,3 +1565,85 @@ reached.
 opportunity, and the difference is which inputs produce it. 16% spent in
 validation across 1201 strings is not 16% available if 953 of them never enter
 the function. Counting that took one test and it was not run first.
+
+## An array element with a leading zero became two elements
+
+Streaming `[01]` with Token and Decode returned two elements, `0` and `1`, and
+no error. `[01,2]` returned three. encoding/json returns the `0` and then stops
+with "expected comma after array element".
+
+This is worse than a missing error. Invalid input did not merely get accepted;
+it produced MORE data than it contained, and a caller ranging over elements got
+a value that is not in the document.
+
+Decode and Value consume the comma in front of an element after the first, and
+neither required one to be there:
+
+	if c == ',' {
+		d.off++
+	}
+
+Not a comma, carry on. So `01` decoded the `0`, found no comma, shrugged, and
+decoded the `1` as the next element. Token had the check the whole time -- see
+`errAt("expected ',' after element")` in token.go -- which is why the bug was
+invisible from the Token side and only reachable by decoding elements.
+
+**Found by a test written to check something else.** The window path in
+loadWindow needed cases where a batch boundary lands in an awkward place, so
+one of them was an array holding a malformed number. It failed at every window
+size including the one where the new code cannot run, which is what said the
+bug was older than the change under test.
+
+**The rule.** A differential test that only compares the happy path compares
+the half that was already working. `[01]` is four bytes; the case cost nothing
+to write, and nothing in the suite covered it because every streaming test used
+valid input. Feed the malformed thing to both sides and check the count, not
+just the values -- a decoder that invents an element passes any test that only
+looks at the elements it does return.
+
+## A truncated array hung the decoder forever
+
+`[1,2` streamed with Token and Decode never returned. Neither did `[1` or
+`[{"a":1},2`. Not slow -- a spin, with no bound and no allocation, on four
+bytes of malformed input. Anything decoding untrusted JSON with a Decoder had
+an unbounded hang reachable by truncating an array after a number.
+
+loadOne:
+
+	end, ok := d.valueEnd(d.buf, d.off)
+	if ok { ... }
+	if d.err != nil {
+		if d.err == io.EOF && end > d.off && d.buf[d.off] != '"' && ... {
+			continue
+		}
+
+Nothing in that loop changes state when `ok` is false. peek does not advance
+past a non-space byte and valueEnd is pure, so `continue` re-ran exactly the
+same computation and took the same branch, forever.
+
+The intent was right and only the control flow was wrong. A number whose end
+the buffer cannot prove, with the reader at EOF, IS a complete number -- the end
+of the input is the end of the value, and encoding/json hands back the 1 and the
+2 from `[1,2` before it stops. The fix is to accept the value ending there, not
+to loop hoping for input that is not coming.
+
+The first attempt at the fix returned io.ErrUnexpectedEOF instead, on the
+reasoning that a container that never closed is an error. That is true and it is
+not this value's error: it belongs to the read AFTER the last good value, which
+is the rule safeEnd already follows everywhere else. The differential caught it
+immediately -- one element back where the stdlib gives two.
+
+**Nothing found it for as long as it existed.** Not the suite, not seven fuzz
+targets. FuzzDecoderAgainstStdlib decodes at the top level, where a different
+loader handles framing; FuzzTokenAgainstStdlib reads tokens and never decodes an
+element. loadBatch runs only with a container open, so the entire batched
+element path -- the one the README recommends for documents too large to hold --
+had no fuzzer over it. `[1,2` was already sitting in streamInputs; it was fed to
+Decode, which never enters that path, and never to Token-then-Decode, which
+only does.
+
+**The rule.** Ask which code a fuzz target can actually reach, not which
+package it lives in. Seven green targets and a suite that passed said nothing
+about a function none of them called. The test that found this was written to
+check something else and found it in its first run, because it was the first
+thing to call that code with input designed to break it.

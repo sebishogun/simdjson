@@ -150,6 +150,55 @@ func (d *Decoder) peek() (byte, error) {
 	}
 }
 
+// separator consumes the comma in front of an element after the first, and
+// rejects the input if there is not one.
+//
+// Inside a container, an element after the first has a comma before it. Token
+// consumes its own separators; Decode and Value have to consume this one,
+// because the framing scan that follows only knows how to start at a value.
+//
+// It is stepped over inside the batch when there is one. Consuming it through
+// the buffer would mean dropping the index, and dropping the index once per
+// element is how a batch becomes no batch at all: an array of thirteen million
+// small elements went from 4.4 seconds to 507.
+//
+// REQUIRING the comma is the part that was missing. Without it "[01]" streamed
+// as two elements, 0 and 1, and returned no error -- invalid JSON turned into
+// more data than it contained, which is worse than a missing error. "[01,2]"
+// gave three. Token had the check (see token.go); these two did not, so it only
+// showed up decoding array elements. encoding/json stops after the 0.
+func (d *Decoder) separator() error {
+	if len(d.tstack) == 0 || !d.inItem {
+		return nil
+	}
+	if d.doc != nil {
+		i := d.doc.skip(d.cur)
+		if i < len(d.data) && d.data[i] == ',' {
+			d.cur = i + 1
+			d.off = d.base + d.cur
+			return nil
+		}
+		// Either the byte is not a comma, which is an error, or the batch ended
+		// before it and the comma is in the buffer past the index. Only peek
+		// can tell the two apart, so the index goes and peek decides.
+		d.doc, d.data = nil, nil
+	}
+	c, err := d.peek()
+	if err != nil {
+		return err
+	}
+	switch c {
+	case ',':
+		d.off++
+	case ']', '}':
+		// The caller asked for an element that is not there. Left in place for
+		// Token, which reports the mismatch if the closer is the wrong one.
+	default:
+		return errAt("expected ',' after element", d.off)
+	}
+	return nil
+}
+
 // Decode reads the next JSON value from the stream and stores it in v.
 //
 // It returns [io.EOF] when the stream holds no further value, which is what
@@ -158,29 +207,8 @@ func (d *Decoder) Decode(out any) error {
 	// Inside a container, an element after the first has a comma in front of
 	// it. Token consumes its own separators; Decode has to consume this one,
 	// because the framing scan that follows only knows how to start at a value.
-	if len(d.tstack) > 0 && d.inItem {
-		// Stepped over inside the batch when there is one. Consuming it through
-		// the buffer would mean dropping the index, and dropping the index once
-		// per element is how a batch becomes no batch at all: an array of
-		// thirteen million small elements went from 4.4 seconds to 507.
-		if d.doc != nil {
-			i := d.doc.skip(d.cur)
-			if i < len(d.data) && d.data[i] == ',' {
-				d.cur = i + 1
-				d.off = d.base + d.cur
-			} else {
-				d.doc, d.data = nil, nil
-			}
-		}
-		if d.doc == nil {
-			c, err := d.peek()
-			if err != nil {
-				return err
-			}
-			if c == ',' {
-				d.off++
-			}
-		}
+	if err := d.separator(); err != nil {
+		return err
 	}
 	for {
 		if d.doc != nil {
@@ -225,25 +253,8 @@ func (d *Decoder) Decode(out any) error {
 //
 // It returns [io.EOF] when the input is exhausted.
 func (d *Decoder) Value() (Value, error) {
-	if len(d.tstack) > 0 && d.inItem {
-		if d.doc != nil {
-			i := d.doc.skip(d.cur)
-			if i < len(d.data) && d.data[i] == ',' {
-				d.cur = i + 1
-				d.off = d.base + d.cur
-			} else {
-				d.doc, d.data = nil, nil
-			}
-		}
-		if d.doc == nil {
-			c, err := d.peek()
-			if err != nil {
-				return Value{}, err
-			}
-			if c == ',' {
-				d.off++
-			}
-		}
+	if err := d.separator(); err != nil {
+		return Value{}, err
 	}
 	for {
 		if d.doc != nil {
@@ -381,8 +392,12 @@ func (d *Decoder) load() error {
 // This is what C++ simdjson's parse_many does and for the same reason: stage
 // one is a fixed cost per call and amortising it over a batch is most of what
 // makes streaming fast. Indexing one element at a time ran the 10 GB array at
-// 705 MB/s against the 956 the line-delimited path gets, on the same bytes —
-// the difference was entirely the batching.
+// 705 MB/s against the 956 the line-delimited path got at the time, on the same
+// bytes — the difference was entirely the batching.
+//
+// loadWindow does it without the pre-scan and is tried first; this is the path
+// for everything it declines. See there for which cases those are and for what
+// the pre-scan was costing.
 //
 // The batch stops at the container's closing bracket, which the top-level
 // framing has no reason to look for and would run straight past.
@@ -390,6 +405,9 @@ func (d *Decoder) loadBatch() error {
 	for {
 		if _, err := d.peek(); err != nil {
 			return err
+		}
+		if d.loadWindow() {
+			return nil
 		}
 		limit, n := d.elementsThrough()
 		if n > 0 {
@@ -420,6 +438,61 @@ func (d *Decoder) loadBatch() error {
 			return err
 		}
 	}
+}
+
+// loadWindow indexes a fixed window and takes the batch boundary from the
+// index, rather than finding it first by scanning bytes. It reports whether it
+// produced a batch; when it does not, the caller falls back to elementsThrough
+// and nothing about the old path changes.
+//
+// The two do the same job. elementsThrough walks element by element calling
+// valueEnd, which looks for brackets outside strings -- and finding brackets
+// outside strings is the whole of what the vector index computes. Doing it
+// twice cost half the run:
+//
+//	(*Decoder).valueEnd    cum 1030 ms   50.7%
+//	buildIndexWhole        cum  380 ms   18.7%
+//
+// on 3 GB of one array, decoding to Value. Same bytes, and the vector pass is
+// 2.7x cheaper than the scalar one it was feeding.
+//
+// safeEnd is what makes this work: in partial mode it is one past the last
+// top-level container that closed, which is exactly the boundary
+// elementsThrough was computing. The array's own closing bracket needs no
+// special handling either -- unbalanced, it is noted rather than fatal, and
+// safeEnd stops advancing at the first note, so it already sits at the end of
+// the last whole element and the bracket is left for the next peek.
+//
+// It gives up, rather than getting it wrong, in three cases. A window that runs
+// past the buffer belongs to the end-of-stream path. safeEnd of zero means no
+// element closed inside the window: an array of bare scalars, which has no
+// containers to close, or an element larger than the window, which the old path
+// takes one at a time. And an error before safeEnd is a real error in a value
+// the caller is about to be handed, so it goes back to the path that reports it
+// against a single element.
+func (d *Decoder) loadWindow() bool {
+	hi := d.off + streamChunk
+	if hi > len(d.buf) {
+		return false
+	}
+	ix, err := buildIndexMode(d.buf[d.off:hi], d.ix, true, false, true)
+	d.ix = ix
+	if err != nil || ix.safeEnd == 0 {
+		return false
+	}
+	if ix.partErr != nil && ix.partErrAt < ix.safeEnd {
+		return false
+	}
+	end := d.off + ix.safeEnd
+	doc, err := scanRoot(d.buf[d.off:end], ix)
+	if err != nil {
+		return false
+	}
+	doc.strictSkip = true
+	doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
+	d.doc, d.data = doc, d.buf[d.off:end]
+	d.base, d.cur = d.off, 0
+	return true
 }
 
 // elementsThrough returns the end of the last whole element of the open
@@ -473,6 +546,21 @@ func (d *Decoder) loadOne() error {
 			return err
 		}
 		end, ok := d.valueEnd(d.buf, d.off)
+		if !ok && d.err == io.EOF && end > d.off && d.buf[d.off] != '"' &&
+			d.buf[d.off] != '{' && d.buf[d.off] != '[' {
+			// A number or literal whose end the buffer could not prove, with no
+			// more input coming: the end of the input is the end of the value.
+			// The container around it never closed, but that error belongs to
+			// the read after this value rather than to this one, which is the
+			// same rule safeEnd follows and what encoding/json does -- "[1,2"
+			// yields the 1 and the 2, and stops on the third read.
+			//
+			// This used to `continue` instead. Nothing in the loop changes state
+			// when ok is false -- peek does not advance past a non-space byte
+			// and valueEnd is pure -- so it was an unconditional spin, and
+			// "[1,2" hung forever on the 2. So did "[1" and `[{"a":1},2`.
+			ok = true
+		}
 		if ok {
 			ix, err := buildIndexMode(d.buf[d.off:end], d.ix, true, false, false)
 			d.ix = ix
@@ -490,10 +578,6 @@ func (d *Decoder) loadOne() error {
 			return nil
 		}
 		if d.err != nil {
-			if d.err == io.EOF && end > d.off && d.buf[d.off] != '"' &&
-				d.buf[d.off] != '{' && d.buf[d.off] != '[' {
-				continue
-			}
 			if d.err == io.EOF {
 				return io.ErrUnexpectedEOF
 			}
@@ -594,7 +678,15 @@ func (d *Decoder) fill() error {
 	return nil
 }
 
-const streamChunk = 64 << 10
+// streamChunk is how many bytes a batch aims at, and how far ahead the buffer
+// is kept filled.
+//
+// A var rather than a const so a test can shrink it. At 64 KB the window path
+// in loadWindow needs 64 KB of lookahead before it will run at all, which no
+// unit test input reaches -- the suite would have passed whatever that function
+// did. Shrunk to a few dozen bytes, every streaming test in the package goes
+// through it instead of past it.
+var streamChunk = 64 << 10
 
 // valueEnd returns one past the end of the JSON value starting at i, and
 // whether the buffer held all of it.
