@@ -222,6 +222,9 @@ func tokenOf(raw []byte, useNumber bool) (Token, error) {
 	if useNumber {
 		return json.Number(raw), nil
 	}
+	if f, ok := parseFloat64Fast([]byte(raw)); ok {
+		return f, nil
+	}
 	f, err := strconv.ParseFloat(string(raw), 64)
 	if err != nil {
 		return nil, fmt.Errorf("json: invalid number literal %q", raw)

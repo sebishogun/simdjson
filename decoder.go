@@ -264,9 +264,13 @@ func decFloat64(p unsafe.Pointer, d *Doc, i int) (int, error) {
 	if err != nil || isNull {
 		return end, err
 	}
-	f, perr := strconv.ParseFloat(bstr(raw), 64)
-	if perr != nil {
-		return 0, numErr(raw, float64Type)
+	f, ok := parseFloat64Fast(raw)
+	if !ok {
+		var perr error
+		f, perr = strconv.ParseFloat(bstr(raw), 64)
+		if perr != nil {
+			return 0, numErr(raw, float64Type)
+		}
 	}
 	*(*float64)(p) = f
 	return end, nil

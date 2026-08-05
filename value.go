@@ -237,6 +237,9 @@ func (v Value) Float() float64 {
 	if v.kind != Number {
 		return 0
 	}
+	if f, ok := parseFloat64Fast(v.Raw()); ok {
+		return f
+	}
 	f, _ := strconv.ParseFloat(string(v.Raw()), 64)
 	return f
 }

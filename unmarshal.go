@@ -223,9 +223,19 @@ func (v Value) decode(rv reflect.Value) error {
 		if v.kind != Number {
 			return v.typeErr(rv.Type())
 		}
-		f, err := strconv.ParseFloat(bstr(v.Raw()), rv.Type().Bits())
-		if err != nil {
-			return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type()}
+		var f float64
+		var ok bool
+		if rv.Type().Bits() == 64 {
+			// float32 stays on strconv: parsing to 64 and narrowing rounds
+			// twice, which is not the same operation.
+			f, ok = parseFloat64Fast(v.Raw())
+		}
+		if !ok {
+			var err error
+			f, err = strconv.ParseFloat(bstr(v.Raw()), rv.Type().Bits())
+			if err != nil {
+				return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type()}
+			}
 		}
 		rv.SetFloat(f)
 		return nil
@@ -679,11 +689,15 @@ func (v Value) any() (any, error) {
 			// point of UseNumber is to keep digits that a float64 would lose.
 			return json.Number(v.d.intern(v.Raw())), nil
 		}
-		f, err := strconv.ParseFloat(bstr(v.Raw()), 64)
-		if err != nil || math.IsInf(f, 0) {
-			return nil, &json.UnmarshalTypeError{
-				Value: "number " + string(v.Raw()),
-				Type:  reflect.TypeOf(float64(0)),
+		f, ok := parseFloat64Fast(v.Raw())
+		if !ok {
+			var err error
+			f, err = strconv.ParseFloat(bstr(v.Raw()), 64)
+			if err != nil || math.IsInf(f, 0) {
+				return nil, &json.UnmarshalTypeError{
+					Value: "number " + string(v.Raw()),
+					Type:  reflect.TypeOf(float64(0)),
+				}
 			}
 		}
 		return f, nil
