@@ -10,6 +10,7 @@ package simdjson
 // insertion tail, the partition loop, the ninther, and the heapsort escape.
 
 import (
+	stdjson "encoding/json"
 	"fmt"
 	"math/rand"
 	"slices"
@@ -475,4 +476,76 @@ func TestSortBucketPath(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestNestedSameTypeMaps covers the values slice being reused from the pooled
+// encodeState. A map nested inside a map of the SAME type would otherwise share
+// that slice with its parent, and because the parent reads it during the write
+// loop -- after the child has run -- the result is an object whose names all
+// carry the wrong values. Valid JSON, wrong document, and no test would notice
+// unless it compared values rather than shape.
+func TestNestedSameTypeMaps(t *testing.T) {
+	type node map[string]any
+	build := func(depth, width int) node {
+		var rec func(d int) node
+		rec = func(d int) node {
+			m := node{}
+			for i := 0; i < width; i++ {
+				k := fmt.Sprintf("key_%04d", i)
+				if d > 0 {
+					m[k] = rec(d - 1)
+				} else {
+					m[k] = fmt.Sprintf("leaf_%d_%d", d, i)
+				}
+			}
+			return m
+		}
+		return rec(depth)
+	}
+	// width^(depth+1) nodes, so the pairs are chosen to stay small while still
+	// crossing bucketMin at the widest.
+	for _, c := range []struct{ width, depth int }{
+		{2, 3}, {5, 2}, {40, 1}, {100, 1}, {300, 1}, {8, 2},
+	} {
+		{
+			width, depth := c.width, c.depth
+			v := build(depth, width)
+			got, err := Marshal(v)
+			if err != nil {
+				t.Fatalf("width=%d depth=%d: %v", width, depth, err)
+			}
+			want, err := stdjson.Marshal(v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != string(want) {
+				t.Fatalf("width=%d depth=%d:\n got %s\nwant %s", width, depth,
+					truncate(string(got)), truncate(string(want)))
+			}
+		}
+	}
+	// Reuse across successive Marshal calls through the same pooled state, with
+	// different sizes, so a cached slice from a bigger map cannot leak values
+	// into a smaller one.
+	for _, n := range []int{300, 2, 150, 1, 400} {
+		m := node{}
+		for i := 0; i < n; i++ {
+			m[fmt.Sprintf("k_%04d", i)] = i
+		}
+		got, err := Marshal(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, _ := stdjson.Marshal(m)
+		if string(got) != string(want) {
+			t.Fatalf("n=%d:\n got %s\nwant %s", n, truncate(string(got)), truncate(string(want)))
+		}
+	}
+}
+
+func truncate(s string) string {
+	if len(s) > 200 {
+		return s[:200] + "..."
+	}
+	return s
 }

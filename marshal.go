@@ -77,6 +77,25 @@ type encodeState struct {
 	addrVal reflect.Value
 	addrFn  encodeFn
 
+	// mapKeyTyp/mapKeyV and mapValsTyp/mapVals are the map encoder's two pieces
+	// of reflect scaffolding, held here for the reason addrVal above is: one
+	// allocation per type rather than one per call. A four-entry map cost four
+	// allocations, and three of them were these -- reflect.New for the key
+	// cell, and MakeSlice's header and backing array for the values.
+	//
+	// mapValsBusy guards against a map nested inside a map of the SAME type.
+	// The values slice is read during the write loop, so an inner encode
+	// reusing it would overwrite the outer one's values and produce an object
+	// whose names all had the wrong values under them. The inner encode
+	// allocates instead. The key cell needs no such guard: it is consumed
+	// immediately after SetIterKey, and the walk that uses it has finished
+	// before any value encoder runs.
+	mapKeyTyp   reflect.Type
+	mapKeyV     reflect.Value
+	mapValsTyp  reflect.Type
+	mapVals     reflect.Value
+	mapValsBusy bool
+
 	// hint is how many bytes the last encode through this state produced, so
 	// the next Marshal can size its buffer without growing into it.
 	hint int
@@ -659,6 +678,8 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 	//     on el.Type(), and el.Type() is t.Elem() every time unless the value
 	//     type is an interface, where the dynamic type is the point.
 	kt, et := t.Key(), t.Elem()
+	// The slice type, once for the map type rather than once per encode.
+	valsTyp := reflect.SliceOf(et)
 	keyText := kt.Implements(textMarshalerType)
 	keyIsString := !keyText && kt.Kind() == reflect.String
 	elemIsIface := et.Kind() == reflect.Interface
@@ -686,7 +707,23 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 		// and copies nothing. rv.Len() gives the count before the walk starts,
 		// so it is sized once and never grown.
 		n := rv.Len()
-		vals := reflect.MakeSlice(reflect.SliceOf(et), n, n)
+		// Reused from the pooled state when it is free and big enough. See the
+		// fields on encodeState for why, and for why nesting needs the flag.
+		var vals reflect.Value
+		reusing := false
+		if !e.mapValsBusy && e.mapValsTyp == valsTyp && e.mapVals.Len() >= n {
+			vals, reusing, e.mapValsBusy = e.mapVals, true, true
+		} else {
+			sz := n
+			if sz < 8 {
+				sz = 8
+			}
+			vals = reflect.MakeSlice(valsTyp, sz, sz)
+			if !e.mapValsBusy {
+				e.mapValsTyp, e.mapVals, e.mapValsBusy = valsTyp, vals, true
+				reusing = true
+			}
+		}
 
 		mark := len(e.kvbuf)
 		it := rv.MapRange()
@@ -694,7 +731,10 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 		// one per entry; SetIterKey writes into this one and does not, which is
 		// what reflect documents it for. The string is taken out immediately, so
 		// nothing needs the Value to survive the next iteration.
-		keyV := reflect.New(kt).Elem()
+		if e.mapKeyTyp != kt {
+			e.mapKeyTyp, e.mapKeyV = kt, reflect.New(kt).Elem()
+		}
+		keyV := e.mapKeyV
 		for it.Next() {
 			keyV.SetIterKey(it)
 			var s string
@@ -728,8 +768,14 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 		}
 		pairs := e.kvbuf[mark:]
 		// Given back on the way out, whatever happens, so a nested map inside
-		// this one gets the space after it.
-		defer func() { e.kvbuf = e.kvbuf[:mark] }()
+		// this one gets the space after it. The values slice is released the
+		// same way and for the same reason.
+		defer func() {
+			e.kvbuf = e.kvbuf[:mark]
+			if reusing {
+				e.mapValsBusy = false
+			}
+		}()
 		if e.opts.SortMapKeys {
 			// A three-way radix quicksort, not slices.SortFunc: no comparator
 			// call and no re-walking the prefix that map keys in one object
