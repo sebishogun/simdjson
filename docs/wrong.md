@@ -2168,3 +2168,30 @@ than exhaustion: every term is either at its floor, measured dead, or
 belongs to a mechanism this package has chosen not to have. The standing
 answer for callers who need that row is structgen (11% back) and the fact
 that every OTHER Marshal shape in the tables is ours.
+
+## On-demand GetPath, stopped by its own differential before the benchmark
+
+The C++ original's ondemand design was the one mechanism it had that this
+package did not: walk forward to the requested field, index nothing. GetPath
+on a small document pays Scan's mask passes and the Doc's setup to read one
+scalar, so a forward walker looked like the sub-2KB answer, scoped to the
+airtight subset -- scalar terminals only, containers and wildcards falling
+back to the index.
+
+The differential killed it in three catches, each a real semantic edge:
+empty path means the root, not the empty key; the component split has
+escape-aware rules (cutPath) a hand-rolled split silently disagrees with;
+and -- the fatal one -- GetPath's documentation PROMISES that a document
+that does not parse yields Invalid, which means the walker must reproduce
+Scan's exact structural acceptance: balance under shifted quote pairing,
+control bytes, every byte-level rule, on every call. Each fix converged the
+walker toward the cost of the Scan it existed to skip. ondemand affords its
+speed by NOT making that promise; our API made it years ago and callers
+hold it.
+
+Reverted before any benchmark ran -- the differential measured the design's
+cost in correctness machinery first, which is cheaper than measuring it in
+nanoseconds later. The sub-2KB floor stays what the contract prices it at:
+one Doc and one index for a real promise about broken input. A future
+GetPathTrusted with Scan's documented looseness could revisit this; GetPath
+itself cannot.
