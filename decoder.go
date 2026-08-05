@@ -105,8 +105,79 @@ func compile(t reflect.Type) decodeFn {
 		return compilePointer(t)
 	case reflect.Slice:
 		return compileSlice(t)
+	case reflect.Array:
+		return compileArray(t)
 	}
 	return reflectFallback(t)
+}
+
+// compileArray decodes a JSON array into [N]T at fixed offsets. This was the
+// reflect fallback, and a [2]float64 coordinate pair paid an unmarshaler
+// probe and a reflect walk per element — 1.1 M times in canada.json, a fifth
+// of the decode.
+//
+// encoding/json's array rules, held by the differential: excess JSON elements
+// are parsed and discarded, Go elements the document did not supply are
+// zeroed, and null leaves the array unchanged — arrays are not in the
+// null-sets-nil list (pointer, interface, map, slice).
+func compileArray(t reflect.Type) decodeFn {
+	elem := t.Elem()
+	if elem.Kind() == reflect.Interface || elem.Kind() == reflect.Map ||
+		implementsUnmarshaler(elem) {
+		return reflectFallback(t)
+	}
+	inner := decoderFor(elem)
+	esize := elem.Size()
+	n := t.Len()
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		if d.data[i] == 'n' {
+			if end, ok := nullAt(d, i); ok {
+				return end, nil
+			}
+		}
+		if d.data[i] != '[' {
+			return 0, kindErr(d, i, t)
+		}
+		end, err := d.matchBracket(i)
+		if err != nil {
+			return 0, err
+		}
+		j := d.skip(i + 1)
+		k := 0
+		for j < end-1 {
+			var next int
+			var err error
+			if k < n {
+				next, err = inner(unsafe.Add(p, uintptr(k)*esize), d, j)
+			} else if d.strictSkip {
+				// Excess elements are discarded, not trusted: when this
+				// decode is the document's only walk, they still have to be
+				// well-formed, exactly as encoding/json parses what it drops.
+				next, err = d.validateValue(j)
+			} else {
+				next, err = d.skipValue(j)
+			}
+			if err != nil {
+				return 0, err
+			}
+			k++
+			j = d.skip(next)
+			if j >= end-1 {
+				break
+			}
+			if d.data[j] != ',' {
+				return 0, errAt("expected ',' or ']'", j)
+			}
+			j = d.skip(j + 1)
+			if j >= end-1 {
+				return 0, errAt("expected a value after ','", j)
+			}
+		}
+		for ; k < n; k++ {
+			reflect.NewAt(elem, unsafe.Add(p, uintptr(k)*esize)).Elem().SetZero()
+		}
+		return end, nil
+	}
 }
 
 // reflectFallback rebuilds a reflect.Value over the destination and uses the
