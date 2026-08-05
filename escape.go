@@ -88,18 +88,25 @@ func scanOpts(s string, html bool) int {
 	return cleanRunOpts(s, false)
 }
 
-// kernelScanMin is where the vector scan starts winning, and it is not a number
-// chosen here: it is simd.go's own dispatch threshold, below which the call
-// lands on a portable path that rebuilds a set table per call. Measured on a
-// string with nothing to escape, so the whole length is scanned:
+// kernelScanMin is where the vector scan starts winning: one vector block.
 //
-//	bytes      word    kernel
-//	   32      13.6      22.3
-//	   48      20.0      28.3
+// It was 64, from a table that timed the wrong thing. Below simd's own
+// threshold the call lands on a Go byte loop, so the "kernel" column below 64
+// was never the kernel:
+//
+//	bytes      word    kernel(*)
+//	   32      13.6      22.3     (*) the fallback, not the kernel
+//	   48      20.0      28.3     (*)
 //	   64      26.5       6.7
 //	  256     104.8      14.9
 //	 4096      1652     190.8
-const kernelScanMin = 64
+//
+// Timed against the kernel itself, with its threshold lowered to one block and
+// its tail finished by an overlapping block rather than a byte loop:
+//
+//	bytes     32     40     48     64     96
+//	kernel  4.26   4.89   4.96   4.64   5.48
+const kernelScanMin = 32
 
 func cleanRun(s string) int {
 	const (
