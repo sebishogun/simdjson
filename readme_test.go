@@ -60,8 +60,25 @@ func exportedNames(t *testing.T) map[string]bool {
 					for _, spec := range decl.Specs {
 						switch sp := spec.(type) {
 						case *ast.TypeSpec:
-							if sp.Name.IsExported() {
-								names[sp.Name.Name] = true
+							if !sp.Name.IsExported() {
+								continue
+							}
+							names[sp.Name.Name] = true
+							// Exported struct fields are API too, and the
+							// README has to be able to name them. Only as
+							// Type.Field: adding the bare field name would let
+							// any capitalised word through and stop this from
+							// discriminating.
+							st, ok := sp.Type.(*ast.StructType)
+							if !ok || st.Fields == nil {
+								continue
+							}
+							for _, fld := range st.Fields.List {
+								for _, id := range fld.Names {
+									if id.IsExported() {
+										names[sp.Name.Name+"."+id.Name] = true
+									}
+								}
 							}
 						case *ast.ValueSpec:
 							for _, id := range sp.Names {
