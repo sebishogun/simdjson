@@ -2084,3 +2084,30 @@ The rule: a profile line for shared infrastructure is not a savings
 estimate. Removing it re-prices every consumer. citm-into-structs stays
 goccy's row until someone has an in-architecture mechanism for the
 per-token layer.
+
+## The quote kernel, third attempt: only the tail after the first escape
+
+Entries above killed the fused quote kernel whole-string, twice. The
+remaining hypothesis was the hybrid: let JSONCopyRun take the clean head
+exactly as shipped, and hand only the REMAINDER after the first escape to
+JSONQuote — escapes cluster, so the tail is where they live.
+
+On a synthetic corpus built to have clustered escapes it won 8-12%,
+thresholds swept in one binary. On twitter — the corpus the Marshal row is
+measured on — it lost 22-44%, interleaved builds, three rounds:
+
+	BenchmarkMarshalStruct/ours, 300x, minimum irrelevant — every round:
+	without hybrid   63.9-64.2 us
+	with hybrid      78.3-92.1 us
+
+Real strings carry one or two escapes with a long tail behind them: the
+kernel then processes the whole tail through its write-every-byte path and
+demands a 6x worst-case reservation per string, where the Go loop pays two
+two-byte appends and lets JSONCopyRun-style memcpy handle the rest. The
+synthetic corpus was the kernel's best case and the measurement said even
+that was only 10%.
+
+Third strike closes the line for real: the quote kernel loses whole-string,
+loses hybrid, and the reservation it demands was itself a prior entry's
+regression. Small-struct Marshal stays sonic's row pending a mechanism that
+is not this kernel.
