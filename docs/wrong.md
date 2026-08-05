@@ -2221,3 +2221,27 @@ a cost decomposition. Counters (instructions:u, cycles:u) or an interleaved
 microbench of the function alone are the only honest instruments at that
 scale -- the same instruments the 8.3% wall-clock floor already mandates for
 small deltas. thScan stays 64; nothing ships.
+
+## The SML small fixture, decomposed to the same wall
+
+After the allocation fixes took the field's common small fixture from
+1,042 ns to 404 (past sonic, 323 B/op), the remaining 2x to goccy's 176
+was split with counters, skid-free: ~3,075 instructions of pipeline
+(index, scanRoot, pools, reflect entry) plus 4,833 of decode walk against
+goccy's 6,120 for everything.
+
+The planned fused tiny-document indexer died by arithmetic before it was
+written. Its realistic ceiling -- kernel dispatch, the setup reslices, the
+counting pass and the second bracket pass, together ~800 instructions --
+leaves 2,275 + 4,833 = 7,108, still above goccy's total. The pipeline is
+not the wall; the DECODE WALK is: 537 instructions per field, against
+goccy's 680 per field-equivalent including all its scanning. That is the
+same per-token scanner core recorded for citm and for the index-free
+prototype, now measured at its sharpest.
+
+What stands: 404 ns, second to goccy's scanner core on its home fixture,
+ahead of everything else including sonic; the row's honest floor for this
+architecture unless that wall falls, and three entries now say what
+falling would take. The medium and large fixtures' gaps are the same wall
+at larger n. pprof was not consulted this time (see the entry above on
+skid); every number here is instructions retired.
