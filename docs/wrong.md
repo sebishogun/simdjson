@@ -1198,3 +1198,46 @@ and that is a measurement. Here it was worth approximately zero, which is a
 better reason to skip it than the one that was about to be written down -- and
 if it had been worth 40%, the shim and the build-tag precedent say the risk was
 smaller than the hedge implied.
+
+## A 3.8x microbenchmark that was worth nothing
+
+Quoting is 54% of marshalling a struct, and `appendQuoted` called
+`plainASCIIRun` first. For a string of printable ASCII that returns the whole
+length and the early return fires -- so the vector kernel never ran on ASCII at
+all. Two passes, a word-loop scan and then a memmove, where the kernel does one
+fused pass that copies while it scans.
+
+Routing strings of 64 bytes or more through the kernel instead:
+
+	appendQuoted, ASCII    before   after
+	96 bytes                 29.0    12.6    2.3x
+	140                      41.0    20.0    2.1x
+	256                      74.0    19.5    3.8x
+	512                     127.4    33.5    3.8x
+
+On the actual encode it was worth nothing. BenchmarkMarshalStruct went from
+59,248 to 60,334 ns, which is inside the 1% the controls drifted, and the map
+and decoded-document rows moved 0.3%.
+
+The strings in the benchmark say why:
+
+	short, under 64 bytes    829 strings              unaffected
+	long and ASCII           124 strings   9,677 B    the only case this touches
+	long and non-ASCII       248 strings  54,449 B    already used the kernel
+
+A non-ASCII string was already reaching the kernel through the tail path. What
+the change actually improved was 124 strings holding 12.8% of the string bytes
+-- and it made the other 87% slightly worse, because it validates UTF-8 over the
+whole string where the old path validated only the tail after the ASCII prefix.
+3.8x on an eighth of the data, minus a little on the rest, is zero.
+
+**The rule.** A microbenchmark measures a function; it does not measure how
+often that function is the one being called, or on what. Before believing a
+speedup, count what fraction of the real input reaches the path that got faster
+-- that count took one test and would have predicted this result without
+writing the change at all.
+
+The 54% figure was not wrong, and that is the trap. Quoting really is half the
+encode. But almost all of it was already on the fast path, and the profile
+cannot show that, because a profile attributes time to functions rather than to
+the inputs that drove them.
