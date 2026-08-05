@@ -209,7 +209,7 @@ func (v Value) StringNoCopy() string {
 	// and no invalid UTF-8 is already exactly its own decoded form, so it can
 	// alias too -- and that is most of twitter.json, which is Japanese. Only
 	// checking for ASCII left 3,800 of its 18,000 strings copying for nothing.
-	if indexEscape(in) < 0 && simd.ValidUTF8(in) {
+	if indexEscape(in) < 0 && validUTF8(in) {
 		return unsafe.String(&in[0], len(in))
 	}
 	s, _ := unquote(b)
@@ -416,6 +416,19 @@ func validUTF8(b []byte) bool {
 	return simd.ValidUTF8(b)
 }
 
+// validUTF8String is validUTF8 for a string, so the encode paths get the same
+// gate the decode paths do. They were calling simd.ValidUTF8 directly, which
+// below utf8Vector routes to the kernel's own scalar reference -- slower than
+// the standard library's tuned routine, which is the whole reason the gate
+// exists. It showed as a cliff: a 48-byte non-ASCII string quoted in 42.8 ns
+// where a 96-byte one took 19.6.
+func validUTF8String(s string) bool {
+	if len(s) < utf8Vector {
+		return utf8.ValidString(s)
+	}
+	return simd.ValidUTF8(s)
+}
+
 // sanitize replaces invalid UTF-8 with the replacement character, which is what
 // encoding/json does and what a caller comparing against it will expect.
 //
@@ -509,7 +522,7 @@ func sanitize(s string) string {
 	if ascii {
 		return s
 	}
-	if simd.ValidUTF8(s) {
+	if validUTF8String(s) {
 		return s
 	}
 	out := make([]byte, 0, len(s)+8)

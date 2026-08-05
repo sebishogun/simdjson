@@ -109,9 +109,21 @@ func cleanRun(s string) int {
 	i := 0
 	for ; i+8 <= len(s); i += 8 {
 		w := le64str(s, i)
-		// Anything below 0x20. The high bits are masked off first so a byte
-		// above ASCII cannot borrow into its neighbour and read as a control.
-		if a := w &^ hi; (a-lo*0x20)&^a&hi != 0 {
+		// Anything below 0x20, exactly.
+		//
+		// Clearing the high bits first and testing that -- which is what this
+		// did -- answers the wrong question: it maps 0x8D to 0x0D and calls it a
+		// control character. It is wrong for 0x80 through 0x9F, thirty-two byte
+		// values out of two hundred and fifty-six, and those are the commonest
+		// UTF-8 continuation bytes. So on text with any non-ASCII in it the loop
+		// broke almost immediately and the byte-at-a-time tail did all the work.
+		// The output stayed correct, because the tail consults needsEscape; only
+		// the speed was gone, and only on the strings long enough to care.
+		//
+		// The exact form: force each byte's high bit, subtract, and take the
+		// bytes that borrowed -- then `&^ w` drops the ones that were already
+		// above ASCII, which are not controls whatever their low seven bits say.
+		if d := (w&^hi | hi) - lo*0x20; ^d&^w&hi != 0 {
 			break
 		}
 		if hasByte(w, '"') || hasByte(w, '\\') || hasByte(w, '<') ||
@@ -323,7 +335,7 @@ func appendQuoted(dst []byte, s string) []byte {
 	// ASCII stops it at that byte, which is a lead byte or a stray continuation
 	// and is where validation has to begin either way; a byte needing an escape
 	// stops it at an ASCII byte, which is a boundary too.
-	if !simd.ValidUTF8(s[n:]) {
+	if !validUTF8String(s[n:]) {
 		return appendQuotedInvalid(dst, s)
 	}
 	dst = append(dst, '"')

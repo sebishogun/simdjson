@@ -122,6 +122,27 @@ func BenchmarkMarshalMap(b *testing.B) {
 					}
 				}
 			})
+
+			// The same encode without sorting, which is the only way to see
+			// how much of the gap is the sort and how much is everything else.
+			// Not byte-comparable with the rows above, and labelled so.
+			unsorted := ours.Options{EscapeHTML: true, ValidateStrings: true}
+			b.Run(prefix+"unsorted-ours", func(b *testing.B) {
+				b.SetBytes(int64(len(want)))
+				for b.Loop() {
+					if _, err := unsorted.Marshal(v); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+			b.Run(prefix+"unsorted-sonic", func(b *testing.B) {
+				b.SetBytes(int64(len(want)))
+				for b.Loop() {
+					if _, err := sonic.Marshal(v); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
 		}
 	}
 }
