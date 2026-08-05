@@ -129,7 +129,24 @@ func FuzzParseFloatFast(f *testing.F) {
 	f.Add("5e-324")
 	f.Add("1.7976931348623157e308")
 	f.Add("0.00000000000000000001234")
+	f.Add("01")
+	f.Add("-")
+	f.Add("0.x")
+	f.Add("1e")
+	f.Add("1x")
 	f.Fuzz(func(t *testing.T, s string) {
+		// parseFloat64At claims number()'s grammar walk, reject for reject
+		// and end for end, on ARBITRARY bytes — that is what lets decFloat64
+		// skip the separate extent pass.
+		d := &Doc{data: []byte(s)}
+		wantEnd, wantOK := d.number(0)
+		_, gotEnd, status := parseFloat64At([]byte(s), 0)
+		if wantOK != (status != floatBadSyntax) {
+			t.Fatalf("%q: number() ok=%v, parseFloat64At status=%d", s, wantOK, status)
+		}
+		if wantOK && gotEnd != wantEnd {
+			t.Fatalf("%q: number() end=%d, parseFloat64At end=%d", s, wantEnd, gotEnd)
+		}
 		if !validJSONNumber([]byte(s)) {
 			return
 		}

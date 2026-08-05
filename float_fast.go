@@ -18,6 +18,7 @@ package simdjson
 // strconv.
 
 import (
+	"encoding/binary"
 	"math"
 	"math/bits"
 )
@@ -29,79 +30,134 @@ var pow10Exact = [23]float64{
 	1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22,
 }
 
-// parseFloat64Fast parses a grammar-valid JSON number. The grammar is
-// number()'s: -? (0|[1-9][0-9]*) (.[0-9]+)? ([eE][+-]?[0-9]+)? — no
-// whitespace, no junk, at least one integer digit.
-func parseFloat64Fast(s []byte) (f float64, ok bool) {
-	i := 0
+// Float-parse statuses from parseFloat64At.
+const (
+	floatBadSyntax = 0 // not a number here; the caller reports its kind error
+	floatParsed    = 1 // f is the bit-exact answer, end is one past the number
+	floatFallback  = 2 // grammar-valid to end, but strconv owns the rounding
+)
+
+// parseFloat64At parses AND validates the JSON number at data[pos] in one
+// pass, replacing the number() walk that used to run first — the profile had
+// the two passes as 140ms and 40ms of a 380ms decode. The grammar is
+// number()'s, reject for reject: -? (0|[1-9][0-9]*) (.[0-9]+)?
+// ([eE][+-]?[0-9]+)?, trailing junk left for the caller's separator check,
+// and a leading zero admits no more integer digits. The fuzz holds the two
+// walks to identical accept/reject/end on arbitrary bytes.
+//
+// The fraction — the long digit run in real data — moves eight digits per
+// step: an unaligned load, one is-all-digits test, and the three-multiply
+// fold, exactly parse_eight_digits_unrolled from the Lemire paper.
+//
+// The cursor is a uint for the same bounds-check-elimination reason as
+// number(); see the comment there and wrong.md entry 13.
+func parseFloat64At(data []byte, pos int) (f float64, end int, status int) {
+	b := data
+	n := uint(len(b))
+	j := uint(pos)
 	neg := false
-	if s[0] == '-' {
+	if j < n && b[j] == '-' {
 		neg = true
-		i = 1
+		j++
+	}
+	if j >= n {
+		return 0, 0, floatBadSyntax
 	}
 	var man uint64
 	nd, exp10 := 0, 0
 	trunc := false
-	for ; i < len(s); i++ {
-		c := s[i]
-		if c < '0' || c > '9' {
-			break
-		}
-		if nd < 19 {
-			if man == 0 && c == '0' {
-				continue // integer part is a lone 0; skip without spending budget
+	switch {
+	case b[j] == '0':
+		j++
+	case b[j] >= '1' && b[j] <= '9':
+		man = uint64(b[j] - '0')
+		nd = 1
+		j++
+		for j < n && b[j] >= '0' && b[j] <= '9' {
+			if nd < 19 {
+				man = man*10 + uint64(b[j]-'0')
+				nd++
+			} else {
+				exp10++
+				trunc = true
 			}
-			man = man*10 + uint64(c-'0')
-			nd++
-		} else {
-			exp10++
-			trunc = true
+			j++
 		}
+	default:
+		return 0, 0, floatBadSyntax
 	}
-	if i < len(s) && s[i] == '.' {
-		i++
-		for ; i < len(s); i++ {
-			c := s[i]
-			if c < '0' || c > '9' {
+	if j < n && b[j] == '.' {
+		j++
+		if j >= n || b[j] < '0' || b[j] > '9' {
+			return 0, 0, floatBadSyntax
+		}
+		if man == 0 {
+			// Leading fraction zeros scale the exponent and cost no digit
+			// budget: 0.000123 is 123e-6 with three significant digits.
+			for j < n && b[j] == '0' {
+				exp10--
+				j++
+			}
+		}
+		for j+8 <= n && nd+8 <= 19 {
+			v := binary.LittleEndian.Uint64(b[j:])
+			t := v - 0x3030303030303030
+			if (t|(t+0x7676767676767676))&0x8080808080808080 != 0 {
 				break
 			}
+			t = (t * 2561) >> 8 & 0x00FF00FF00FF00FF
+			t = (t * 6553601) >> 16 & 0x0000FFFF0000FFFF
+			t = (t * 42949672960001) >> 32
+			man = man*100000000 + t
+			nd += 8
+			exp10 -= 8
+			j += 8
+		}
+		for j < n && b[j] >= '0' && b[j] <= '9' {
 			if nd < 19 {
-				if man == 0 && c == '0' {
-					exp10-- // leading fraction zero: scales, costs no budget
-					continue
+				if man == 0 && b[j] == '0' {
+					exp10--
+				} else {
+					man = man*10 + uint64(b[j]-'0')
+					nd++
+					exp10--
 				}
-				man = man*10 + uint64(c-'0')
-				nd++
-				exp10--
 			} else {
 				trunc = true
 			}
+			j++
 		}
 	}
-	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
-		i++
+	if j < n && (b[j] == 'e' || b[j] == 'E') {
+		j++
 		esign := 1
-		if s[i] == '+' {
-			i++
-		} else if s[i] == '-' {
-			esign = -1
-			i++
+		if j < n && (b[j] == '+' || b[j] == '-') {
+			if b[j] == '-' {
+				esign = -1
+			}
+			j++
+		}
+		if j >= n || b[j] < '0' || b[j] > '9' {
+			return 0, 0, floatBadSyntax
 		}
 		e := 0
-		for ; i < len(s); i++ {
+		for j < n && b[j] >= '0' && b[j] <= '9' {
 			if e < 10000 {
-				e = e*10 + int(s[i]-'0')
+				e = e*10 + int(b[j]-'0')
 			}
+			j++
 		}
 		exp10 += esign * e
 	}
+	end = int(j)
+
 	if man == 0 {
 		// All digits were zeros. The exponent cannot rescue a zero, and the
 		// sign survives: "-0.0e5" is negative zero, as strconv has it.
 		if neg {
-			return math.Copysign(0, -1), true
+			return math.Copysign(0, -1), end, floatParsed
 		}
-		return 0, true
+		return 0, end, floatParsed
 	}
 
 	// Clinger: an exactly-representable mantissa times an exactly-
@@ -117,12 +173,12 @@ func parseFloat64Fast(s []byte) (f float64, ok bool) {
 		if neg {
 			f = -f
 		}
-		return f, true
+		return f, end, floatParsed
 	}
 
 	f1, ok1 := eiselLemire64(man, exp10, neg)
 	if !ok1 {
-		return 0, false
+		return 0, end, floatFallback
 	}
 	if trunc {
 		// Dropped digits mean man is a truncation. If man and man+1 land on
@@ -130,10 +186,17 @@ func parseFloat64Fast(s []byte) (f float64, ok bool) {
 		// owns the long division.
 		f2, ok2 := eiselLemire64(man+1, exp10, neg)
 		if !ok2 || f1 != f2 {
-			return 0, false
+			return 0, end, floatFallback
 		}
 	}
-	return f1, true
+	return f1, end, floatParsed
+}
+
+// parseFloat64Fast parses a whole grammar-valid JSON number. ok=false means
+// "use strconv" — never a wrong answer.
+func parseFloat64Fast(s []byte) (float64, bool) {
+	f, end, status := parseFloat64At(s, 0)
+	return f, status == floatParsed && end == len(s)
 }
 
 // eiselLemire64 converts man × 10^exp10 to the nearest float64 via one (or

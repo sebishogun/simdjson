@@ -259,18 +259,27 @@ func numErr(raw []byte, t reflect.Type) error {
 	return &json.UnmarshalTypeError{Value: "number " + string(raw), Type: t}
 }
 
+// decFloat64 parses and validates in the same pass: parseFloat64At walks
+// number()'s grammar itself, so the extent scan that numAt ran first is not
+// run twice. The statuses keep the error surface identical — a syntax reject
+// reports the same kindErr, and a fallback hands the exact extent to strconv.
 func decFloat64(p unsafe.Pointer, d *Doc, i int) (int, error) {
-	raw, end, isNull, err := numAt(d, i, float64Type)
-	if err != nil || isNull {
-		return end, err
-	}
-	f, ok := parseFloat64Fast(raw)
-	if !ok {
-		var perr error
-		f, perr = strconv.ParseFloat(bstr(raw), 64)
-		if perr != nil {
-			return 0, numErr(raw, float64Type)
+	if d.data[i] == 'n' {
+		if e, ok := nullAt(d, i); ok {
+			return e, nil
 		}
+	}
+	f, end, status := parseFloat64At(d.data, i)
+	switch status {
+	case floatParsed:
+	case floatFallback:
+		var perr error
+		f, perr = strconv.ParseFloat(bstr(d.data[i:end]), 64)
+		if perr != nil {
+			return 0, numErr(d.data[i:end], float64Type)
+		}
+	default:
+		return 0, kindErr(d, i, float64Type)
 	}
 	*(*float64)(p) = f
 	return end, nil
