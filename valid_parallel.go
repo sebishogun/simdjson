@@ -30,9 +30,86 @@ import (
 	"sync"
 )
 
+// topExtent is one top-level element's byte extent.
+type topExtent struct{ startB, endB int32 }
+
+// enumerateTopContainers lists a root array's elements when every one is a
+// container and every gap is exactly its separator, using the bracket index
+// and the whitespace mask. ok=false means the document is not that shape --
+// not wrong, just not this fast path -- and rootClose is the pos index of the
+// root's closing bracket when ok.
+func enumerateTopContainers(ix *index, data []byte, minElems int) (elems []topExtent, rootClose int, ok bool) {
+	if len(ix.pos) == 0 || data[ix.pos[0]] != '[' {
+		return nil, 0, false
+	}
+	rootClose = int(ix.match[0])
+	if !wsOnly(ix, data, 0, int(ix.pos[0])) ||
+		!wsOnly(ix, data, int(ix.pos[rootClose])+1, len(data)) {
+		return nil, 0, false
+	}
+	k := 1
+	for k < rootClose {
+		c := data[ix.pos[k]]
+		if c != '{' && c != '[' {
+			return nil, 0, false
+		}
+		cl := int(ix.match[k])
+		elems = append(elems, topExtent{ix.pos[k], ix.pos[cl] + 1})
+		k = cl + 1
+	}
+	if len(elems) < minElems {
+		return nil, 0, false
+	}
+	if !gapOK(ix, data, int(ix.pos[0])+1, int(elems[0].startB), false) {
+		return nil, 0, false
+	}
+	for i := 1; i < len(elems); i++ {
+		if !gapOK(ix, data, int(elems[i-1].endB), int(elems[i].startB), true) {
+			return nil, 0, false
+		}
+	}
+	if !gapOK(ix, data, int(elems[len(elems)-1].endB), int(ix.pos[rootClose]), false) {
+		return nil, 0, false
+	}
+	return elems, rootClose, true
+}
+
 // validParallelMinElems is the least elements worth sharding; below it the
 // serial walk on the same index runs. A var for the differential.
-var validParallelMinElems = 16
+var validParallelMinElems = 2
+
+// splitTopWork assigns contiguous element ranges to workers by BYTES, not
+// count. A root array can be twenty-eight two-megabyte documents or three
+// million forty-byte records; count-chunking starves the first shape -- the
+// Parse walk never engaged on it at all -- and byte skew unbalances the
+// second. Ranges cover [lo,hi) element indices; at most maxw of them, none
+// empty.
+func splitTopWork(elems []topExtent, maxw int) [][2]int {
+	if maxw > len(elems) {
+		maxw = len(elems)
+	}
+	if maxw < 2 {
+		return nil
+	}
+	total := 0
+	for _, e := range elems {
+		total += int(e.endB - e.startB)
+	}
+	share := total/maxw + 1
+	var ranges [][2]int
+	lo, acc := 0, 0
+	for i, e := range elems {
+		acc += int(e.endB - e.startB)
+		if acc >= share || i == len(elems)-1 {
+			ranges = append(ranges, [2]int{lo, i + 1})
+			lo, acc = i+1, 0
+		}
+	}
+	if len(ranges) < 2 {
+		return nil
+	}
+	return ranges
+}
 
 // validParallel validates data using a full bracket index, walking top-level
 // array elements across workers when the shape allows. ok=false means the
@@ -49,67 +126,26 @@ func validParallel(data []byte, ix *index) (valid, ok bool) {
 		return false, true
 	}
 	ix = px
-	if len(ix.pos) == 0 || data[ix.pos[0]] != '[' {
+	elems, _, shaped := enumerateTopContainers(ix, data, validParallelMinElems)
+	if !shaped {
 		return validSerialOnIndex(data, ix), true
 	}
-	rootClose := int(ix.match[0])
-	// Only whitespace may precede the root and follow its close.
-	if !wsOnly(ix, data, 0, int(ix.pos[0])) ||
-		!wsOnly(ix, data, int(ix.pos[rootClose])+1, len(data)) {
-		return false, true
-	}
+	// A malformed gap or tail is a firm no for a root array; the enumeration
+	// cannot tell "wrong shape" from "broken document", so the serial walk
+	// answers either way and stays the single authority.
 
-	// Enumerate depth-1 elements: each must be a container, opens and closes
-	// pairing consecutively. A scalar element or anything unexpected bails to
-	// the serial walk -- it is not wrong, just not this shape.
-	type elem struct{ startB, endB int32 }
-	var elems []elem
-	k := 1
-	for k < rootClose {
-		c := data[ix.pos[k]]
-		if c != '{' && c != '[' {
-			return validSerialOnIndex(data, ix), true
-		}
-		close := int(ix.match[k])
-		elems = append(elems, elem{ix.pos[k], ix.pos[close] + 1})
-		k = close + 1
+	maxw := runtime.GOMAXPROCS(0)
+	if maxw > parallelMaxProcs {
+		maxw = parallelMaxProcs
 	}
-	if len(elems) < validParallelMinElems {
+	ranges := splitTopWork(elems, maxw)
+	if ranges == nil {
 		return validSerialOnIndex(data, ix), true
 	}
-	// The gaps: '[' ws elem (ws ',' ws elem)* ws ']'. Each gap must be
-	// whitespace holding exactly one comma between elements and none at the
-	// ends.
-	if !gapOK(ix, data, int(ix.pos[0])+1, int(elems[0].startB), false) {
-		return false, true
-	}
-	for i := 1; i < len(elems); i++ {
-		if !gapOK(ix, data, int(elems[i-1].endB), int(elems[i].startB), true) {
-			return false, true
-		}
-	}
-	if !gapOK(ix, data, int(elems[len(elems)-1].endB), int(ix.pos[rootClose]), false) {
-		return false, true
-	}
-
-	workers := runtime.GOMAXPROCS(0)
-	if workers > parallelMaxProcs {
-		workers = parallelMaxProcs
-	}
-	if workers > len(elems)/8 {
-		workers = len(elems) / 8
-	}
-	if workers < 2 {
-		return validSerialOnIndex(data, ix), true
-	}
-	bad := make([]bool, workers)
-	chunk := (len(elems) + workers - 1) / workers
+	bad := make([]bool, len(ranges))
 	var wg sync.WaitGroup
-	for w := 0; w < workers; w++ {
-		lo, hi := w*chunk, min((w+1)*chunk, len(elems))
-		if lo >= hi {
-			break
-		}
+	for w, r := range ranges {
+		lo, hi := r[0], r[1]
 		wg.Add(1)
 		go func(w, lo, hi int) {
 			defer wg.Done()

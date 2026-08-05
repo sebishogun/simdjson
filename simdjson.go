@@ -222,6 +222,15 @@ func Parse(data []byte) (*Doc, error) {
 
 // finish validates the document and records its root.
 func finish(data []byte, ix *index) (*Doc, error) {
+	// A large root array of containers validates its elements across workers
+	// and assembles the Doc straight from the index; see parse_parallel.go.
+	// Anything it declines -- including any element that fails -- runs the
+	// serial descent below, which owns the error and its position.
+	if len(data) >= parallelMinBytes {
+		if d, ok := finishParallel(data, ix); ok {
+			return d, nil
+		}
+	}
 	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 	v, end, err := d.value(d.skip(0))
 	if err != nil {

@@ -27,7 +27,7 @@ import (
 )
 
 // unmarshalParallelMinElems gates the fan-out; a var for the differential.
-var unmarshalParallelMinElems = 64
+var unmarshalParallelMinElems = 2
 
 // unmarshalParallel decodes data into out when out is a pointer to a slice of
 // containers and the document is a root array of them. ok=false means the
@@ -49,54 +49,17 @@ func unmarshalParallel(data []byte, d *Doc, out any) (err error, ok bool) {
 		return nil, false
 	}
 	ix := d.ix
-	if len(ix.pos) == 0 || data[ix.pos[0]] != '[' {
-		return nil, false
-	}
-	rootClose := int(ix.match[0])
-	// Nothing but whitespace may precede the root or follow its close; the
-	// serial path proves the tail after decoding, and committing without this
-	// check would accept "[...]x".
-	if !wsOnly(ix, data, 0, int(ix.pos[0])) ||
-		!wsOnly(ix, data, int(ix.pos[rootClose])+1, len(data)) {
+	elems, _, shaped := enumerateTopContainers(ix, data, unmarshalParallelMinElems)
+	if !shaped {
 		return nil, false
 	}
 
-	// Top-level elements, containers only -- the shape struct decodes have.
-	type extent struct{ startB, endB int32 }
-	var elems []extent
-	k := 1
-	for k < rootClose {
-		c := data[ix.pos[k]]
-		if c != '{' && c != '[' {
-			return nil, false
-		}
-		cl := int(ix.match[k])
-		elems = append(elems, extent{ix.pos[k], ix.pos[cl] + 1})
-		k = cl + 1
+	maxw := runtime.GOMAXPROCS(0)
+	if maxw > parallelMaxProcs {
+		maxw = parallelMaxProcs
 	}
-	if len(elems) < unmarshalParallelMinElems {
-		return nil, false
-	}
-	if !gapOK(ix, data, int(ix.pos[0])+1, int(elems[0].startB), false) {
-		return nil, false
-	}
-	for i := 1; i < len(elems); i++ {
-		if !gapOK(ix, data, int(elems[i-1].endB), int(elems[i].startB), true) {
-			return nil, false
-		}
-	}
-	if !gapOK(ix, data, int(elems[len(elems)-1].endB), int(ix.pos[rootClose]), false) {
-		return nil, false
-	}
-
-	workers := runtime.GOMAXPROCS(0)
-	if workers > parallelMaxProcs {
-		workers = parallelMaxProcs
-	}
-	if workers > len(elems)/16 {
-		workers = len(elems) / 16
-	}
-	if workers < 2 {
+	ranges := splitTopWork(elems, maxw)
+	if ranges == nil {
 		return nil, false
 	}
 
@@ -105,14 +68,10 @@ func unmarshalParallel(data []byte, d *Doc, out any) (err error, ok bool) {
 	base := res.UnsafePointer()
 	size := elemT.Size()
 
-	fail := make([]bool, workers)
-	chunk := (len(elems) + workers - 1) / workers
+	fail := make([]bool, len(ranges))
 	var wg sync.WaitGroup
-	for w := 0; w < workers; w++ {
-		lo, hi := w*chunk, min((w+1)*chunk, len(elems))
-		if lo >= hi {
-			break
-		}
+	for w, r := range ranges {
+		lo, hi := r[0], r[1]
 		wg.Add(1)
 		go func(w, lo, hi int) {
 			defer wg.Done()
