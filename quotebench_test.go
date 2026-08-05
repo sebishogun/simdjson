@@ -59,6 +59,31 @@ func quoteInputs() []struct {
 	return out
 }
 
+// What does one escape cost? Each one makes JSONCopyRun stop and hand control
+// back to Go, which emits the escape and calls in again. The slope of this
+// against the escape count is what a kernel that wrote escapes inline could
+// hope to remove -- and twitter's strings average 1.21 escapes each, with 75%
+// of them having none.
+func BenchmarkAppendQuotedEscapes(b *testing.B) {
+	dst := make([]byte, 0, 8192)
+	const n = 512
+	for _, esc := range []int{0, 1, 2, 4, 8, 16, 32} {
+		body := []byte(strings.Repeat("a", n))
+		if esc > 0 {
+			step := n / esc
+			for i := 0; i < esc; i++ {
+				body[i*step+step/2] = '\n'
+			}
+		}
+		s := string(body)
+		b.Run(fmt.Sprintf("len=512/escapes=%d", esc), func(b *testing.B) {
+			for b.Loop() {
+				dst = appendQuoted(dst[:0], s)
+			}
+		})
+	}
+}
+
 func BenchmarkAppendQuoted(b *testing.B) {
 	dst := make([]byte, 0, 4096)
 	for _, in := range quoteInputs() {

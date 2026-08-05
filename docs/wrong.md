@@ -1369,3 +1369,43 @@ of the same evidence is where to spend a measurement, not where to start
 building. This one cost one benchmark and killed a multi-week direction. The
 same measurement also produced the real answer, because knowing the floor tells
 you which side of it to look on.
+
+## Five attempts at appendQuoted, five regressions
+
+The escaping path is 17,266 ns on top of a 35,189 ns base, and sonic does
+escaping and UTF-8 validation inside 29,542 ns total. So it is the gap, and it
+resisted five separate attempts:
+
+	route long ASCII strings through the kernel     0%      (12.8% of bytes)
+	continue with the kernel after each escape      +2..4%
+	exact control test in cleanRun                  -3.1%   kept
+	escapes interrupt the ASCII run, split fn       +6.9%
+	the same, without the double scan               +5.3%
+
+The last one is the instructive pair. `plainASCIIRun` returns early only when it
+consumes the whole string, so one newline in an otherwise-ASCII string fell
+through to `simd.ValidUTF8` -- a full validation pass over bytes all under 0x80
+and valid by construction. Isolated, fixing that is worth a lot:
+
+	escapes in 512 bytes    0      1      2      4      8     16     32
+	before              131.8  195.4  202.1  218.7  240.1  262.7  301.7
+	after               128.9  137.8  140.0  124.1  133.8  158.6  197.1
+
+The first escape went from 63.6 ns to 8. And the encode got 5.3% slower.
+
+The first version also re-scanned the ASCII prefix in the function it bailed
+into, which cost 7-9% on its own and was a plain mistake. Fixing that left 5.3%
+that is not a mistake: it is the cost of splitting appendQuoted in two, so the
+non-ASCII path -- the long strings, 84.8% of the bytes -- goes through a call
+that used to be straight-line code.
+
+**What this says about the function.** appendQuoted is tuned to within a few
+percent by its shape, not only its algorithm, and the shape is load-bearing: an
+early return that the common case hits without a branch, and one function so
+the compiler keeps it together. Every change that improved a case improved a
+minority of the input and paid for it on the majority.
+
+**The rule.** When a function has been optimised to the point where its
+structure is the optimisation, a change that is locally better needs to be
+measured on the whole before it is believed -- and "locally better" here meant
+43% on a microbenchmark, five times, while the thing that matters got worse.
