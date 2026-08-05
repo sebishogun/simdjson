@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -442,6 +443,20 @@ type compiledStruct struct {
 	// none was, byLen holds every name, and a key longer than the longest one
 	// cannot match anything -- so the map does not have to be asked.
 	longName bool
+	// hints caches, per position in the object, the outcome for the key seen
+	// there in the last object decoded — records in a stream carry their
+	// fields in the same order, so this hits nearly always and costs one
+	// length test and one memeq. A nil cf is a cached miss, which documents
+	// make the common case. The pointee is immutable; the store is racy on
+	// purpose, and a wrong hint is just a failed compare.
+	hints [16]atomic.Pointer[fieldHint]
+}
+
+// fieldHint is one remembered (key, outcome) pair; cf nil means the key
+// matches no field.
+type fieldHint struct {
+	name string
+	cf   *compiledField
 }
 
 type namedField struct {
@@ -605,6 +620,7 @@ func compileStruct(t reflect.Type) decodeFn {
 			return 0, err
 		}
 		i := d.skip(at + 1)
+		pos := 0
 		for i < vEnd-1 {
 			if data[i] != '"' {
 				return 0, errAt("expected a string key", i)
@@ -620,17 +636,41 @@ func compileStruct(t reflect.Type) decodeFn {
 			// Go elides the allocation for a string conversion used only to
 			// index a map, so an exact match on an unescaped key costs nothing.
 			raw := data[i+1 : kend-1]
-			cf, found := cs.lookup(raw)
-			// The fallback is only for a key carrying an escape, where the
-			// bytes in the document are not the name being matched. Without
-			// that guard every unknown field paid an unquote and two map
-			// lookups to learn what the bucket had already decided — 17% of
-			// the decode, on a document whose keys are mostly ones the struct
-			// does not name.
-			if !found && hasEscape(raw) {
-				key, _ := unquote(data[i:kend])
-				if cf, found = cs.byName[key]; !found {
-					cf, found = cs.byFold[toLowerASCII(key)]
+			// The field seen at this position in the LAST object is checked
+			// first: records in a stream carry their fields in the same order,
+			// so one length test and one memeq replaces the bucket scan — and
+			// a remembered miss replaces it too, which real documents make the
+			// common case.
+			var cf *compiledField
+			var found bool
+			h := (*fieldHint)(nil)
+			if pos < len(cs.hints) {
+				h = cs.hints[pos].Load()
+			}
+			pos++
+			if h != nil && string(raw) == h.name {
+				cf, found = h.cf, h.cf != nil
+			} else {
+				cf, found = cs.lookup(raw)
+				// The fallback is only for a key carrying an escape, where the
+				// bytes in the document are not the name being matched. Without
+				// that guard every unknown field paid an unquote and two map
+				// lookups to learn what the bucket had already decided — 17% of
+				// the decode, on a document whose keys are mostly ones the struct
+				// does not name.
+				if !found && hasEscape(raw) {
+					key, _ := unquote(data[i:kend])
+					if cf, found = cs.byName[key]; !found {
+						cf, found = cs.byFold[toLowerASCII(key)]
+					}
+					// An escaped key's bytes are not the name that matched;
+					// remembering them would hint the wrong thing.
+				} else if pos-1 < len(cs.hints) {
+					nh := &fieldHint{name: string(raw)}
+					if found {
+						nh.cf = cf
+					}
+					cs.hints[pos-1].Store(nh)
 				}
 			}
 
