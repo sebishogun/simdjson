@@ -33,22 +33,22 @@ func collectValues(t *testing.T, src []byte) (kinds []Kind, raws []string, offs 
 	}
 }
 
-// forceStage arms the staging for every batch; forceSerial makes it
-// unreachable. Both restore on cleanup.
+// forceStage arms the staging and the prefetch for every batch; forceSerial
+// makes both unreachable. Both restore on cleanup.
 func forceStage(t *testing.T) {
 	t.Helper()
-	ob, oe, os := streamStageMinBytes, streamStageMinElems, streamStageStreak
-	streamStageMinBytes, streamStageMinElems, streamStageStreak = 1, 2, 0
+	ob, oe, os, op := streamStageMinBytes, streamStageMinElems, streamStageStreak, streamPrefetchMin
+	streamStageMinBytes, streamStageMinElems, streamStageStreak, streamPrefetchMin = 1, 2, 0, 1
 	t.Cleanup(func() {
-		streamStageMinBytes, streamStageMinElems, streamStageStreak = ob, oe, os
+		streamStageMinBytes, streamStageMinElems, streamStageStreak, streamPrefetchMin = ob, oe, os, op
 	})
 }
 
 func forceSerial(t *testing.T) {
 	t.Helper()
-	os := streamStageStreak
-	streamStageStreak = 1 << 30
-	t.Cleanup(func() { streamStageStreak = os })
+	os, op := streamStageStreak, streamPrefetchMin
+	streamStageStreak, streamPrefetchMin = 1<<30, 1<<30
+	t.Cleanup(func() { streamStageStreak, streamPrefetchMin = os, op })
 }
 
 // streamValueDifferential compares a staged Value loop against the serial one
@@ -133,6 +133,72 @@ func TestStreamStageScalarsDecline(t *testing.T) {
 		fmt.Fprintf(&sb, "{\"i\":%d}\n%d\n\"s%d\"\ntrue\n", i, i, i)
 	}
 	streamValueDifferential(t, []byte(sb.String()))
+}
+
+// collectDecodes drains a stream through Decode into map[string]any,
+// recording a fingerprint per record — the prefetch serves Decode batches
+// too, so the swap has to be invisible to it.
+func collectDecodes(t *testing.T, src []byte) (fps []string, offs []int64, n int, errText string) {
+	t.Helper()
+	d := NewDecoder(bytes.NewReader(src))
+	for {
+		var m any
+		err := d.Decode(&m)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			errText = err.Error()
+			return
+		}
+		fps = append(fps, fmt.Sprint(m))
+		offs = append(offs, d.InputOffset())
+		n++
+	}
+}
+
+func TestStreamPrefetchDecodeDifferential(t *testing.T) {
+	rng := rand.New(rand.NewSource(43))
+	var sb strings.Builder
+	for i := 0; i < 3000; i++ {
+		switch rng.Intn(3) {
+		case 0:
+			fmt.Fprintf(&sb, `{"id":%d,"s":"vé\n%d","f":%g}`, i, i, rng.Float64())
+		case 1:
+			fmt.Fprintf(&sb, `[{"a":%d},[%d,null],false]`, i, i)
+		case 2:
+			fmt.Fprintf(&sb, `{"m":{"x":[1,2,{"y":"z"}],"w":%d}}`, i)
+		}
+		sb.WriteString("\n")
+	}
+	src := []byte(sb.String())
+	for _, chunk := range []int{61, 512, 8192, 64 << 10} {
+		old := streamChunk
+		streamChunk = chunk
+		var wantF []string
+		var wantO []int64
+		var wantN int
+		var wantE string
+		func() {
+			forceSerial(t)
+			wantF, wantO, wantN, wantE = collectDecodes(t, src)
+		}()
+		func() {
+			forceStage(t)
+			gotF, gotO, gotN, gotE := collectDecodes(t, src)
+			if gotN != wantN || gotE != wantE {
+				t.Fatalf("chunk %d: prefetch run: %d records, err %q; serial: %d, %q",
+					chunk, gotN, gotE, wantN, wantE)
+			}
+			for i := range wantF {
+				if gotF[i] != wantF[i] || gotO[i] != wantO[i] {
+					t.Fatalf("chunk %d: record %d: prefetch (%q, off %d) != serial (%q, off %d)",
+						chunk, i, gotF[i], gotO[i], wantF[i], wantO[i])
+				}
+			}
+		}()
+		streamChunk = old
+	}
 }
 
 func TestStreamStageDecodeInterleave(t *testing.T) {

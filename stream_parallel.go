@@ -6,10 +6,13 @@ package simdjson
 // throughput, and not optional (see Value's comment). Validation is
 // side-effect-free and per-record independent, so when load produces a batch
 // of top-level container values, the walk fans across workers — the same
-// worker body as validParallel — and delivery skips the per-value validate for
-// records a worker already proved. A record a worker rejected is re-validated
-// serially at delivery, so the caller sees exactly the serial error at exactly
-// the serial position.
+// worker body as validParallel. Delivery then needs none of the per-record
+// machinery: the staged extent already holds the start, the end, the kind and
+// the verdict, and the gaps were proved whitespace when the staging was
+// built, so Value hands the record out from the extent alone — no whitespace
+// skip, no bracket match, no validate (the fast path at the top of Value). A
+// record a worker rejected is re-validated serially at delivery, so the
+// caller sees exactly the serial error at exactly the serial position.
 //
 // Decode gets no such treatment, deliberately. Decoding element k into the
 // caller's variable starts from that variable's state after element k-1 —
@@ -78,26 +81,33 @@ func enumerateBatchValues(ix *index, data []byte, minElems int) (elems []topExte
 	return elems, true
 }
 
-// stageValidate validates the freshly loaded batch across workers, filling the
-// staging fields consulted by stagedOK. Called with d.doc/d.data just set; on
-// any decline the staging stays empty and nothing changes.
+// stageValidate validates the freshly loaded batch across workers, filling
+// the staging Value delivers from, and hands the buffer's remainder to the
+// prefetch. Called with d.doc/d.data just set; on any decline the staging
+// stays empty and nothing changes.
 func (d *Decoder) stageValidate() {
 	d.stElems, d.stNext = d.stElems[:0], 0
-	if d.valStreak < streamStageStreak || len(d.data) < streamStageMinBytes {
-		return
+	if d.valStreak >= streamStageStreak && len(d.data) >= streamStageMinBytes {
+		if elems, ok := enumerateBatchValues(d.doc.ix, d.data, streamStageMinElems); ok {
+			d.stElems, d.stBad = stageValidateElems(d.doc, elems)
+		}
 	}
-	ix := d.doc.ix
-	elems, ok := enumerateBatchValues(ix, d.data, streamStageMinElems)
-	if !ok {
-		return
-	}
+	d.pfLaunch()
+}
+
+// stageValidateElems fans validateValue over the elements across workers and
+// returns them with the index of the first invalid one (len(elems) if none).
+// Runs on the caller's goroutine until every worker is joined, so it is safe
+// from the prefetch task as well as from load.
+func stageValidateElems(doc *Doc, elems []topExtent) ([]topExtent, int) {
+	ix, data := doc.ix, doc.data
 	maxw := runtime.GOMAXPROCS(0)
 	if maxw > parallelMaxProcs {
 		maxw = parallelMaxProcs
 	}
 	ranges := splitTopWork(elems, maxw)
 	if ranges == nil {
-		return
+		return nil, 0
 	}
 	bad := make([]int, len(ranges))
 	var wg sync.WaitGroup
@@ -111,7 +121,7 @@ func (d *Decoder) stageValidate() {
 			// as everywhere in the parallel family.
 			my := *ix
 			my.wsW, my.wsX = -1, 0
-			dd := &Doc{data: d.data, ix: &my, inStr: my.inStr, noWS: my.noWS, wsw: my.wsw}
+			dd := &Doc{data: data, ix: &my, inStr: my.inStr, noWS: my.noWS, wsw: my.wsw}
 			for i := lo; i < hi; i++ {
 				end, err := dd.validateValue(int(elems[i].startB))
 				if err != nil || end != int(elems[i].endB) {
@@ -122,32 +132,11 @@ func (d *Decoder) stageValidate() {
 		}(w, lo, hi)
 	}
 	wg.Wait()
-	d.stBad = len(elems)
+	first := len(elems)
 	for _, b := range bad {
-		if b < d.stBad {
-			d.stBad = b
+		if b < first {
+			first = b
 		}
 	}
-	d.stElems = elems
-}
-
-// stagedOK reports whether the value starting at i was proved valid by the
-// batch staging. A position that does not match the staged cursor — a Decode
-// or Token moved through the batch — drops the staging rather than guessing.
-func (d *Decoder) stagedOK(i int) bool {
-	if d.stNext >= len(d.stElems) {
-		return false
-	}
-	if int(d.stElems[d.stNext].startB) != i {
-		d.stElems = d.stElems[:0]
-		return false
-	}
-	if d.stNext >= d.stBad {
-		// The worker rejected this one. The serial validate at delivery owns
-		// the error, and everything after it goes serial too.
-		d.stElems = d.stElems[:0]
-		return false
-	}
-	d.stNext++
-	return true
+	return elems, first
 }

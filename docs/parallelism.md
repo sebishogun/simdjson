@@ -147,10 +147,14 @@ is also more machinery than the problem has yet been shown to need.
 ## What happened since, and the wall Decode sits behind
 
 The at-scale family made item 3 moot — the index, the walks, Marshal, Compact
-and Indent all shard past 8 MB — and item 1's mechanism landed in a different
-place than minio put it: the batch a `Value` loop drains is **validated**
-across cores at load (stream_parallel.go), which is the per-record cost with
-no serial dependency. 1,443 → 1,755 MB/s on 64 MB of records.
+and Indent all shard past 8 MB — and items 1 and 2 landed together, in a
+different place than minio put them: batches are capped so the buffer spans
+several, a background task prepares the next one — index, scanRoot, and
+validation fanned across cores — while the current one drains
+(stream_prefetch.go, stream_parallel.go), and `Value` delivers each record
+from its staged extent alone. The background task never touches the reader,
+so a slow stream just leaves it idle and the read-side semantics are
+untouched. 1,450 → 1,974 MB/s on 64 MB of records.
 
 `Decode` cannot be fanned out the same way, and the reason is contract, not
 machinery. Decoding element k into the caller's variable starts from that

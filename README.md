@@ -464,10 +464,13 @@ than an error: it indexes what is there and records how far that reaches. Array
 elements are batched by bytes rather than by count — an element of a megabyte
 fills a batch alone, a hundred-byte record shares one with six hundred others —
 and the batch boundary is read off the index rather than found by a separate
-scan. A sustained `Value` loop over records also validates each batch across
-cores — validation is the one per-record cost with no serial dependency — for
-1,443 → 1,755 MB/s on 64 MB of newline-delimited records. `Decode` keeps its
-serial per-value walk deliberately: decoding element k starts from the caller's
+scan. A sustained `Value` loop over records goes further: batches are capped
+so the buffer holds the next one, a background task prepares it — index,
+scan, and validation fanned across cores — while the current one drains, and
+delivery hands each record out from its staged extent alone, with no
+whitespace skip, bracket match or validate left on the mainline. 1,450 →
+1,974 MB/s on 64 MB of newline-delimited records. `Decode` keeps its serial
+per-value walk deliberately: decoding element k starts from the caller's
 variable as element k−1 left it, so the results chain by contract.
 
 ## Status

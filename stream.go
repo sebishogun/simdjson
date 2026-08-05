@@ -86,6 +86,10 @@ type Decoder struct {
 	stNext    int         // next staged element to deliver
 	stBad     int         // first invalid element, len(stElems) if none
 	valStreak int         // consecutive Value deliveries, the arming evidence
+
+	// One-batch-ahead preparation; see stream_prefetch.go.
+	pf   prefetch
+	pfIx *index // the index buffer not held by the live batch
 }
 
 // NewDecoder returns a Decoder reading from r.
@@ -305,19 +309,37 @@ func (d *Decoder) Value() (Value, error) {
 	}
 	for {
 		if d.doc != nil {
+			// A staged element is delivered from its extent alone: start,
+			// end, kind and validity were all settled by the batch workers
+			// (stream_parallel.go), the gaps were proved whitespace when the
+			// staging was built, and the previous delivery left the cursor at
+			// the previous end — so the whitespace skip, the bracket match
+			// and the validate all have known answers. Anything off-script —
+			// a cursor that moved some other way, the first rejected element
+			// — falls through to the ordinary path, dropping the staging.
+			if n := d.stNext; n < len(d.stElems) && n < d.stBad &&
+				int(d.stElems[n].startB) >= d.cur {
+				e := d.stElems[n]
+				d.stNext++
+				k := Object
+				if d.data[e.startB] == '[' {
+					k = Array
+				}
+				d.cur, d.off = int(e.endB), d.base+int(e.endB)
+				d.valStreak++
+				return Value{d: d.doc, kind: k, start: int(e.startB), end: int(e.endB)}, nil
+			}
+			d.stElems = d.stElems[:0]
 			i := d.doc.skip(d.cur)
 			if i < len(d.data) {
 				v, next, err := d.doc.value(i)
-				if err == nil && !d.stagedOK(i) {
+				if err == nil {
 					// value() settles the extent and the kind; it does not walk
 					// inside a container. Decode validates as it decodes and
 					// Scan is documented not to validate at all, but a caller
 					// reading a log line by line is asking "is this a record",
 					// and answering yes for `{bad}` because nobody looked
 					// inside is the mistake gjson's ForEachLine makes.
-					//
-					// stagedOK short-circuits it for a record a batch worker
-					// already walked; see stream_parallel.go.
 					err = v.validate()
 				}
 				if next > d.cur {
@@ -362,8 +384,14 @@ func (d *Decoder) load() error {
 		if len(d.tstack) > 0 {
 			return d.loadBatch()
 		}
+		// A batch the background task already prepared from these bytes; see
+		// stream_prefetch.go. The guard takes it only when it begins exactly
+		// at the cursor.
+		if d.pfTake() {
+			return nil
+		}
 		if !d.single && d.off < len(d.buf) && canStartValue[d.buf[d.off]] {
-			ix, err := buildIndexMode(d.buf[d.off:], d.ix, true, false, true)
+			ix, err := buildIndexMode(d.buf[d.off:d.topWindow()], d.ix, true, false, true)
 			d.ix = ix
 			if err == nil && ix.safeEnd > 0 {
 				if ix.partErr != nil && ix.partErrAt < ix.safeEnd {
@@ -707,6 +735,8 @@ func (d *Decoder) fill() error {
 	if d.err != nil {
 		return d.err
 	}
+	// Growth and compaction move d.buf, which any prepared batch aliases.
+	d.pfDrop()
 	if d.off > 0 && d.off == len(d.buf) {
 		d.consumed += int64(d.off)
 		d.buf, d.off = d.buf[:0], 0
