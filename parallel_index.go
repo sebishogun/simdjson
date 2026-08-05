@@ -164,6 +164,9 @@ func buildIndexParallel(data []byte, ix *index, validate, noBrackets bool) (*ind
 	if bounds == nil {
 		return nil, nil, false
 	}
+	if ix == nil {
+		ix = &index{}
+	}
 	nseg := len(bounds) - 1
 	win := chunkBytes
 	nw := (len(data) + 63) / 64

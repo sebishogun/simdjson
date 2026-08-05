@@ -304,9 +304,12 @@ structural index across cores — segments are indexed in parallel and the
 bracket pairs that cross a segment are merged serially, with output
 bit-identical to the single-threaded path, errors included. 64 MB of
 numbers-heavy JSON scans at 31.1 GB/s on 32 cores against 5.1 single-threaded;
-BenchmarkParallelScan reproduces it. `Valid`'s index
-goes parallel the same way — 2.2 to 2.8 GB/s at 64 MB — while its grammar walk
-stays serial; the walk is where the rest of its time lives.
+BenchmarkParallelScan reproduces it. `Valid` goes
+further: when the root is an array of containers — the shape huge documents
+have — the bracket index gives every element's exact extent, and the grammar
+walk itself shards across workers. 2.2 to 5.0 GB/s at 64 MB, with bool-for-bool
+agreement with the serial walk held by a differential; other shapes walk
+serially over the same index.
 
 Past 2 GiB, `Parse` and `Scan` return an error naming the alternative — see
 [Limits](#limits). That alternative is `Decoder`, which has no size limit. Ten

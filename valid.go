@@ -51,6 +51,16 @@ func Valid(data []byte) bool {
 			indexPool.Put(ix)
 		}
 	}()
+	// Large documents take the full bracket index -- the parallel path Scan
+	// uses -- and, when the root is an array of containers, walk its elements
+	// across workers. Valid returns a bool, so the bar is bool agreement with
+	// the serial walk, which the differential holds. Anything the shape check
+	// declines walks serially over the same already-built index.
+	if len(data) >= parallelMinBytes {
+		if v, ok := validParallel(data, ix); ok {
+			return v
+		}
+	}
 	ix, err := buildIndexMode(data, ix, true, masksOnly, false)
 	if err != nil {
 		return false
