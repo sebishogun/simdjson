@@ -191,9 +191,11 @@ marked not comparable.
 | `Compact` | 1,457 | 1,895 | 1,702 | **3.9–5.2×** |
 | `Indent` | 1,046 | 1,074 | 612 | **2.2–3.1×** |
 
-`Valid` is 15–24× goccy's. Against sonic's it leads on twitter, is level on citm
-and is 1.34× behind on canada, which is 2.25 MB of floating-point numbers and 24
-bytes of whitespace — the shape an index gains least from.
+`Valid` is 15–24× goccy's, and leads sonic's on all three corpora — 1.11× on
+twitter, 1.12× on citm, 1.11× on canada (two passes of five, best of the
+minima, same process). canada — 2.25 MB of floating-point numbers and 24 bytes
+of whitespace — is the closest, because it is the shape an index gains least
+from; the number validator's SWAR digit runs are what closed it.
 
 **Streaming**, 50,000 newline-delimited records, 6.5 MB:
 
