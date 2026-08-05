@@ -1119,7 +1119,7 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		keyBlob = append(keyBlob, f.keyComma...)
 	}
 
-	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
+	general := func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
 		// The buffer lives in a local for the length of the field loop rather
 		// than in e. Every `e.buf = append(e.buf, ...)` is a read of a slice
 		// header from the heap, an append, and a write of it back; a local is a
@@ -1242,6 +1242,85 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		}
 		b = append(b, '}')
 		e.buf = b
+		return nil
+	}
+
+	// The specialized closure, for a struct whose every field is simple --
+	// which fUser-shaped leaf structs are, and they are the innermost hot
+	// encoders. Its whole point is what it does NOT contain: no general arm,
+	// no `first` flag, no per-field omitAll test, and no reference to fields,
+	// rv or t, so none of that competes for registers in the loop. The library
+	// carries both bodies and the choice is made once per type, here.
+	//
+	// OmitZeroStructFields makes every field non-simple at encode time, so
+	// that one option delegates to the general closure -- tested once at
+	// entry, not per field.
+	for i := range fast {
+		if fast[i].leaf == leafNone {
+			return general
+		}
+	}
+	if len(fast) == 0 {
+		return general
+	}
+	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
+		if e.opts.OmitZeroStructFields {
+			return general(e, p, rv)
+		}
+		opts := e.opts
+		std := opts.EscapeHTML && opts.ValidateStrings
+		b := append(e.buf, '{')
+		// Field zero peeled: its key has no comma, and peeling it is what
+		// removes the only branch the loop would otherwise need.
+		ff := &fast[0]
+		b = append(b, keyBlob[ff.keyOff+1:ff.keyOff+ff.keyLen]...)
+		fp := unsafe.Add(p, uintptr(ff.offset))
+		switch ff.leaf {
+		case leafString:
+			if std {
+				b = appendQuoted(b, *(*string)(fp))
+			} else {
+				b = appendQuotedOpts(b, *(*string)(fp), opts)
+			}
+		case leafInt:
+			b = appendInt(b, *(*int64)(fp))
+		case leafUint:
+			b = appendUint(b, *(*uint64)(fp))
+		case leafBool:
+			if *(*bool)(fp) {
+				b = append(b, "true"...)
+			} else {
+				b = append(b, "false"...)
+			}
+		default: // leafFloat64
+			b = appendFloat(b, *(*float64)(fp), 64)
+		}
+		for i := 1; i < len(fast); i++ {
+			ff := &fast[i]
+			b = append(b, keyBlob[ff.keyOff:ff.keyOff+ff.keyLen]...)
+			fp := unsafe.Add(p, uintptr(ff.offset))
+			switch ff.leaf {
+			case leafString:
+				if std {
+					b = appendQuoted(b, *(*string)(fp))
+				} else {
+					b = appendQuotedOpts(b, *(*string)(fp), opts)
+				}
+			case leafInt:
+				b = appendInt(b, *(*int64)(fp))
+			case leafUint:
+				b = appendUint(b, *(*uint64)(fp))
+			case leafBool:
+				if *(*bool)(fp) {
+					b = append(b, "true"...)
+				} else {
+					b = append(b, "false"...)
+				}
+			default: // leafFloat64
+				b = appendFloat(b, *(*float64)(fp), 64)
+			}
+		}
+		e.buf = append(b, '}')
 		return nil
 	}
 }
