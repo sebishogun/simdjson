@@ -1966,3 +1966,40 @@ TestValidateStringsSkipsASCII stays. That branch had no differential coverage --
 the main marshal fuzzer only reaches appendQuoted -- and the twenty cases here
 cover prefixes ending at a byte above ASCII, at a byte needing an escape, and at
 neither, against encoding/json.
+
+## The quote kernel, retried with the confound removed
+
+The +27.5% entry above blamed the reservation: Marshal sizes a fresh buffer per
+call from a hint that remembered the last OUTPUT LENGTH, so the kernel's
+six-bytes-per-byte demand re-grew the buffer on every call. That left a live
+hypothesis: fix the hint and the kernel wins.
+
+Fixed by one line -- the hint remembers cap(out) instead of len(out), so a
+buffer that grew for the reservation once arrives pre-grown ever after -- and
+retried with the kernel behind a room check, three interleaved rounds:
+
+	                              control      quote kernel
+	GateMarshal/Marshal        154.6-159.0k   156.5-157.5k   wash
+	GateMarshal/MarshalTo      140.8-142.0k   141.4-142.2k   wash
+	DispatchFloor/compiled      49.7-50.1k     54.5-56.1k    +9.7%, every round
+
+The reallocation blowup is gone -- the pooled Marshal row no longer degrades at
+all -- and the kernel STILL loses, by ten percent on the floor corpus, with the
+room present and the buffer retained. So the original entry's split was two
+defects, not one: the reservation recurrence (real, fixed, worth nothing on its
+own because nothing else needs the room), and the kernel path losing to
+copy-run-plus-Go-escapes on strings as this corpus actually has them (most
+escapes cluster in short strings; the long strings the kernel gets are mostly
+clean, where it does the same work as JSONCopyRun plus a wasted room check).
+
+Reverted whole, including the hint line: without the kernel there is no
+reservation to absorb, and a hint that rounds capacity up for no consumer just
+fattens every allocation.
+
+**The rule.** When an experiment fails with two things different, fixing one
+and re-measuring is the only way to learn which mattered -- and the answer can
+be "both, and the fix for yours does not rescue theirs". This closes the fused
+quote-kernel line: reservation fixed, kernel measured on its own, still slower.
+The JIT-free ceiling for this encoder's struct row stands at the generated-code
+number until someone has a genuinely new idea, and docs/wrong.md now holds
+twelve measured reasons why the next micro-idea is probably already dead.
