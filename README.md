@@ -288,6 +288,14 @@ Real documents repeated to size, with a deliberate best and worst case:
 Six times between the two for `Scan`. A single throughput number for a JSON
 parser is an average over shapes that differ by that much.
 
+Those rows are single-threaded. From 8 MB up, `Scan` and `Parse` build the
+structural index across cores — segments are indexed in parallel and the
+bracket pairs that cross a segment are merged serially, with output
+bit-identical to the single-threaded path, errors included. 64 MB of
+numbers-heavy JSON scans at 31.1 GB/s on 32 cores against 5.1 single-threaded;
+`BenchmarkParallelScan` reproduces it. `Valid` stays single-threaded: its time
+is the grammar walk, not the index.
+
 Past 2 GiB, `Parse` and `Scan` return an error naming the alternative — see
 [Limits](#limits). That alternative is `Decoder`, which has no size limit. Ten
 gigabytes of tweets, 2.93 M records of about 3.4 KB each, from
