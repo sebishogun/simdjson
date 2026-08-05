@@ -159,3 +159,12 @@ fmt-check: ## Fail if anything is not gofmt-clean
 
 vet: ## go vet
 	$(GO) vet ./...
+
+bench-cpp: ## The C++ simdjson baseline on the same corpora (fetches the amalgamation)
+	@test -f bench/cpp/simdjson.cpp || (cd bench/cpp && \
+	  curl -sL -o simdjson.h https://github.com/simdjson/simdjson/releases/download/v4.6.4/simdjson.h && \
+	  curl -sL -o simdjson.cpp https://github.com/simdjson/simdjson/releases/download/v4.6.4/simdjson.cpp)
+	@mkdir -p /tmp/simdjson-cpp && for c in twitter citm canada; do \
+	  zcat testdata/bench/corpus/$$c.json.gz > /tmp/simdjson-cpp/$$c.json; done
+	cd bench/cpp && clang++ -O3 -std=c++20 -march=native -o /tmp/simdjson-cpp/baseline baseline.cpp simdjson.cpp
+	/tmp/simdjson-cpp/baseline /tmp/simdjson-cpp/twitter.json /tmp/simdjson-cpp/citm.json /tmp/simdjson-cpp/canada.json
