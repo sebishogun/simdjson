@@ -183,6 +183,75 @@ func compileArray(t reflect.Type) decodeFn {
 	}
 }
 
+// compileLeafSlice is compileSlice for scalar element kinds. The general path
+// walks the array twice — countElems to size the allocation, then the decode
+// — and on []float64 the counting pass was the difference between this
+// decoder and sonic's. One pass instead: decode into the destination growing
+// by doubling, with the growth (a MakeSlice and a Copy) outside the per-
+// element loop. Existing capacity is reused as before; "[]" still leaves a
+// non-nil empty slice; null still zeroes, as encoding/json has it for slices.
+func compileLeafSlice(t, elem reflect.Type, inner decodeFn, esize uintptr) decodeFn {
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		data := d.data
+		if data[i] == 'n' {
+			if end, ok := nullAt(d, i); ok {
+				reflect.NewAt(t, p).Elem().SetZero()
+				return end, nil
+			}
+		}
+		if data[i] != '[' {
+			return 0, kindErr(d, i, t)
+		}
+		rv := reflect.NewAt(t, p).Elem()
+		capacity := rv.Cap()
+		if capacity == 0 {
+			rv.Set(reflect.MakeSlice(t, 8, 8))
+			capacity = 8
+		} else {
+			rv.SetLen(capacity)
+		}
+		base := rv.UnsafePointer()
+		k := 0
+		j := d.skip(i + 1)
+		for {
+			if j >= len(data) {
+				return 0, errAt("unexpected end of input", j)
+			}
+			if data[j] == ']' {
+				j++
+				break
+			}
+			if k > 0 {
+				if data[j] != ',' {
+					return 0, errAt("expected ',' or ']'", j)
+				}
+				j = d.skip(j + 1)
+				if j >= len(data) {
+					return 0, errAt("unexpected end of input", j)
+				}
+				if data[j] == ']' {
+					return 0, errAt("expected a value after ','", j)
+				}
+			}
+			if k == capacity {
+				grown := reflect.MakeSlice(t, capacity*2, capacity*2)
+				reflect.Copy(grown, rv)
+				rv.Set(grown)
+				capacity *= 2
+				base = rv.UnsafePointer()
+			}
+			next, err := inner(unsafe.Add(base, uintptr(k)*esize), d, j)
+			if err != nil {
+				return 0, err
+			}
+			k++
+			j = d.skip(next)
+		}
+		rv.SetLen(k)
+		return j, nil
+	}
+}
+
 // compileLeafArray is compileArray for scalar element kinds, which is what a
 // coordinate pair is. The general path found the closing bracket first with
 // matchBracket — a binary search over the structural positions, run once per
@@ -455,6 +524,9 @@ func compileSlice(t reflect.Type) decodeFn {
 	}
 	inner := decoderFor(elem)
 	esize := elem.Size()
+	if leafKind(elem) != kOther {
+		return compileLeafSlice(t, elem, inner, esize)
+	}
 	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
 		if d.data[i] == 'n' {
 			if end, ok := nullAt(d, i); ok {
