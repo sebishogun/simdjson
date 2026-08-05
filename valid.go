@@ -334,17 +334,44 @@ func stringRunEnd(ix *index, i, end int) int {
 	return j
 }
 
-// MarshalIndent is [Marshal] followed by [Indent].
+// MarshalIndent is [Marshal] followed by [Indent], minus the proof: the
+// bytes between them are this package's own output, compact and valid by
+// construction, so the grammar walk Indent runs over input from outside
+// proves nothing here. The masks are still built -- the writer lays out
+// strings and depth from them -- and the walk was a fifth of the total.
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	if err := Indent(&buf, b, prefix, indent); err != nil {
+	if err := indentTrusted(&buf, b, prefix, indent); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// indentTrusted is Indent for bytes already proven valid and known compact:
+// the index is built for its masks and nothing is validated. end is len(src)
+// because Marshal emits no trailing whitespace.
+func indentTrusted(dst *bytes.Buffer, src []byte, prefix, indent string) error {
+	ix, _ := indexPool.Get().(*index)
+	defer func() {
+		if ix != nil {
+			indexPool.Put(ix)
+		}
+	}()
+	var err error
+	ix, err = buildIndexMode(src, ix, true, masksOnly, false)
+	if err != nil {
+		return err
+	}
+	if indentParallel(dst, src, ix, prefix, indent, len(src)) {
+		return nil
+	}
+	dst.Grow(len(src) * 2)
+	writeIndent(dst, src, ix, prefix, indent, len(src))
+	return nil
 }
 
 // HTMLEscape appends src to dst with <, >, & and the two Unicode line
