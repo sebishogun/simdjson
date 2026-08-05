@@ -100,6 +100,11 @@ type encodeState struct {
 	// the next Marshal can size its buffer without growing into it.
 	hint int
 
+	// noParallel marks a state doing one worker's share of a parallel encode,
+	// so the range it is given cannot shard again -- the goroutine count would
+	// otherwise grow with nesting.
+	noParallel bool
+
 	// lastTyp and lastFn remember the encoder used for the previous value
 	// reached through an interface.
 	//
@@ -166,6 +171,15 @@ func (e *encodeState) marshal(v any) error {
 		return nil
 	}
 	rv := reflect.ValueOf(v)
+	// A large top-level slice encodes across workers; see encode_parallel.go.
+	// Before encodeAny, because []any -- what a decoded document is -- is
+	// exactly the shape the parallel arm exists for. []byte is base64, not a
+	// sequence, and stays serial whatever its size.
+	if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() != reflect.Uint8 && !e.noParallel {
+		if ok, err := e.marshalParallelSlice(rv); ok {
+			return err
+		}
+	}
 	// The value out of an interface is not addressable, and the compiled
 	// encoders work from a pointer. One copy, at the top level only.
 	//
@@ -198,24 +212,53 @@ type encodeFn func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error
 
 var encoderCache sync.Map // reflect.Type -> encodeFn
 
+// encWaiter is a type's cache entry while its encoder is being compiled. A
+// lookup during compilation gets a function that waits for ready and then
+// runs the real encoder -- which serves both recursion in the type graph (the
+// same goroutine embedding a reference to the encoder it is mid-way through
+// compiling; nothing WAITS until the encode actually runs, by which time the
+// compile has finished) and concurrent first use of one type from several
+// goroutines.
+//
+// The previous shape was a stub that resolved itself from the cache through a
+// sync.Once. Under concurrent first use, a second goroutine could run the
+// stub while the cache still held the stub, and the Once then pinned self to
+// the stub itself -- infinite recursion, permanently, on that path. Serial
+// code could never arrange that; the parallel Marshal arm arranged it on its
+// first day. The waiter has no such state: it waits until the compiling
+// goroutine has published the real function, however early it is called.
+type encWaiter struct {
+	fn    encodeFn
+	ready chan struct{}
+}
+
+func (w *encWaiter) wait(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
+	<-w.ready
+	return w.fn(e, p, rv)
+}
+
 func encoderFor(t reflect.Type) encodeFn {
 	if f, ok := encoderCache.Load(t); ok {
-		return f.(encodeFn)
+		switch v := f.(type) {
+		case encodeFn:
+			return v
+		case *encWaiter:
+			return v.wait
+		}
 	}
-	var self encodeFn
-	var once sync.Once
-	stub := encodeFn(func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-		once.Do(func() {
-			if f, ok := encoderCache.Load(t); ok {
-				if g, ok := f.(encodeFn); ok {
-					self = g
-				}
-			}
-		})
-		return self(e, p, rv)
-	})
-	encoderCache.Store(t, stub)
+	w := &encWaiter{ready: make(chan struct{})}
+	if prev, loaded := encoderCache.LoadOrStore(t, w); loaded {
+		// Someone else got here first; use whatever they published.
+		switch v := prev.(type) {
+		case encodeFn:
+			return v
+		case *encWaiter:
+			return v.wait
+		}
+	}
 	f := compileEncoder(t)
+	w.fn = f
+	close(w.ready)
 	encoderCache.Store(t, f)
 	return f
 }

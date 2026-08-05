@@ -59,6 +59,15 @@ func (e *encodeState) encodeAny(v any) (bool, error) {
 			e.buf = append(e.buf, x...)
 		}
 	case []any:
+		// A big one shards across workers wherever it appears -- a decoded
+		// document is a two-key map whose bytes are all in this slice, so
+		// gating only the top level would miss the exact case the arm is for.
+		// Worker states carry noParallel, so ranges cannot shard again.
+		if !e.noParallel {
+			if ok, err := e.marshalParallelSlice(reflect.ValueOf(x)); ok {
+				return true, err
+			}
+		}
 		e.buf = append(e.buf, '[')
 		for i, el := range x {
 			if i > 0 {
