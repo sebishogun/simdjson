@@ -747,13 +747,38 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			valFn = e.encoderForCached(et)
 		}
 
-		e.buf = append(e.buf, '{')
+		// The buffer in a local for the key, the separator and the colon, as
+		// the struct loop does it for a field. Through e those three appends
+		// are three reads of a slice header from the heap, three appends and
+		// three writes back; the disassembly showed the header being reloaded
+		// from 0(AX), 0x8(AX) and 0x10(AX) once per entry, and the frame at 440
+		// bytes with the loop counter and the pair pointer round-tripping
+		// through the stack.
+		//
+		// It goes home before the value encoder, which takes e and appends to
+		// e.buf itself, and is picked up again after.
+		// Tested once rather than per key. See the struct loop: Options is four
+		// bools and Go's ABI passes it as four registers, so a per-key call
+		// reloads four bytes from the stack to ask a question whose answer does
+		// not change.
+		//
+		// The rare branch reads e.opts rather than a hoisted local, because a
+		// local keeps the four bools live for the whole loop: the compiler set
+		// them up in the loop head AND the body, four MOVZX each, on the path
+		// that never runs.
+		std := e.opts.EscapeHTML && e.opts.ValidateStrings
+		b := append(e.buf, '{')
 		for i, pr := range pairs {
 			if i > 0 {
-				e.buf = append(e.buf, ',')
+				b = append(b, ',')
 			}
-			e.writeString(pr.k)
-			e.buf = append(e.buf, ':')
+			if std {
+				b = appendQuoted(b, pr.k)
+			} else {
+				b = appendQuotedOpts(b, pr.k, e.opts)
+			}
+			b = append(b, ':')
+			e.buf = b
 			el := vals.Index(pr.v)
 			fn := valFn
 			if fn == nil {
@@ -762,8 +787,9 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			if err := fn(e, ptrOf(el), el); err != nil {
 				return err
 			}
+			b = e.buf
 		}
-		e.buf = append(e.buf, '}')
+		e.buf = append(b, '}')
 		return nil
 	}
 }
