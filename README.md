@@ -144,11 +144,22 @@ instructions:
 | citm | **394 µs** | 441 µs | 3,173 µs | **1.12×** |
 | canada | **891 µs** | 978 µs | 4,153 µs | **1.10×** |
 
-**Into Go values**, twitter into a struct:
+**Into Go values**, each corpus into its natural struct
+(bench/decode_rows_test.go, minimum of three):
 
-| | this | goccy | sonic | encoding/json |
+| `Unmarshal` → struct | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
-| `Unmarshal` → struct | **329 µs** | 336 µs | 410 µs | 2,645 µs |
+| twitter | **329 µs** | 336 µs | 410 µs | 2,645 µs |
+| canada | **2.66 ms** | 6.1 ms | 2.63 ms | 14.8 ms |
+| citm | 1.30 ms | **0.92 ms** | 1.60 ms | 7.8 ms |
+| 2 MB `[]float64` | **1.97 ms** | 5.2 ms | 2.10 ms | 10.8 ms |
+
+canada is level with sonic — 1.1% apart, inside the noise floor — after the
+compiled-array, extent-float and one-pass work. citm is goccy's row: tiny
+objects of small integers, where its hand-tuned scanner core pays less per
+token than this design's index amortizes; an index-free prototype measured
+4–5× SLOWER on every corpus, and the entry in [`wrong.md`](docs/wrong.md)
+has the numbers.
 
 **Out of Go values**:
 

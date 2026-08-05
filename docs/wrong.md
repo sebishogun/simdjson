@@ -2055,3 +2055,32 @@ so the search amortizes and the loop shape is what matters.
 The rule: a win is a property of the loop it happened in, not of the
 technique. Reverted whole; the arrays keep their version, the struct keeps
 its bracket match.
+
+## Decoding without the index, measured on the shape that suggested it
+
+goccy leads citm-into-structs 1,879 to 1,333 MB/s, and the profile put
+buildIndexWhole at 16% of our decode while the struct decoder re-walks every
+byte anyway — so an index-free decode path for compiled structs looked like
+the citm answer. A prototype swapped the four index-coupled primitives for
+byte walkers (whitespace to skipSpaceSlow, strings to an escape-aware scan,
+extents to a depth walker), decoded all three corpora identically to the
+indexed path, and then measured:
+
+	Unmarshal into structs, indexed vs no index, minimum of three:
+	citm      1,309 -> 245 MB/s
+	twitter   1,903 -> 465 MB/s
+	canada      849 -> 203 MB/s
+
+Four to five times slower everywhere, including the corpus the idea was
+for. The index's 16% line item buys the other 84%: the whitespace skip, the
+string extent, and the bracket match are all one mask operation each
+BECAUSE the index prepaid them, and the byte-walking versions cost far more
+than the prepayment. goccy wins citm not because skipping preprocessing is
+free but because its per-token core is a hand-tuned scanner family built
+for exactly that; reproducing it inside this architecture means writing a
+second library.
+
+The rule: a profile line for shared infrastructure is not a savings
+estimate. Removing it re-prices every consumer. citm-into-structs stays
+goccy's row until someone has an in-architecture mechanism for the
+per-token layer.
