@@ -350,6 +350,17 @@ func appendQuoted(dst []byte, s string) []byte {
 		dst = append(dst, s...)
 		return append(dst, '"')
 	}
+	// An ASCII byte that needs escaping does not make the string non-ASCII, and
+	// a string that is all ASCII is valid UTF-8 whatever escapes it holds. So
+	// that case never needs the validation pass below.
+	//
+	// It is behind a call, and the arrangement is the point: the path this
+	// guards is 25% of the strings and they are the short ones, while the code
+	// below carries 84.8% of the bytes. Putting THAT behind a call instead --
+	// which is the obvious refactor and was tried -- costs 5.3% on the encode.
+	if s[n] < 0x80 {
+		return appendQuotedASCII(dst, s, n)
+	}
 	// The prefix is already known: printable ASCII, nothing to escape, and
 	// therefore valid UTF-8 by construction. Neither of the two scans that
 	// follow needs to look at it again, and both used to start from the front.
@@ -437,6 +448,103 @@ func appendBody(dst []byte, s string) []byte {
 		}
 		s = s[1:]
 	}
+}
+
+// appendQuotedASCII writes a string whose first stopping byte is ASCII, staying
+// on the ASCII path across escapes for as long as it can.
+//
+// n is where the caller's run stopped. Everything before it is printable ASCII
+// with nothing to escape, and therefore valid UTF-8 by construction; the same
+// holds for every run this loop takes afterwards, so no validation happens
+// until a byte above ASCII actually turns up.
+//
+// Measured on a 512-byte string, by escape count:
+//
+//	escapes   0      1      2      4      8     16     32
+//	before  131.8  195.4  202.1  218.7  240.1  262.7  301.7
+//	after   128.9  137.8  140.0  124.1  133.8  158.6  197.1
+//
+// The step at the first escape was the validation pass, not the escape.
+func appendQuotedASCII(dst []byte, s string, n int) []byte {
+	out := append(dst, '"')
+	for {
+		out = append(out, s[:n]...)
+		s = s[n:]
+		if len(s) == 0 {
+			return append(out, '"')
+		}
+		c := s[0]
+		if c >= 0x80 {
+			break
+		}
+		var ok bool
+		if out, ok = appendEscape(out, c); !ok {
+			break
+		}
+		s = s[1:]
+		if len(s) == 0 {
+			return append(out, '"')
+		}
+		n = plainASCIIRun(s)
+	}
+	// Something above ASCII, or an escape this does not handle. The rest has to
+	// be proved valid; the part already written does not, and is not re-read.
+	if !validUTF8String(s) {
+		return appendQuotedInvalidTail(out, s)
+	}
+	if len(s) >= kernelScanMin {
+		out = growTo(out, len(s))
+		k := simd.JSONCopyRun(out[len(out):len(out)+len(s)], s, true)
+		out = out[:len(out)+k]
+		if k == len(s) {
+			return append(out, '"')
+		}
+		s = s[k:]
+	}
+	return append(appendBody(out, s), '"')
+}
+
+// appendQuotedInvalidTail is appendQuotedInvalid for a tail whose prefix has
+// already been written, quote included.
+func appendQuotedInvalidTail(dst []byte, s string) []byte {
+	for len(s) > 0 {
+		r, size := utf8.DecodeRuneInString(s)
+		if r == utf8.RuneError && size == 1 {
+			dst = append(dst, '\\', 'u', 'f', 'f', 'f', 'd')
+			s = s[1:]
+			continue
+		}
+		dst = appendBody(dst, s[:size])
+		s = s[size:]
+	}
+	return append(dst, '"')
+}
+
+// appendEscape writes the escape for one byte that ended a clean run, and
+// reports whether it recognised it. appendBody's switch is the authority; this
+// is the same set, extracted so the ASCII loop can share it. 0xE2 is not in it
+// -- U+2028 and U+2029 need the rune decoded, which is the caller's slow path.
+func appendEscape(dst []byte, c byte) ([]byte, bool) {
+	switch {
+	case c == '"':
+		return append(dst, '\\', '"'), true
+	case c == '\\':
+		return append(dst, '\\', '\\'), true
+	case c == '\b':
+		return append(dst, '\\', 'b'), true
+	case c == '\f':
+		return append(dst, '\\', 'f'), true
+	case c == '\n':
+		return append(dst, '\\', 'n'), true
+	case c == '\r':
+		return append(dst, '\\', 'r'), true
+	case c == '\t':
+		return append(dst, '\\', 't'), true
+	case c == '<' || c == '>' || c == '&' || c < 0x20:
+		return append(dst, '\\', 'u', '0', '0',
+			hexDigits[c>>4], hexDigits[c&0xF]), true
+	}
+	return dst, false
 }
 
 // appendQuotedInvalid handles a string carrying bytes that are not UTF-8,
