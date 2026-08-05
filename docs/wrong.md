@@ -1494,3 +1494,48 @@ simdjson's buffer strategy rather than about the kernel.
 preconditions with it. sonic's quoting is fast because of the reservation, and
 the reservation is affordable because of how sonic allocates. Reading the first
 half and not the second is how a correct kernel ends up 27% slower in place.
+
+## Fusing validation into the copy, which the profile said was 44%
+
+The Std encode walks every string three times: plainASCIIRun for the clean ASCII
+prefix, validUTF8String over the tail, then JSONCopyRun over that same tail for
+escapes. Profiled, those are 10.7%, 16.0% and 22.6% of a struct encode. sonic
+walks it once.
+
+So simd_json_copy_valid was built: simd_json_copy_run with the classifier from
+simd_valid_utf8 folded into the same block loop, returning the count or a
+negative value when what it copied was not valid UTF-8. It needs no extra output
+space, which is what killed the quote kernel before it -- it still stops at
+escapes rather than writing them.
+
+	                       control   change
+	Marshal, struct         58,711   60,094   +2.4%
+	MarshalTo, struct       51,884   52,671   +1.5%
+	twitter decoded        806,363  805,375   -0.1%
+	control goccy           92,954   93,196   +0.3%
+
+Slightly worse. The 16% is real and it is not available, for two reasons the
+profile cannot show:
+
+  - It is concentrated in the 248 strings of 1201 that hold non-ASCII. For the
+    other 953, validUTF8String is answered by plainASCIIRun having consumed the
+    whole string, and never runs at all.
+  - Inside the kernel, an all-ASCII block already skips the classifier -- the
+    `(v | prev) & 0x80` test is the same one simd_valid_utf8 uses. So fusing
+    saves the call and the second walk, not the checking. What it adds is
+    carrying `prev` and `err` across every block, including the ones that
+    skipped.
+
+Net: a saving on a quarter of the strings against a cost on all of them.
+
+**The kernel stays in simd.** It is correct -- checked against every byte value,
+malformed sequences of every shape at every offset across a block boundary,
+5,000 random inputs and 5,000 valid ones -- and a caller that genuinely needs
+both answers over the same bytes gets them in one pass. simdjson is not that
+caller, because plainASCIIRun has usually answered both before the kernel is
+reached.
+
+**The rule, again and more sharply.** A profile line is a cost, not an
+opportunity, and the difference is which inputs produce it. 16% spent in
+validation across 1201 strings is not 16% available if 953 of them never enter
+the function. Counting that took one test and it was not run first.
