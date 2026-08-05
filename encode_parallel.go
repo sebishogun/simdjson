@@ -40,7 +40,12 @@ var (
 	// per-call goroutine cost would eat.
 	parallelMarshalMin     = 256 << 10 // output-size hint that arms the path
 	parallelMarshalPerWork = 64 << 10
-	parallelMarshalMaxProc = 8
+	// Sixteen, re-swept at scale: a 63 MB output ran 3,185 MB/s at eight
+	// workers and 4,057 at sixteen (7.7x over 524 serial), while the 770 KB
+	// flagship was unchanged (264 vs 268 us) because est/PerWork already
+	// bounds small outputs below the cap. Twenty-four bought 2% more at
+	// 63 MB; not worth the extra fan-out everywhere else.
+	parallelMarshalMaxProc = 16
 )
 
 // marshalParallelSlice encodes a top-level slice across workers. It reports
