@@ -1,6 +1,9 @@
 package simdjson
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func mustSet(t *testing.T, in, path string, v any) string {
 	t.Helper()
@@ -189,9 +192,20 @@ func FuzzSetPath(f *testing.F) {
 			t.Fatalf("SetPath(%q, %q) produced invalid JSON: %q", doc, path, out)
 		}
 		// -1 means append and there is no reading a value back through it, so
-		// the round trip only applies to paths that name a position.
+		// the round trip only applies to paths that name a position — and an
+		// append ANYWHERE in the path makes everything under it land at an
+		// index the path does not say (".-1.0" creates [[v]], readable as
+		// ".0.0"). The fuzzer found the mid-path case a long time after the
+		// trailing one.
+		appendCursor := false
+		for _, c := range strings.Split(path, ".") {
+			if c == "-1" {
+				appendCursor = true
+				break
+			}
+		}
 		_, lastComp := cutLast(path)
-		if lastComp != "-1" {
+		if !appendCursor {
 			if v := GetPath(out, path); v.Int() != 12345 {
 				t.Fatalf("SetPath(%q, %q) = %q; reading the path back gives %v (exists=%v)",
 					doc, path, out, v.Int(), v.Exists())
@@ -212,8 +226,9 @@ func FuzzSetPath(f *testing.F) {
 		// so index 0 exists afterwards and should -- it is a different element.
 		// And duplicate keys are legal JSON, so deleting `b` from
 		// {"b":1,"b":2} leaves a `b`. What is always true is that something
-		// went away.
-		if len(del) >= len(out) {
+		// went away -- unless the path holds an append cursor, which addresses
+		// nothing, so deleting through it removes nothing and should not.
+		if !appendCursor && len(del) >= len(out) {
 			t.Fatalf("DeletePath(%q, %q) = %q; nothing was removed", out, path, del)
 		}
 	})

@@ -94,7 +94,12 @@ byte-for-byte contract.
 
 `SetPath`, `SetRawPath` and `DeletePath` rewrite a document in place by byte
 range, without decoding it. `Skip` returns the extent of the value at the start
-of a slice.
+of a slice. An edit validates the document and the replacement before it
+splices — a Set that produces something unparseable is worse than an error —
+and that is the whole difference from sjson, which validates neither: on a
+631 KB document, one field edit runs at 1,990 MB/s here against sjson's 4,492
+(bench/editing_rows_test.go). The contract costs a validation pass; the
+number is what it costs.
 
 `ForEachLine`, `ForEachLineReader` and `ForEachLineReaderParallel` read
 newline-delimited JSON.
