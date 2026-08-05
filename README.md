@@ -149,16 +149,16 @@ instructions:
 
 | `Unmarshal` → struct | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
-| twitter | **329 µs** | 336 µs | 410 µs | 2,645 µs |
+| twitter | **303 µs** | 330 µs | 410 µs | 2,645 µs |
 | canada | **2.66 ms** | 6.1 ms | 2.63 ms | 14.8 ms |
-| citm | 1.30 ms | **0.92 ms** | 1.60 ms | 7.8 ms |
+| citm | 1.18 ms | **0.97 ms** | 1.60 ms | 7.8 ms |
 | 2 MB `[]float64` | **1.97 ms** | 5.2 ms | 2.10 ms | 10.8 ms |
 
 canada is level with sonic — 1.1% apart, inside the noise floor — after the
-compiled-array, extent-float and one-pass work. citm is goccy's row — and
-segmentio's lean core lands level with us there (1,388 MB/s to our ~1,330,
-inside the 8.3% noise floor): tiny objects of small integers, where a
-hand-tuned scanner pays less per token than this design's index amortizes. An index-free prototype measured
+compiled-array, extent-float and one-pass work. citm is goccy's row, cut
+from 41% to 22% by the one-walk integer parse (segmentio's 1,388 MB/s now
+trails our 1,463): tiny objects of small integers, where a hand-tuned
+scanner pays less per token than this design's index amortizes. An index-free prototype measured
 4–5× SLOWER on every corpus, and the entry in [`wrong.md`](docs/wrong.md)
 has the numbers. jsoniter and segmentio trail everywhere else measured —
 191 and 404 MB/s on canada, 213 and 484 on the `[]float64` — and both are

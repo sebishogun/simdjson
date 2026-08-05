@@ -199,6 +199,59 @@ func parseFloat64Fast(s []byte) (float64, bool) {
 	return f, status == floatParsed && end == len(s)
 }
 
+// parseIntAt parses and validates an INTEGER JSON number at data[pos] in one
+// pass — the walk decInt64 ran through number() and the re-scan it then paid
+// strconv.ParseInt for, together. citm is int64s wall to wall, and every id
+// in every API response is this shape. The grammar is number()'s, and any
+// doubt is a fallback, never an answer: a '.', an 'e', more than eighteen
+// digits, or a value outside the caller's bit range all return floatFallback
+// and the old numAt+strconv path reproduces its exact behavior, errors
+// included. Eighteen digits cannot overflow a uint64 accumulator, which is
+// what keeps the fast loop free of checks.
+func parseIntAt(data []byte, pos int, min, max int64) (n int64, end int, status int) {
+	b := data
+	nn := uint(len(b))
+	j := uint(pos)
+	neg := false
+	if j < nn && b[j] == '-' {
+		neg = true
+		j++
+	}
+	if j >= nn {
+		return 0, 0, floatBadSyntax
+	}
+	var man uint64
+	switch {
+	case b[j] == '0':
+		j++
+	case b[j] >= '1' && b[j] <= '9':
+		man = uint64(b[j] - '0')
+		j++
+		start := j
+		for j < nn && b[j] >= '0' && b[j] <= '9' {
+			man = man*10 + uint64(b[j]-'0')
+			j++
+		}
+		if j-start >= 18 {
+			return 0, 0, floatFallback
+		}
+	default:
+		return 0, 0, floatBadSyntax
+	}
+	if j < nn && (b[j] == '.' || b[j] == 'e' || b[j] == 'E') {
+		// Float-shaped. The old path owns the error text.
+		return 0, 0, floatFallback
+	}
+	n = int64(man)
+	if neg {
+		n = -n
+	}
+	if n < min || n > max {
+		return 0, 0, floatFallback
+	}
+	return n, int(j), floatParsed
+}
+
 // eiselLemire64 converts man × 10^exp10 to the nearest float64 via one (or
 // two) 64×64→128 multiplies against the normalized lemire10Tab. ok=false is
 // "not provably correctly rounded here" — ambiguity, subnormal, overflow —

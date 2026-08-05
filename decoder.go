@@ -443,7 +443,21 @@ func decFloat32(p unsafe.Pointer, d *Doc, i int) (int, error) {
 // intFn and uintFn build the signed and unsigned leaves, which differ only in
 // their width and the store.
 func intFn(bits int, t reflect.Type, store func(unsafe.Pointer, int64)) decodeFn {
+	min := int64(-1) << (bits - 1)
+	max := int64(1)<<(bits-1) - 1
 	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		if d.data[i] == 'n' {
+			if e, ok := nullAt(d, i); ok {
+				return e, nil
+			}
+		}
+		// One walk for the extent, the grammar and the value; see parseIntAt.
+		// Anything it is not sure of reruns the old two-pass path below,
+		// which owns every error.
+		if n, end, status := parseIntAt(d.data, i, min, max); status == floatParsed {
+			store(p, n)
+			return end, nil
+		}
 		raw, end, isNull, err := numAt(d, i, t)
 		if err != nil || isNull {
 			return end, err
@@ -458,7 +472,20 @@ func intFn(bits int, t reflect.Type, store func(unsafe.Pointer, int64)) decodeFn
 }
 
 func uintFn(bits int, t reflect.Type, store func(unsafe.Pointer, uint64)) decodeFn {
+	max := int64(1)<<62 - 1 // uint64: the 18-digit fast path fits well inside
+	if bits < 63 {
+		max = int64(1)<<bits - 1
+	}
 	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		if d.data[i] == 'n' {
+			if e, ok := nullAt(d, i); ok {
+				return e, nil
+			}
+		}
+		if n, end, status := parseIntAt(d.data, i, 0, max); status == floatParsed {
+			store(p, uint64(n))
+			return end, nil
+		}
 		raw, end, isNull, err := numAt(d, i, t)
 		if err != nil || isNull {
 			return end, err

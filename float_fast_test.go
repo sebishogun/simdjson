@@ -147,6 +147,17 @@ func FuzzParseFloatFast(f *testing.F) {
 		if wantOK && gotEnd != wantEnd {
 			t.Fatalf("%q: number() end=%d, parseFloat64At end=%d", s, wantEnd, gotEnd)
 		}
+		// parseIntAt makes the same claim for the integer subset, plus the
+		// value itself against strconv over the extent it reports.
+		if n, iEnd, ist := parseIntAt([]byte(s), 0, -1<<63, 1<<63-1); ist == floatParsed {
+			if !wantOK || iEnd != wantEnd {
+				t.Fatalf("%q: parseIntAt end=%d, number() end=%d ok=%v", s, iEnd, wantEnd, wantOK)
+			}
+			want, err := strconv.ParseInt(s[:iEnd], 10, 64)
+			if err != nil || want != n {
+				t.Fatalf("%q: parseIntAt=%d, strconv=%d err=%v", s, n, want, err)
+			}
+		}
 		if !validJSONNumber([]byte(s)) {
 			return
 		}
