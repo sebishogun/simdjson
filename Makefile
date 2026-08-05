@@ -87,7 +87,7 @@ bench-check: bench-run ## Benchmark and fail on anything slower than the baselin
 bench-agree: ## Record twice and fail unless the two runs agree
 	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT).1
 	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT).2
-	cd tools && $(GO) run ./benchcheck -agree -threshold 5 -baseline ../$(BENCH_OUT).1 ../$(BENCH_OUT).2
+	cd tools && $(GO) run ./benchcheck -agree -threshold 5 -baseline $(BENCH_OUT).1 $(BENCH_OUT).2
 	@cat $(BENCH_OUT).1 > $(BENCH_OUT)
 	@grep '^Benchmark' $(BENCH_OUT).2 >> $(BENCH_OUT)
 	@echo "the two runs agree; $(BENCH_OUT) holds both, $(shell expr $(BENCH_COUNT) \* 2) samples each"
