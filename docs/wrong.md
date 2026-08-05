@@ -1443,3 +1443,54 @@ optimisation is not the only variable; where the compiler is allowed to keep the
 code together is another, and it can be larger. When measuring one, watch the
 paths the change is not supposed to touch -- if they moved, the shape changed,
 and the shape is what will decide the result.
+
+## The quote kernel, built and then not used
+
+sonic's lead on struct encoding came down to one mechanism: its `quote.c`
+reserves worst-case output space -- six bytes per input byte, every byte
+becoming \u00XX -- and then runs a bounds-check-free vector pass that writes
+escapes inline. `simd.JSONCopyRun` stops at the first byte needing an escape and
+returns, so the caller emits it and calls again.
+
+So the kernel was built. `simd_json_quote`, emitted for amd64, arm64 and
+riscv64; refused by the emission check on loong64, s390x and ppc64le because
+clang allocates registers the Go runtime owns there, which is that check working
+as designed. Tested against a loop written from encoding/json's rules over every
+byte value, every escape shorthand, U+2028 and U+2029 and their lead-byte
+neighbours, truncated sequences, 3,200 cases with an escape at every position
+across a vector block boundary, and 3,000 random inputs. It is correct.
+
+It made the encoder slower.
+
+	                       control   change
+	Marshal, struct         58,011   73,974   +27.5%
+	MarshalTo, struct       51,501   53,424    +3.7%
+	twitter decoded        797,747  806,834    +1.1%
+	control goccy           92,334   93,057    +0.8%
+
+The split between the two struct rows is the explanation. `MarshalTo` writes
+into a buffer the caller already owns, so the reservation is usually free.
+`Marshal` allocates one per call sized from a hint the pool carries, and asking
+for six times the input immediately reallocates it -- every call, on a buffer
+that then never uses five sixths of what it asked for.
+
+**The reservation is the technique.** It is what removes the per-byte space
+check, and it is also what an append-based encoder cannot afford: sonic writes
+into a buffer it sized up front, and this writes into one that grows. The two
+designs are not interchangeable at the point where the kernel is called, and no
+amount of tuning the kernel changes that -- the cost is in the caller.
+
+A first attempt made it worse still by reserving unconditionally: a 144-byte
+non-ASCII string with nothing at all to escape went from 34.3 ns to 44.7,
+because it paid for output space it never wrote. Reserving only after an escape
+is known to exist fixed that and left the numbers above.
+
+**The kernel stays in simd.** It is correct, it is tested, and a caller with a
+pre-sized destination -- which is most callers of a quoting primitive -- gets
+what it promises. It is simdjson that cannot use it, and that is a fact about
+simdjson's buffer strategy rather than about the kernel.
+
+**The rule.** A mechanism copied from another implementation carries its
+preconditions with it. sonic's quoting is fast because of the reservation, and
+the reservation is affordable because of how sonic allocates. Reading the first
+half and not the second is how a correct kernel ends up 27% slower in place.
