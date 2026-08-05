@@ -267,13 +267,21 @@ func cleanRunOpts(s string, html bool) int {
 		// and anding away the bytes that started with their high bit set leaves
 		// bytes genuinely below 0x20 and nothing else.
 		//
-		// It is worth an operation here and not in cleanRun, and the difference
-		// is the rest of the set. This path looks for two bytes, both ASCII, so
-		// an exact control test means the word loop runs through non-ASCII text
-		// to the end. cleanRun also looks for 0xE2, which stops it at that text
-		// anyway, so there the extra operation buys nothing and costs 2.5%.
-		// Measured both ways on both paths: Fast 46.5-47.1 us to 44.8-45.5,
-		// MarshalTo 67.9-68.5 to 68.2-68.6.
+		// cleanRun uses the same exact test now, and the note that used to be
+		// here said it should not: that cleanRun's 0xE2 probe "stops it at that
+		// text anyway", so the extra operation bought nothing and cost 2.5%.
+		//
+		// Both halves of that were wrong. The 0xE2 probe matches one byte, and
+		// CJK is E3 81 82 and friends -- it never fires on Japanese text, so
+		// what stopped the loop there was the masked control test turning a
+		// continuation byte into a control character. And re-measured over three
+		// passes of twelve samples each, with the Fast path as a control because
+		// it comes through here and not through cleanRun:
+		//
+		//	                masked   exact
+		//	Marshal         60,204  58,327   -3.1%
+		//	MarshalTo       53,216  51,452   -3.3%
+		//	Fast            34,902  35,000   +0.3%  (control, untouched)
 		if d := (w&^hi | hi) - lo*0x20; ^d&^w&hi != 0 {
 			break
 		}

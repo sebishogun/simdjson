@@ -1241,3 +1241,49 @@ The 54% figure was not wrong, and that is the trap. Quoting really is half the
 encode. But almost all of it was already on the fast path, and the profile
 cannot show that, because a profile attributes time to functions rather than to
 the inputs that drove them.
+
+## A measurement in a comment that was wrong, and the reasoning under it
+
+`cleanRun` tested for control bytes by clearing each byte's high bit first,
+which turns 0x8D into 0x0D and calls it a control character -- wrong for 0x80
+through 0x9F, the commonest UTF-8 continuation bytes. Changing it to the exact
+test looked like a bug fix and was committed as one.
+
+It was not a bug. `cleanRunOpts`, twenty lines below, already used the exact
+test, under a comment explaining why `cleanRun` deliberately did not:
+
+	It is worth an operation here and not in cleanRun, and the difference is
+	the rest of the set. ... cleanRun also looks for 0xE2, which stops it at
+	that text anyway, so there the extra operation buys nothing and costs
+	2.5%. Measured both ways on both paths.
+
+So a documented, measured decision was overturned on a 2.4% reading whose own
+commit message admitted the controls had drifted 1% and sonic's 7%. That is the
+wrong way round: a recorded measurement is evidence, and beating it needs better
+evidence, not a noisier number in the other direction.
+
+Re-measured properly -- three passes of twelve samples each way, with the Fast
+path as a built-in control because it goes through `cleanRunOpts` and not
+through `cleanRun`:
+
+	                masked   exact
+	Marshal         60,204  58,327   -3.1%
+	MarshalTo       53,216  51,452   -3.3%
+	Fast            34,902  35,000   +0.3%   control, untouched
+
+The exact test wins, by more than the 2.4% originally claimed, and the control
+confirms nothing else moved. So the change stays -- but it stays because of this
+measurement, not the one it was committed on.
+
+**Why the old number was wrong**, which matters more than which way it went. The
+justification was that `cleanRun`'s 0xE2 probe stops the loop on non-ASCII text
+regardless. `hasByte(w, 0xE2)` matches one byte value, and Japanese is E3 81 82
+and its neighbours -- there is no 0xE2 in it. The probe never fires on CJK. What
+was stopping the loop was the masked control test itself, mistaking continuation
+bytes for controls. The comment described a mechanism that does not occur on the
+corpus it was measured against.
+
+**The rule.** When a comment records a measurement that contradicts what you are
+about to do, the disagreement is the finding. Re-measure both, with a control,
+before touching either -- and if the old number turns out wrong, correct the
+comment rather than silently leaving it to argue against the code beneath it.
