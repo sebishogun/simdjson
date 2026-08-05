@@ -1287,3 +1287,37 @@ corpus it was measured against.
 about to do, the disagreement is the finding. Re-measure both, with a control,
 before touching either -- and if the old number turns out wrong, correct the
 comment rather than silently leaving it to argue against the code beneath it.
+
+## Using the fused kernel on the continuation after an escape
+
+The base encode's profile shows two kernels running over the same strings:
+`jsonCopyRunAVX512` at 12.6% and `indexAnyOrLessAVX512` at 10.5%. The reason is
+the loop shape. `JSONCopyRun` copies while it scans and stops at the first byte
+needing an escape; after that the loop scans the next run with a separate call
+and then copies it with `append`. Two passes over bytes the kernel could have
+done in one, and after an escape near the front of a tweet there can be a lot of
+them left.
+
+Continuing with the kernel instead:
+
+	                          control   change
+	MarshalStruct/ours         59,295   60,536   +2.1%
+	MarshalStruct/MarshalTo    52,152   54,440   +4.4%
+	twitter decoded, sorted   789,481  816,442   +3.4%
+	MarshalStruct/Fast         35,946   35,405   -1.5%
+
+Slower, on everything except the path that does not use it.
+
+The runs after an escape are short. A tweet has a newline or a quote every few
+dozen bytes, so what the kernel gets handed is usually well under the length
+where it repays its call -- and each continuation also pays a `growTo` capacity
+check that the single up-front call paid once. The two-kernel profile was real
+and the inference from it was not: `indexAnyOrLessAVX512` is not a redundant
+second scan of the same bytes, it is scanning what is left, and the reason there
+is a lot of it is that the string is long, not that the work is duplicated.
+
+**The rule, and it is the fourth time today.** A profile shows two functions
+doing similar work; that is not evidence they are doing the *same* work. The
+check is cheap -- how long are the runs each one gets -- and it is the same check
+that would have predicted the other three: how often is the path that got faster
+actually taken, and on what.
