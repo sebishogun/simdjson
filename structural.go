@@ -238,6 +238,16 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 	if len(data) > maxDocument {
 		return ix, errSyntax("document larger than 2 GiB; use a Decoder, which streams and has no limit")
 	}
+	// Large whole documents go parallel when the machine allows it; anything
+	// the parallel path declines -- too small, one core, or input that defeats
+	// the boundary snap -- runs the serial paths unchanged. Partial mode never
+	// goes parallel: safeEnd and the note mechanism are left-to-right by
+	// definition.
+	if !partial && !noBrackets && len(data) >= parallelMinBytes {
+		if px, err, ok := buildIndexParallel(data, ix, validate); ok {
+			return px, err
+		}
+	}
 	if len(data) <= wholeDocMax {
 		return buildIndexWhole(data, ix, validate, noBrackets, partial)
 	}
