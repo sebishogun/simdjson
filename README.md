@@ -67,6 +67,29 @@ work.
 `Options.SortMapKeys`, `Options.ValidateStrings`, `Options.OmitZeroStructFields`
 — and has the same three methods.
 
+### Generated encoders
+
+The struct encoder compiled at run time walks a field table, and that walk
+costs about 11% on a real document against straight-line code. For types you
+own, `tools/structgen` emits the straight-line code at build time:
+
+```go
+//go:generate go run github.com/sebishogun/simdjson/tools/structgen -types User,Status
+```
+
+The generated file registers itself via `RegisterEncoder`; `Marshal` then uses
+it for that type everywhere it appears — top level, struct fields, slice
+elements, map values. Output is byte-identical to the reflect path, which the
+generator's own differential asserts. It declines any type it cannot encode
+exactly — maps, pointers, interfaces, `[]byte`, embedded fields, tag options,
+types with their own `MarshalJSON` — and a declined type keeps the reflect
+encoder. Nothing is compiled at run time.
+
+Generated encoders can also be written by hand against the same seam:
+`RegisterEncoder`, with `AppendString`, `AppendInt`, `AppendUint`,
+`AppendFloat` and `AppendBool` as the primitives, and the same
+byte-for-byte contract.
+
 ### Editing, streaming and files
 
 `SetPath`, `SetRawPath` and `DeletePath` rewrite a document in place by byte

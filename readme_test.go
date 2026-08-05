@@ -99,6 +99,8 @@ func exportedNames(t *testing.T) map[string]bool {
 // explicit and short: every entry is a place the README talks about something
 // else, and a long list would mean the test had stopped discriminating.
 var readmeForeign = map[string]bool{
+	// Interface methods users implement, named when describing the contract.
+	"MarshalJSON": true, "MarshalText": true, "UnmarshalJSON": true,
 	// Standard library and other packages, named as comparisons.
 	"Buffer": true, "Reader": true, "Writer": true, "Time": true,
 	"Sprintf": true, "Fatal": true, "Error": true, "String": true,

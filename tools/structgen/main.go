@@ -128,11 +128,17 @@ func (g *gen) emitType(named *types.Named) error {
 	if err != nil {
 		return err
 	}
-	// Nested struct types first, so their functions exist.
+	// Nested struct types first, so their functions exist -- including one
+	// reached only through a slice. The first version walked f.nested alone,
+	// and a type whose only struct field was []GStatus referenced
+	// encodeGStatus without ever emitting it. The fixture hid it: a direct
+	// field of the same type emitted what the slice needed.
 	for _, f := range fields {
-		if f.nested != nil {
-			if err := g.emitType(f.nested); err != nil {
-				return fmt.Errorf("field %s: %w", f.goName, err)
+		for n := &f; n != nil; n = n.slice {
+			if n.nested != nil {
+				if err := g.emitType(n.nested); err != nil {
+					return fmt.Errorf("field %s: %w", f.goName, err)
+				}
 			}
 		}
 	}
