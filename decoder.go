@@ -129,6 +129,9 @@ func compileArray(t reflect.Type) decodeFn {
 	inner := decoderFor(elem)
 	esize := elem.Size()
 	n := t.Len()
+	if leafKind(elem) != kOther {
+		return compileLeafArray(t, elem, inner, esize, n)
+	}
 	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
 		if d.data[i] == 'n' {
 			if end, ok := nullAt(d, i); ok {
@@ -177,6 +180,76 @@ func compileArray(t reflect.Type) decodeFn {
 			reflect.NewAt(elem, unsafe.Add(p, uintptr(k)*esize)).Elem().SetZero()
 		}
 		return end, nil
+	}
+}
+
+// compileLeafArray is compileArray for scalar element kinds, which is what a
+// coordinate pair is. The general path found the closing bracket first with
+// matchBracket — a binary search over the structural positions, run once per
+// [2]float64, 1.1 million times in canada.json. Leaf elements cannot nest, so
+// the loop just parses values and looks at the byte after each one: the index
+// has already proved the brackets balance, and the ']' is simply there to be
+// found. Semantics are compileArray's exactly — excess parsed into a scratch
+// slot and discarded, missing zeroed, null untouched — under the same
+// differential.
+func compileLeafArray(t, elem reflect.Type, inner decodeFn, esize uintptr, n int) decodeFn {
+	scratch := reflect.New(elem).UnsafePointer()
+	var scratchMu sync.Mutex
+	return func(p unsafe.Pointer, d *Doc, i int) (int, error) {
+		data := d.data
+		if data[i] == 'n' {
+			if end, ok := nullAt(d, i); ok {
+				return end, nil
+			}
+		}
+		if data[i] != '[' {
+			return 0, kindErr(d, i, t)
+		}
+		j := d.skip(i + 1)
+		k := 0
+		for {
+			if j >= len(data) {
+				return 0, errAt("unexpected end of input", j)
+			}
+			if data[j] == ']' {
+				j++
+				break
+			}
+			if k > 0 {
+				if data[j] != ',' {
+					return 0, errAt("expected ',' or ']'", j)
+				}
+				j = d.skip(j + 1)
+				if j >= len(data) {
+					return 0, errAt("unexpected end of input", j)
+				}
+				if data[j] == ']' {
+					return 0, errAt("expected a value after ','", j)
+				}
+			}
+			var next int
+			var err error
+			if k < n {
+				next, err = inner(unsafe.Add(p, uintptr(k)*esize), d, j)
+			} else {
+				// Excess is parsed and discarded. The scratch slot keeps the
+				// leaf decoders' pointer contract; one lock guards the rare
+				// case, and concurrent decoders of the same type only meet
+				// here when a document actually overflows the array.
+				scratchMu.Lock()
+				next, err = inner(scratch, d, j)
+				scratchMu.Unlock()
+			}
+			if err != nil {
+				return 0, err
+			}
+			k++
+			j = d.skip(next)
+		}
+		for ; k < n; k++ {
+			reflect.NewAt(elem, unsafe.Add(p, uintptr(k)*esize)).Elem().SetZero()
+		}
+		return j, nil
 	}
 }
 
