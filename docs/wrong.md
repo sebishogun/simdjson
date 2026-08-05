@@ -1870,3 +1870,54 @@ file to have measured its own harness rather than the code -- see also the
 cleanRun microbenchmark, which fed the function inputs it never receives.
 BenchmarkSortPredictorTrap in sortmap_test.go now carries both numbers so the
 factor of 2.8 is in the tree and not only in this file.
+
+## A kernel call below the kernel's own threshold is a Go byte loop
+
+appendQuoted takes the clean-string fast path in two passes: plainASCIIRun scans
+the whole string, then it is appended. simd.JSONCopyValid does both in one --
+copy, stop at the first byte needing an escape, and prove the UTF-8 -- and needs
+no more room than len(s). It is exactly the primitive, so it was wired in for
+strings of kernelScanMin (32) bytes or more.
+
+35% SLOWER on Marshal, three interleaved rounds, no overlap:
+
+	                base            fused
+	Marshal      156,008-159,395  211,004-219,542
+	MarshalTo    141,770-144,273  190,241-192,821
+
+The first guess was the reservation -- growTo reallocating and copying the whole
+output buffer once per long string, which is what sank simd_json_quote. Adding a
+capacity guard changed nothing, so it was not that.
+
+The profile named it in one line:
+
+	ref.jsonCopyValid   20.54% flat
+
+**The kernel's guard has its own threshold and it is 64, not 32.**
+
+	func jsonCopyValidAVX512Guarded(dst, b []byte, html byte) int {
+		if len(b) < 64 || len(dst) < len(b) {
+			return ref.JSONCopyValid(dst, b, html)
+		}
+
+Every string between 32 and 63 bytes -- which on this corpus is most of the
+strings long enough to reach the call at all -- went to the portable Go
+reference. Calling a "kernel" is not the same as running one, and nothing in the
+type system or the name says so. simdjson's kernelScanMin is 32 because that is
+where simd.JSONCopyRun's threshold was lowered to; JSONCopyValid's was never
+lowered, and the two constants had drifted apart silently.
+
+**At the right threshold it still does not pay.** Retried at 64, two rounds:
+Marshal 156,974/160,829 against 161,873/160,915, MarshalTo 141,721/143,826
+against 147,147/146,436. One to four percent worse, consistently. Strings of 64
+bytes or more are 865 of the 18,099 in twitter.json, 4.8%, so the saved pass
+reaches too few strings to pay for a length test on every string.
+
+Reverted, and the simd replace directive with it.
+
+**The rule.** Before calling a kernel, read its guard. A threshold that sends
+short inputs to a reference implementation is the correct design -- vector code
+loses on short inputs -- but it means the caller's threshold and the kernel's
+are one constant that happens to be written down twice. When they disagree the
+result is not a slow kernel, it is no kernel, and the only place that shows is a
+profile.
