@@ -2003,3 +2003,29 @@ quote-kernel line: reservation fixed, kernel measured on its own, still slower.
 The JIT-free ceiling for this encoder's struct row stands at the generated-code
 number until someone has a genuinely new idea, and docs/wrong.md now holds
 twelve measured reasons why the next micro-idea is probably already dead.
+
+## Sorting a permutation instead of the pairs, to fit L1
+
+The sort's remaining scaling past n=1024 is L1 misses: the pairs are 24 bytes
+each, so at n=1024 the array plus its scratch is 48 KB against a 32-48 KB L1,
+and the counting pass's scatter misses. Sorting a 4 KB permutation of int32
+indices instead, with the pair array untouched until one final apply, was the
+obvious fix.
+
+30 to 43 percent SLOWER, at every size, on varied permutations:
+
+	n          256     1024     4096    16384
+	pairs    6,164   28,622  111,926  493,223
+	perm     8,818   37,931  156,875  704,338
+
+The permutation removes the scatter of 24-byte entries and replaces every key
+access with TWO dependent loads -- perm[i], then ks[perm[i]] -- and the second
+is itself scattered across the string headers. A radix sort reads key bytes
+far more often than it moves entries, so trading cheaper moves for costlier
+reads loses everywhere, and it loses MORE as n grows because the indirection
+misses grow with the same L1 pressure the change was meant to relieve.
+
+The rule, which this file keeps re-earning: the fix for a memory-bound loop
+has to reduce total misses, not relocate them onto the hotter access path.
+Entry closed with #151; the pair sort as shipped is the right shape at every
+size measured.
