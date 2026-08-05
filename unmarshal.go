@@ -48,10 +48,16 @@ func Unmarshal(data []byte, v any) error {
 	if err != nil {
 		return err
 	}
-	d, err := scanRoot(data, ix)
+	d, err := scanRootInto(docFromPool(), data, ix)
 	if err != nil {
 		return err
 	}
+	// The Doc returns to the pool on every exit: nothing it points to
+	// escapes -- decoded strings alias strbuf's BACKING ARRAY, which stays
+	// alive through the results on its own, and the header is cleared with
+	// the rest of the struct on reuse. This was 187 of the ~500 bytes a
+	// small Unmarshal allocated.
+	defer docPool.Put(d)
 	d.strictSkip = true
 	// A large root array of containers into a slice decodes across workers;
 	// see unmarshal_parallel.go. It commits only when the whole document is
@@ -868,4 +874,14 @@ func buildPlan(t reflect.Type) *structPlan {
 	}
 	walk(t, nil, 0)
 	return p
+}
+
+// docPool recycles the Doc an Unmarshal walks with. Only Unmarshal may use
+// it: Parse's Doc escapes to the caller by contract.
+var docPool = sync.Pool{New: func() any { return new(Doc) }}
+
+func docFromPool() *Doc {
+	d := docPool.Get().(*Doc)
+	*d = Doc{}
+	return d
 }

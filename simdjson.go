@@ -773,6 +773,19 @@ func (d *Doc) intern(b []byte) string {
 		if n < len(b)+4096 {
 			n = len(b) + 4096
 		}
+		// The FIRST chunk is bounded by the document: decoded strings cannot
+		// hold more bytes than the input that carried them, so a 190-byte
+		// document never needs a 4 KB buffer. That chunk was 93% of every
+		// byte a small Unmarshal allocated -- carved once, used for one short
+		// string, fed to the collector -- and the collector was 40% of the
+		// profile. Growth chunks keep the doubling; only the opening bet
+		// shrinks to what the document could possibly ask for.
+		if cap(d.strbuf) == 0 && n > len(d.data)+16 {
+			n = len(d.data) + 16
+			if n < len(b) {
+				n = len(b)
+			}
+		}
 		d.strbuf = make([]byte, 0, n)
 	}
 	start := len(d.strbuf)

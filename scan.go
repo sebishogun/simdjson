@@ -48,11 +48,17 @@ func (p *Parser) Scan(data []byte) (*Doc, error) {
 
 // scanRoot identifies the root value without descending into it.
 func scanRoot(data []byte, ix *index) (*Doc, error) {
+	return scanRootInto(new(Doc), data, ix)
+}
+
+// scanRootInto is scanRoot writing into a caller-supplied Doc, so a path
+// whose Doc does not escape (Unmarshal's) can pool it.
+func scanRootInto(d *Doc, data []byte, ix *index) (*Doc, error) {
 	// wsw comes along too. It is nil after Scan, which does not build it, and
 	// set when Unmarshal came through here with a validated index — without
 	// this, that path skipped whitespace a byte at a time, which on a document
 	// that is 27% whitespace was 5.6% of the decode.
-	d := &Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
+	*d = Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 	i := d.skip(0)
 	if i >= len(data) {
 		return nil, errSyntax("empty input")
