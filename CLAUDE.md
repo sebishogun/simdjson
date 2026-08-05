@@ -51,3 +51,17 @@ into green exits. Run gates bare, or `set -o pipefail` first.
 changes, including changes that were then reverted. A finding that cost a
 measurement belongs there whether or not any code changed — the entry is the
 deliverable.
+
+## Sweep for unmeasured shapes before tuning measured ones
+
+The largest wins of the v0.4.0 cycle did not come from optimizing known
+rows — they came from finding shapes no table measured: canada into its
+natural struct (3.3× behind, nobody had looked), a plain []float64 (behind),
+citm into structs (behind), MarshalIndent (behind), SetPath vs sjson
+(unmeasured). Each was found by asking "what does a caller do that no
+benchmark does?", and each either became a landed multiple or a documented
+contract difference.
+
+When the goal is competitive standing, the first move is a sweep for the
+unmeasured pair, not a profile of a measured one. A profile can only shrink
+a known number; a sweep can find a 3× nobody knew about.
