@@ -1647,3 +1647,63 @@ package it lives in. Seven green targets and a suite that passed said nothing
 about a function none of them called. The test that found this was written to
 check something else and found it in its first run, because it was the first
 thing to call that code with input designed to break it.
+
+## A microbenchmark said 1.6x and the encode did not move
+
+plainASCIIRun is a byte loop over a 256-entry table and was 18.1% flat of the
+struct encode with dispatch removed -- the largest single item in that profile.
+cleanRun beside it does the same job eight bytes at a time with SWAR. So the
+obvious change was to make plainASCIIRun match cleanRun.
+
+It is 1.5x SLOWER, at every length measured:
+
+	bytes      4      8     12     16     24     32     64    128
+	SWAR    2.27   3.38   4.23   6.21   9.14  11.90  23.57  46.63
+	byte    1.22   2.01   2.81   3.58   5.20   6.74  13.06  25.71
+
+and 1.50x slower over all 18,099 strings in twitter.json. The stopping set has
+five members, so a word test needs five hasByte chains at four operations each
+plus an exact below-0x20 test: twenty-five-odd operations per eight bytes,
+against eight L1 lookups whose branch is taken every time until the byte that
+ends the run and therefore predicts perfectly. No length is long enough to turn
+that around.
+
+**Then the same test was run on cleanRun, which ships as SWAR**, and it lost by
+more -- six stopping bytes rather than five:
+
+	bytes      8     16     32     64    128    512   4096   corpus
+	SWAR    3.54   6.80  13.08  25.53  50.76  202.0   1592   203566
+	byte    1.98   3.59   6.80  13.10  25.99  124.1  842.9   125893
+
+1.9x at 4 KB. So cleanRun was rewritten as a byte loop, which by the
+microbenchmark should have been worth about 3% of the encode.
+
+**It was worth nothing.** Interleaved A/B, minimum of nine runs each:
+
+	                            byte loop     SWAR
+	DispatchFloor/compiled         51016     50506
+	DispatchFloor/handwritten      41151     41305
+	GateMarshal/Marshal           150166    148276
+	GateMarshal/MarshalTo         140746    136247
+	GateStream/Encode             214392    211665
+
+Every difference is inside the 8.3% code-layout noise floor and the sign is not
+even consistent. Reverted.
+
+**Why the microbenchmark lied.** It fed cleanRun whole corpus strings, and
+cleanRun never sees those. appendQuoted takes clean strings on its own fast path
+through plainASCIIRun; cleanRun is reached only from appendBody, on the tail
+AFTER an escape has been found, and those tails are short. Below eight bytes the
+SWAR loop runs zero word iterations and falls straight into the same byte loop
+it was being compared against -- so on its real inputs the two are the same
+code, and the profile's 8.9% is time neither version can avoid.
+
+**The rule.** A microbenchmark measures the function on the inputs you chose,
+and the profile tells you the function is hot, and neither tells you the two are
+the same inputs. Before optimising a hot function, find out what it is actually
+called with. Here that was one question -- who calls cleanRun and with what --
+and the answer invalidated both the microbenchmark and the plan built on it.
+
+Keeping the SWAR was then the right call for the same reason the change was
+wrong: there is no evidence to move shipped code either way, and "the simpler
+one also wins a benchmark that does not apply" is not evidence.
