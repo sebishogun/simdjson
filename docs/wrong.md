@@ -2137,3 +2137,34 @@ landing it introduced costs a full gallop somewhere else.
 The rule, again from a different angle: shared infrastructure tuned to one
 caller's trace is a regression for the callers not in the profile. The 17%
 line stands until a fix knows which walk it is serving.
+
+## The small-Marshal row, decomposed to its end
+
+sonic marshals the twitter struct in ~31us against our 64, and the plan to
+close it was structgen emitting sonic-shaped code: one worst-case
+reservation per struct, straight-line index writes, the quote loop inlined
+so bounds checks fall to the visible reservation. Before building it, the
+arithmetic was checked against what this file already holds.
+
+The gap decomposes as: the escape algorithm (~15us -- whole-string kernel
+twice, tail-hybrid once, and the SWAR-write variant assessed under the
+noise floor before it was built; the scan side is ALREADY word-wise SWAR),
+the field-table walk and call boundaries (~4-6us, the part codegen can
+reach), and primitives that structgen measured within 3% of this package's
+own floor. Perfect generated code that keeps our escape algorithm recovers
+the middle term only: a predicted ~8% on a row that needs 2x.
+
+sonic's remaining margin is not overhead to shave -- it is a different
+escape ALGORITHM (reserve worst case, write escapes inline in one vector
+pass) that is only profitable inside code that owns the whole buffer
+lifecycle, which for sonic is JIT-generated machine code. Reaching it
+JIT-free means hand-vectorizing the fused writer as a kernel and winning
+back the reservation economics that three measurements said we lose.
+Nothing in this file's fifteen-plus entries on the subject suggests a
+fifth attempt differs.
+
+The row is terminal for this architecture, now by decomposition rather
+than exhaustion: every term is either at its floor, measured dead, or
+belongs to a mechanism this package has chosen not to have. The standing
+answer for callers who need that row is structgen (11% back) and the fact
+that every OTHER Marshal shape in the tables is ours.
