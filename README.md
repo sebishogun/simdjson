@@ -154,11 +154,22 @@ instructions:
 
 | | this | sonic | goccy | encoding/json |
 |---|---|---|---|---|
-| `Marshal`, a decoded document, sorted keys | **769 µs** | 810 µs | 1,742 µs | 2,175 µs |
 | `Marshal`, a struct | 57 µs | **27–33 µs** | 88 µs | 110 µs |
 | `Marshal`, `map[string]struct`, 256 entries | 28 µs | **21 µs** | 38 µs | 58 µs |
 
-sonic leads the last two rows. Both are string escaping: its `quote.c` reserves
+A decoded document — `map[string]any` with everything under it — encodes
+across cores when the output is a quarter megabyte or more: element ranges of
+a large `[]any` shard to workers and the results stitch in order, byte-identical
+to the serial encode. Re-measured after that change, two passes of five, worse
+of the minima:
+
+| `Marshal`, decoded, sorted keys | this | sonic | goccy | encoding/json |
+|---|---|---|---|---|
+| twitter | **237 µs** | 829 µs | 1,824 µs | 2,217 µs |
+| citm | **340 µs** | 1,401 µs | 2,651 µs | 3,294 µs |
+| canada | **2,284 µs** | 4,437 µs | 6,976 µs | 7,758 µs |
+
+sonic leads the two struct rows. Both are string escaping: its `quote.c` reserves
 worst-case output space and writes escapes inline in one vector pass, where this
 package's kernel stops at each byte needing an escape and returns to Go to emit
 it. Escaping costs 15.0 µs here on top of a 35.0 µs base; sonic's 27 µs covers
