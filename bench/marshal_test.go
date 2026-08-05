@@ -29,6 +29,17 @@ func BenchmarkMarshalStruct(b *testing.B) {
 	}
 	b.Logf("encoded size %d bytes", len(a))
 
+	// Std.Marshal and Marshal are the same operation and must cost the same.
+	// They did not: Options.Marshal copied the finished buffer where the
+	// package-level Marshal encodes straight into the one it returns.
+	b.Run("ours-Std.Marshal", func(b *testing.B) {
+		b.SetBytes(int64(len(a)))
+		for b.Loop() {
+			if _, err := ours.Std.Marshal(v); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 	b.Run("ours", func(b *testing.B) {
 		b.SetBytes(int64(len(a)))
 		for b.Loop() {

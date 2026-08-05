@@ -72,15 +72,23 @@ var Fast = Options{SortMapKeys: true}
 // Marshal returns the JSON encoding of v under these options.
 func (o Options) Marshal(v any) ([]byte, error) {
 	e := encoderPool.Get().(*encodeState)
-	e.buf, e.opts = e.buf[:0], o
+	// Straight into the buffer that gets handed back, the same way the
+	// package-level Marshal does it. This encoded into the pooled buffer and
+	// then copied the whole output out of it -- the copy that one was written
+	// to avoid, and its comment measures at a quarter of what Marshal cost.
+	// So Std.Marshal was slower than Marshal for the identical operation.
+	saved := e.buf
+	e.buf, e.opts = make([]byte, 0, e.hint), o
 	err := e.marshal(v)
+	out := e.buf
+	if len(out) > e.hint {
+		e.hint = len(out)
+	}
+	e.buf = saved
+	encoderPool.Put(e)
 	if err != nil {
-		encoderPool.Put(e)
 		return nil, err
 	}
-	out := make([]byte, len(e.buf))
-	copy(out, e.buf)
-	encoderPool.Put(e)
 	return out, nil
 }
 
