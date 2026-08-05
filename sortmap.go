@@ -58,15 +58,97 @@ func sortPairs[V any](p []pair[V]) {
 	if len(p) < 2 {
 		return
 	}
-	radixQsort(p, 0, 2*bits.Len(uint(len(p)+1)))
+	var scratch []pair[V]
+	if len(p) >= bucketMin {
+		scratch = make([]pair[V], len(p))
+	}
+	radixQsort(p, 0, 2*bits.Len(uint(len(p)+1)), scratch)
+}
+
+// bucketMin is where a counting pass replaces the three-way partition.
+//
+// The partition branches three ways on a data byte, which is unpredictable
+// when the bytes are. Below about sixty-four keys that is free, because the
+// whole recursion fits the branch history table and the predictor learns it.
+// Above, it is not -- measured on keys of one shape, cycling through
+// permutations so the predictor cannot learn the input:
+//
+//	n=64    0.1 branch misses/elem      647 ns
+//	n=256   3.1 branch misses/elem    7,954 ns
+//
+// Four times the keys for twelve times the time where n log n predicts 4.6x,
+// with instructions per element up only 15%. The gap is mispredictions.
+//
+// A counting pass has no data-dependent branch at all. It does have about 770
+// operations of fixed cost per call -- zero a 258-entry counter, prefix-sum it,
+// scan 256 buckets -- so it is worth it only for a level that actually splits
+// the group, and only when the group is large enough to amortise it. Applying
+// it at every level from d=0 was 61% SLOWER at n=256, because these keys share
+// an eleven-byte prefix and eleven of the levels split nothing at all.
+const bucketMin = 96
+
+// bucketPass sorts p by byte d with a counting pass and recurses per bucket. It
+// reports whether it did: a group whose keys have all ended at d is already
+// ordered and is left to the caller.
+//
+// No data-dependent branch. Every key adds to a counter, the counters are
+// prefix-summed, and every key is scattered to the slot its byte names. That is
+// the point -- see bucketMin for what the branchy partition costs above sixty-
+// four keys, and for why this is only worth doing on a level that splits.
+//
+// Bucket zero holds the keys that ended at d. They share the first d bytes and
+// have nothing after them, so they are equal and are not recursed into, which
+// is also what makes this terminate.
+func bucketPass[V any](p []pair[V], d, maxDepth int, scratch []pair[V]) bool {
+	// 257 buckets: one for "the key ended here", which byteAt reports as -1,
+	// and one per byte value. The extra slot makes the prefix sum a running
+	// total whose entry b ends bucket b.
+	var count [258]int32
+	for i := range p {
+		count[byteAt(p[i].k, d)+2]++
+	}
+	if count[1] == int32(len(p)) {
+		return false // every key ended at d; all equal, nothing to do
+	}
+	for i := 1; i < len(count); i++ {
+		count[i] += count[i-1]
+	}
+	buf := scratch[:len(p)]
+	for i := range p {
+		b := byteAt(p[i].k, d) + 1
+		buf[count[b]] = p[i]
+		count[b]++
+	}
+	copy(p, buf)
+
+	// The scatter advanced count[b] past every key it placed, so bucket b now
+	// runs from count[b-1] to count[b].
+	for b := 1; b <= 256; b++ {
+		lo, hi := int(count[b-1]), int(count[b])
+		if hi-lo > 1 {
+			radixQsort(p[lo:hi], d+1, maxDepth, scratch)
+		}
+	}
+	return true
 }
 
 // radixQsort sorts p by the bytes from d onward.
 //
 // Every key in p is known to share the same first d bytes, which is what makes
 // this cheaper than a comparison sort: that prefix is never looked at again.
-func radixQsort[V any](p []pair[V], d, maxDepth int) {
+func radixQsort[V any](p []pair[V], d, maxDepth int, scratch []pair[V]) {
 	for len(p) > 11 {
+		if len(p) >= bucketMin && len(scratch) >= len(p) {
+			// Skip to the first byte the group disagrees on BEFORE counting, so
+			// the counting pass runs once per level that splits rather than
+			// once per byte of shared prefix. Without this it loses.
+			if e := commonPrefixEnd(p, d); e > d {
+				d = e
+			}
+			if bucketPass(p, d, maxDepth, scratch) {
+				return
+			}
+		}
 		// Three-way partition on byte d: less, equal, greater. The equal group
 		// is the one that advances to d+1, and it is why a shared prefix costs
 		// one pass rather than one pass per comparison.
@@ -143,26 +225,26 @@ func radixQsort[V any](p []pair[V], d, maxDepth int) {
 			// string -- and a map has each key once, so there is at most one.
 			// Nothing to sort there.
 			if lt > len(p)-gt {
-				radixQsort(p[gt:], d, maxDepth)
+				radixQsort(p[gt:], d, maxDepth, scratch)
 				p = p[:lt]
 			} else {
-				radixQsort(p[:lt], d, maxDepth)
+				radixQsort(p[:lt], d, maxDepth, scratch)
 				p = p[gt:]
 			}
 			continue
 		}
 		switch lo, eq, hi := lt, gt-lt, len(p)-gt; {
 		case lo >= eq && lo >= hi:
-			radixQsort(p[lt:gt], d+1, maxDepth)
-			radixQsort(p[gt:], d, maxDepth)
+			radixQsort(p[lt:gt], d+1, maxDepth, scratch)
+			radixQsort(p[gt:], d, maxDepth, scratch)
 			p = p[:lt]
 		case eq >= hi:
-			radixQsort(p[:lt], d, maxDepth)
-			radixQsort(p[gt:], d, maxDepth)
+			radixQsort(p[:lt], d, maxDepth, scratch)
+			radixQsort(p[gt:], d, maxDepth, scratch)
 			p, d = p[lt:gt], d+1
 		default:
-			radixQsort(p[:lt], d, maxDepth)
-			radixQsort(p[lt:gt], d+1, maxDepth)
+			radixQsort(p[:lt], d, maxDepth, scratch)
+			radixQsort(p[lt:gt], d+1, maxDepth, scratch)
 			p = p[gt:]
 		}
 	}

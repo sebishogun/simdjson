@@ -193,7 +193,7 @@ func TestHeapPairs(t *testing.T) {
 	for i, k := range keys {
 		p[i] = pair[int]{k: k, v: i}
 	}
-	radixQsort(p, 0, 0)
+	radixQsort(p, 0, 0, nil)
 	want := slices.Clone(keys)
 	sort.Strings(want)
 	for i := range p {
@@ -416,4 +416,63 @@ func BenchmarkSortPredictorTrap(b *testing.B) {
 			sortPairs(buf)
 		}
 	})
+}
+
+// TestSortBucketPath exercises the counting pass, which only runs at bucketMin
+// keys and above -- every other sort test in this file is below it, so none of
+// them touched this code.
+//
+// Shapes chosen for what a bucket sort gets wrong: keys that end exactly at a
+// bucket boundary (bucket zero), a group that is entirely one repeated key, a
+// long shared prefix so the prefix skip runs, keys differing only in the last
+// byte, and lengths straddling the eight-byte step in commonPrefixEnd.
+func TestSortBucketPath(t *testing.T) {
+	shapes := []struct {
+		name string
+		gen  func(i int) string
+	}{
+		{"shared prefix + digits", func(i int) string { return fmt.Sprintf("field_name_%04d", i) }},
+		{"no shared prefix", func(i int) string { return fmt.Sprintf("%04d_field", i) }},
+		{"all identical", func(i int) string { return "same" }},
+		{"prefixes of each other", func(i int) string { return strings.Repeat("a", i%40) }},
+		{"empty and not", func(i int) string {
+			if i%3 == 0 {
+				return ""
+			}
+			return fmt.Sprintf("k%d", i%7)
+		}},
+		{"last byte only", func(i int) string { return "aaaaaaaaaaaaaaaaaaaa" + string(rune('a'+i%26)) }},
+		{"straddles 8 bytes", func(i int) string { return "abcdefgh"[:1+i%8] + fmt.Sprintf("%d", i) }},
+		{"high bytes", func(i int) string { return string([]byte{byte(i), byte(i >> 8), 0xff, 0x00}) }},
+		{"long", func(i int) string { return strings.Repeat("x", 200) + fmt.Sprintf("%05d", i) }},
+	}
+	rng := rand.New(rand.NewSource(9))
+	for _, sh := range shapes {
+		for _, n := range []int{95, 96, 97, 128, 255, 256, 257, 1000, 4096} {
+			p := make([]pair[int], n)
+			want := make([]string, n)
+			for i := range p {
+				k := sh.gen(i)
+				p[i] = pair[int]{k: k, v: i}
+				want[i] = k
+			}
+			rng.Shuffle(n, func(a, b int) { p[a], p[b] = p[b], p[a] })
+			sortPairs(p)
+			sort.Strings(want)
+			for i := range p {
+				if p[i].k != want[i] {
+					t.Fatalf("%s n=%d: at %d got %q, want %q", sh.name, n, i, p[i].k, want[i])
+				}
+			}
+			// The values must still name their own keys: a sort that orders the
+			// keys correctly while detaching them from their values produces
+			// valid-looking JSON with every value under the wrong name.
+			for i := range p {
+				if got := sh.gen(p[i].v); got != p[i].k {
+					t.Fatalf("%s n=%d: entry %d has key %q but value %d, whose key is %q",
+						sh.name, n, i, p[i].k, p[i].v, got)
+				}
+			}
+		}
+	}
 }
