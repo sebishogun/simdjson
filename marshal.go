@@ -828,6 +828,29 @@ func encLeafOf(t reflect.Type) encLeaf {
 	return leafNone
 }
 
+// fastField is the three things the simple path reads, in sixteen bytes.
+//
+// encField below is 128, because it carries everything the general path can
+// need: a reflect.Type, an index path, an encodeFn, three option flags and an
+// IsZero method. A twelve-field struct is 1,536 bytes and twenty-four cache
+// lines, and the field loop walks all of it to read three things per field. The
+// same struct in fastFields is 192 bytes and three lines.
+//
+// There is an entry for EVERY field, not only the simple ones. Building the
+// table only when every field is simple sounds equivalent and is not: one
+// nested struct anywhere in the type turns the whole thing off, and a nested
+// struct is what a real payload is made of. Tried that way first, it was 1.4%
+// fewer instructions and no change in cycles -- the path being measured was not
+// the path being changed. A field the fast loop cannot write is marked leafNone
+// and drops to the general code for that field alone.
+type fastField struct {
+	keyOff uint32
+	keyLen uint32
+	offset uint32
+	leaf   encLeaf
+	_      [3]byte
+}
+
 type encField struct {
 	// key is the whole `"name":` prefix, escaped and quoted at compile time so
 	// that writing a field is one append rather than a quote, an escape pass
@@ -858,6 +881,90 @@ type encField struct {
 	// separately meant four branches per field in a loop that is 24% of an
 	// encode.
 	simple bool
+}
+
+// encodeGeneralField writes one field the loop above cannot write itself:
+// behind an embedded pointer, carrying omitempty or omitzero, quoted, or of a
+// kind that needs a compiled encoder. It returns rv because it may be the call
+// that materialises it, and first because it may be the field that clears it.
+//
+// It is a separate function rather than the body of the loop it is called from,
+// and that is the entire reason it exists. Inline, its locals -- a
+// reflect.Value, an index walk, four option tests and a five-way switch -- take
+// the registers, and the register allocator spills the things the SIMPLE path
+// needs. From the disassembly of the version where it was inline:
+//
+//	MOVQ 0x68(SP), R10   ; i, from the stack
+//	INCQ R10
+//	MOVQ R10, 0x68(SP)   ; i, back to the stack
+//	MOVB DL, 0x47(SP)    ; first, to the stack
+//	MOVQ 0x68(SP), R11   ; i, from the stack again
+//
+// A 352-byte frame, with the loop counter and a bool round-tripping through
+// memory once per field. Every struct paid for the general case whether or not
+// it had a single field that needed it.
+func encodeGeneralField(e *encodeState, f *encField, t reflect.Type, p unsafe.Pointer,
+	rv reflect.Value, first, omitAll bool) (reflect.Value, bool, error) {
+	var fp unsafe.Pointer
+	var frv reflect.Value
+	if f.ptrPath {
+		// A field behind an embedded pointer has no fixed offset, so it is
+		// reached through reflect.
+		if !rv.IsValid() {
+			rv = reflect.NewAt(t, p).Elem()
+		}
+		frv = rv
+		for _, x := range f.index {
+			if frv.Kind() == reflect.Pointer {
+				if frv.IsNil() {
+					return rv, first, nil
+				}
+				frv = frv.Elem()
+			}
+			frv = frv.Field(x)
+		}
+		fp = ptrOf(frv)
+	} else {
+		fp = unsafe.Add(p, f.offset)
+	}
+	if f.omitEmpty && isEmptyPtr(f.typ, fp) {
+		return rv, first, nil
+	}
+	if (f.omitZero || omitAll) && isZeroPtr(f, fp) {
+		return rv, first, nil
+	}
+	if first {
+		e.buf = append(e.buf, f.key...)
+		first = false
+	} else {
+		e.buf = append(e.buf, f.keyComma...)
+	}
+	if f.quoted {
+		return rv, first, e.writeQuotedValue(f, fp, frv)
+	}
+	// The leaf kinds are written here rather than through f.fn. What the
+	// closure does for a string or an int is a load and an append; what the
+	// call costs is more than that. Anything else goes through f.fn, which is
+	// every kind that actually needs a compiled encoder.
+	switch f.leaf {
+	case leafString:
+		e.writeString(*(*string)(fp))
+	case leafInt:
+		e.buf = appendInt(e.buf, *(*int64)(fp))
+	case leafUint:
+		e.buf = appendUint(e.buf, *(*uint64)(fp))
+	case leafBool:
+		if *(*bool)(fp) {
+			e.buf = append(e.buf, "true"...)
+		} else {
+			e.buf = append(e.buf, "false"...)
+		}
+	case leafFloat64:
+		e.buf = appendFloat(e.buf, *(*float64)(fp), 64)
+	default:
+		return rv, first, f.fn(e, fp, frv)
+	}
+	return rv, first, nil
 }
 
 func compileStructEncoder(t reflect.Type) encodeFn {
@@ -919,6 +1026,27 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		f.keyComma = append(append(make([]byte, 0, len(f.key)+1), ','), f.key...)
 	}
 
+	// The compact table the field loop actually walks. The keys go in one blob
+	// rather than one slice header each: a []byte is 24 bytes on its own, more
+	// than a whole entry, and every key of the struct is written on every
+	// encode, so they belong contiguous.
+	fast := make([]fastField, len(fields))
+	var keyBlob []byte
+	for i := range fields {
+		f := &fields[i]
+		leaf := f.leaf
+		if !f.simple || f.offset > math.MaxUint32 || len(f.keyComma) > math.MaxUint32 {
+			leaf = leafNone
+		}
+		fast[i] = fastField{
+			keyOff: uint32(len(keyBlob)),
+			keyLen: uint32(len(f.keyComma)),
+			offset: uint32(f.offset),
+			leaf:   leaf,
+		}
+		keyBlob = append(keyBlob, f.keyComma...)
+	}
+
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
 		// The buffer lives in a local for the length of the field loop rather
 		// than in e. Every `e.buf = append(e.buf, ...)` is a read of a slice
@@ -937,21 +1065,47 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		// because every one of them has to be asked whether it is zero first.
 		// Read once rather than per field.
 		omitAll := e.opts.OmitZeroStructFields
-		for i := range fields {
-			f := &fields[i]
-			if f.simple && !omitAll {
-				fp := unsafe.Add(p, f.offset)
-				// One append for the separator and the key together. They were
-				// two, and the comma is one byte.
-				if first {
-					b = append(b, f.key...)
-					first = false
-				} else {
-					b = append(b, f.keyComma...)
-				}
-				switch f.leaf {
+		opts := e.opts
+		// The default option pair, tested once instead of per string.
+		//
+		// appendQuotedOpts takes Options by value and Go's ABI passes a
+		// four-bool struct as four registers, so every string field reloaded
+		// four bytes from the stack to set up the call -- visible as four MOVZX
+		// before it in the disassembly. Both flags set is the Std path and is
+		// what appendQuotedOpts does with them anyway: return appendQuoted.
+		std := opts.EscapeHTML && opts.ValidateStrings
+		// Two loops, and the split is what takes `first` out of the hot one.
+		//
+		// A simple field always writes, so once any field has been written the
+		// flag is false for the rest of the struct. Testing it per field means
+		// keeping it live across the appendQuotedOpts call in the body, and the
+		// register allocator answers that by spilling it -- from the
+		// disassembly of the single-loop version, per iteration:
+		//
+		//	MOVQ 0x78(SP), SI    ; i, from the stack
+		//	INCQ SI
+		//	MOVQ SI, 0x78(SP)    ; i, back to the stack
+		//	MOVB DI, 0x54(SP)    ; first, to the stack
+		//	MOVQ 0x78(SP), DX    ; i, from the stack again
+		//
+		// The first loop runs until something is written, which for a struct of
+		// scalars is one iteration. The second has no flag to keep live and
+		// writes the comma unconditionally, which is correct precisely because
+		// it cannot start until the first field is behind it.
+		i := 0
+		for ; i < len(fast) && first; i++ {
+			ff := &fast[i]
+			if ff.leaf != leafNone && !omitAll {
+				b = append(b, keyBlob[ff.keyOff+1:ff.keyOff+ff.keyLen]...)
+				first = false
+				fp := unsafe.Add(p, uintptr(ff.offset))
+				switch ff.leaf {
 				case leafString:
-					b = appendQuotedOpts(b, *(*string)(fp), e.opts)
+					if std {
+						b = appendQuoted(b, *(*string)(fp))
+					} else {
+						b = appendQuotedOpts(b, *(*string)(fp), opts)
+					}
 				case leafInt:
 					b = appendInt(b, *(*int64)(fp))
 				case leafUint:
@@ -967,79 +1121,50 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				}
 				continue
 			}
-			// Everything below can call back into e, so the buffer goes home
-			// first and is picked up again after.
 			e.buf = b
-			var fp unsafe.Pointer
-			var frv reflect.Value
-			if f.ptrPath {
-				// A field behind an embedded pointer has no fixed offset, so it
-				// is reached through reflect.
-				if !rv.IsValid() {
-					rv = reflect.NewAt(t, p).Elem()
-				}
-				frv = rv
-				ok := true
-				for _, x := range f.index {
-					if frv.Kind() == reflect.Pointer {
-						if frv.IsNil() {
-							ok = false
-							break
-						}
-						frv = frv.Elem()
+			var err error
+			rv, first, err = encodeGeneralField(e, &fields[i], t, p, rv, first, omitAll)
+			if err != nil {
+				return err
+			}
+			b = e.buf
+		}
+		for ; i < len(fast); i++ {
+			ff := &fast[i]
+			if ff.leaf != leafNone && !omitAll {
+				// Sixteen bytes read here, and fields[i] not touched at all.
+				// One append for the separator and the key together: they were
+				// two, and the comma is one byte.
+				k := keyBlob[ff.keyOff : ff.keyOff+ff.keyLen]
+				b = append(b, k...)
+				fp := unsafe.Add(p, uintptr(ff.offset))
+				switch ff.leaf {
+				case leafString:
+					if std {
+						b = appendQuoted(b, *(*string)(fp))
+					} else {
+						b = appendQuotedOpts(b, *(*string)(fp), opts)
 					}
-					frv = frv.Field(x)
+				case leafInt:
+					b = appendInt(b, *(*int64)(fp))
+				case leafUint:
+					b = appendUint(b, *(*uint64)(fp))
+				case leafBool:
+					if *(*bool)(fp) {
+						b = append(b, "true"...)
+					} else {
+						b = append(b, "false"...)
+					}
+				default: // leafFloat64
+					b = appendFloat(b, *(*float64)(fp), 64)
 				}
-				if !ok {
-					continue
-				}
-				fp = ptrOf(frv)
-			} else {
-				fp = unsafe.Add(p, f.offset)
-			}
-			if f.omitEmpty && isEmptyPtr(f.typ, fp) {
 				continue
 			}
-			if (f.omitZero || omitAll) && isZeroPtr(f, fp) {
-				continue
-			}
-			if first {
-				e.buf = append(e.buf, f.key...)
-				first = false
-			} else {
-				e.buf = append(e.buf, f.keyComma...)
-			}
-			if f.quoted {
-				if err := e.writeQuotedValue(f, fp, frv); err != nil {
-					return err
-				}
-				b = e.buf
-				continue
-			}
-			// The leaf kinds are written here rather than through f.fn. What
-			// the closure does for a string or an int is a load and an append;
-			// what the call costs is more than that, and a struct of scalars
-			// pays it once per field. Anything else still goes through f.fn,
-			// which is every kind that actually needs a compiled encoder.
-			switch f.leaf {
-			case leafString:
-				e.writeString(*(*string)(fp))
-			case leafInt:
-				e.buf = appendInt(e.buf, *(*int64)(fp))
-			case leafUint:
-				e.buf = appendUint(e.buf, *(*uint64)(fp))
-			case leafBool:
-				if *(*bool)(fp) {
-					e.buf = append(e.buf, "true"...)
-				} else {
-					e.buf = append(e.buf, "false"...)
-				}
-			case leafFloat64:
-				e.buf = appendFloat(e.buf, *(*float64)(fp), 64)
-			default:
-				if err := f.fn(e, fp, frv); err != nil {
-					return err
-				}
+			e.buf = b
+			var err error
+			rv, first, err = encodeGeneralField(e, &fields[i], t, p, rv, first, omitAll)
+			if err != nil {
+				return err
 			}
 			b = e.buf
 		}

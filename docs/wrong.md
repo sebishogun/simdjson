@@ -1749,3 +1749,67 @@ FuzzWindowObject now walks objects as Token-then-Decode against the standard
 library and compares the whole sequence, not just the final error: a decoder
 that returns the right values in the wrong order passes any check that only
 looks at where it stopped.
+
+## Three guesses at an 18% gap, and the disassembly answered it in one look
+
+Straight-line code encoding the same struct is 18% faster than the compiled
+field loop. Three rounds went into guessing why, each tested with perf deltas of
+one to four percent -- inside the 8.3% code-layout noise floor, so none of them
+proved anything either way:
+
+  - the key append, on the theory that `append(b, f.keyComma...)` is a memmove
+    call where straight-line code gets inline stores;
+  - cache footprint, on the theory that encField is 128 bytes and a twelve-field
+    struct is twenty-four cache lines walked per encode;
+  - per-field bookkeeping, counted by hand off the source.
+
+The user stopped it: "dude just read the assembly under gdb and figure out what
+is happening." One `go tool objdump` later:
+
+	SUBQ $0x160, SP      ; a 352-byte frame
+	MOVQ 0x68(SP), R10   ; i, from the stack
+	INCQ R10
+	MOVQ R10, 0x68(SP)   ; i, back to the stack
+	MOVB DL, 0x47(SP)    ; first, to the stack
+	MOVQ 0x68(SP), R11   ; i, from the stack again
+
+The loop counter and a bool round-tripping through memory once per field. The
+closure inlined the whole general-field path -- a reflect.Value, an index walk,
+four option tests, a five-way switch -- so the register allocator had nothing
+left for the hot path and spilled it. **No performance counter reports register
+pressure.** It is not in the profile, not in cycles, not in cache misses. It is
+visible in the instructions and nowhere else.
+
+Further down, two more things only the disassembly shows:
+
+	MOVZX 0x5b(SP), R8   ; Options.EscapeHTML
+	MOVZX 0x5a(SP), R9   ; Options.ValidateStrings
+	MOVZX 0x59(SP), R10  ; Options.SortMapKeys
+	MOVZX 0x57(SP), R11  ; Options.OmitZeroStructFields
+	CALL simdjson.writeLeaf(SB)
+
+Go's ABI passes a four-bool struct as four registers, so every string field
+reloaded four bytes from the stack to set up appendQuotedOpts. And writeLeaf --
+a helper extracted to share a switch between two loops -- did not inline, which
+the source cannot tell you and the first line of its disassembly can.
+
+**What it was, measured after fixing all three:**
+
+	                        base        after
+	instructions        4.399 B      4.348 B    -1.2%
+	cycles              805.3 M      789.6 M    -1.9%
+	branches            940.7 M      938.5 M    -0.2%
+	branch-misses       1.824 M      1.839 M    +0.8%
+	L1-dcache-loads     1.233 B      1.139 B    -7.6%
+	L1 load-misses      24.04 M      23.56 M    -2.0%
+
+Not the branch predictor: misses are unchanged, and 1.8 M out of 940 M branches
+is a 0.19% miss rate because `f.simple` gives the same answer for a given field
+every time. Not cache misses either: the loads hit L1 98% of the time. It is
+ninety-four million fewer loads -- load-port pressure and store-to-load
+forwarding latency on spill slots feeding a call.
+
+**The rule, now in CLAUDE.md.** Disassemble first, always. Go compiles in
+seconds and there is no cost to looking. A counter can tell you that something
+is slow; only the instructions tell you that the compiler put your loop counter
+in memory.
