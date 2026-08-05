@@ -174,23 +174,34 @@ file was put through it. `int64` positions would take the index from 0.93× the
 document to past 1.4× and cost every ordinary parse to serve a size that has a
 better answer.
 
-That answer is `Decoder`, and it has no limit:
+That answer is `Decoder`, and it has no limit. Ten gigabytes of tweets,
+2.93 M records of about 3.4 KB each — `go test ./bench -run TestHuge -huge
+-huge-bytes 10e9`:
 
-| 10 GB, line-delimited | time | throughput | peak heap |
-|---|---|---|---|
-| `Decoder` over the file | 9.97 s | 956 MB/s | **19 MB** |
+| 10 GB | decoded into | time | throughput | peak heap |
+|---|---|---|---|---|
+| line-delimited | `Value` | 3.89 s | **2,570 MB/s** | 7.5 MB |
+| line-delimited | struct, 4 fields | 5.15 s | 1,943 | 8.3 MB |
+| line-delimited | `map[string]any` | 29.93 s | 334 | 8.8 MB |
+| one array | `Value` | 6.85 s | 1,460 | 7.7 MB |
+| one array | struct, 4 fields | 8.31 s | 1,203 | 8.0 MB |
+| one array | `map[string]any` | 33.20 s | 301 | 8.1 MB |
+| one array, 300 M small elements | struct, 3 fields | 29.92 s | 334 | 8.4 MB |
 
-Nineteen megabytes for ten gigabytes, because nothing is ever held whole.
+Under nine megabytes for ten gigabytes, because nothing is ever held whole.
+
+**The decode target decides the throughput, not the parser.** `Value` builds no
+Go value and is the parser's own rate; `map[string]any` allocates a map and an
+interface per field and is 7.7× slower on identical bytes. A streaming figure
+quoted without naming what it decoded into cannot be reproduced, which is why
+each row here names one.
 
 A single enormous *array* works too, which C++ simdjson does not do at all — it
 caps a document at 4 GB for the same reason this one caps at 2 GiB, structural
 indices that are 32 bits wide. Read the opening bracket with [`Decoder.Token`]
-and then decode the elements:
-
-| 10 GB, one array | elements | time | throughput | peak heap |
-|---|---|---|---|---|
-| `Token` then `Decode` | 6,509 | 11.5 s | 833 MB/s | 17 MB |
-| 1 GB, 13.4 M small elements | 13,419,914 | 2.2 s | 433 MB/s | 3 MB |
+and then decode the elements. It is currently 1.76× slower than the same
+records line-delimited: finding where each element ends is a byte scan that
+duplicates what the structural index already computes, and it is half the run.
 
 The elements are indexed in batches rather than one at a time, which is what
 C++ simdjson's `parse_many` does and for the same reason: stage one is a fixed
