@@ -164,7 +164,30 @@ instructions:
 | 2 MB `[]float64` | **1.97 ms** | 5.2 ms | 2.10 ms | 10.8 ms |
 
 canada is level with sonic — 1.1% apart, inside the noise floor — after the
-compiled-array, extent-float and one-pass work. citm is goccy's row, cut
+compiled-array, extent-float and one-pass work.
+
+**The field's own fixtures** — the Small/Medium/Large payloads every Go JSON
+README descends from (ported verbatim from buger/jsonparser; outputs
+byte-agreed with encoding/json before any timing; stdlib-compatible configs
+only, which most published tables for these fixtures do not use):
+
+| ns/op, minimum of three | ours | goccy | segmentio | sonic | jsoniter | stdlib |
+|---|---|---|---|---|---|---|
+| Unmarshal small (190 B) | 404 | **176** | 347 | 455 | 367 | 1,283 |
+| Unmarshal medium (2.2 KB) | 2,087 | **1,557** | 1,981 | 2,540 | 3,022 | 9,942 |
+| Unmarshal large (28 KB) | 19,718 | **16,241** | 29,192 | 32,468 | 54,309 | 124,789 |
+| Marshal small | 94 | **92** | 97 | 127 | 167 | 199 |
+| Marshal medium | 153 | **98** | 115 | 152 | 213 | 223 |
+| Marshal large | 1,646 | **1,344** | 1,357 | 1,550 | 2,530 | 3,276 |
+
+goccy's scanner core owns this size class, and
+[`wrong.md`](docs/wrong.md) holds the instruction-level decomposition of
+why (537 decode instructions per field here against its 680 for
+everything). Getting the small decode row from 1,042 ns and 5.2 KB of
+garbage per call to 404 ns and 323 B — past sonic — is what this table's
+first measurement bought; Marshal small is the generated-encoder row
+(`tools/structgen`), level with goccy at 2.3%. Everything else in the
+column beats every library except goccy at every size. citm is goccy's row, cut
 from 41% to 22% by the one-walk integer parse (segmentio's 1,388 MB/s now
 trails our 1,463): tiny objects of small integers, where a hand-tuned
 scanner pays less per token than this design's index amortizes. An index-free prototype measured
