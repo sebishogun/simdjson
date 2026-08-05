@@ -21,10 +21,15 @@ because half of what it said has changed.
 | validate twitter | **this** | 153 µs | 1.14× over sonic |
 | validate citm | **this** | 394 µs | 1.12× over sonic |
 | validate canada | **this** | 891 µs | 1.10× over sonic |
-| unmarshal into a struct | **this** | 329 µs | 1.02× over goccy |
-| marshal a decoded document, sorted | **this** | 769 µs | 1.05× over sonic |
-| **marshal a struct** | **sonic** | 57 µs | sonic 1.7–2.0× |
-| **marshal `map[string]struct`, n=256** | **sonic** | 28 µs | sonic 1.34× |
+| unmarshal twitter into a struct | **this** | 303 µs | over goccy (330), clear of noise |
+| unmarshal canada into a struct | **this** | 2.66 ms | level with sonic (2.63), 1.1% |
+| **unmarshal citm into a struct** | **goccy** | 0.97 ms | goccy 1.22× (was 1.41× before the one-walk work) |
+| unmarshal 2 MB `[]float64` | **this** | 1.97 ms | over sonic (2.10) |
+| marshal a decoded document, sorted | **this** | 237 µs | 3.5× over sonic (parallel past ¼ MB) |
+| **marshal a struct** | **sonic** | 31 µs | sonic ~2× (ours 64; fused escape writer, three attempts recorded) |
+| **marshal `map[string]struct`, n=256** | **sonic** | 21 µs | sonic 1.3× |
+| `MarshalIndent`, twitter struct | **goccy** | 132 µs | goccy 1.24× (ours 163 after the trusted path) |
+| edit one field (`SetPath`) | **sjson** | 141 µs | sjson validates nothing; ours proves both sides (318 µs) |
 
 Two passes of eight samples on an idle machine, minimum of each, and every row
 above appeared in both within 1.6%. The exception is noted below and it is
@@ -78,10 +83,23 @@ below rather than given a row.
 
 </details>
 
-`encoding/json/v2`, new in Go 1.26 behind `GOEXPERIMENT=jsonv2`, is **not** a
-threat yet: 686 µs to unmarshal twitter against v1's 834 and this package's 322,
-and identical to v1 on marshal. When it becomes the default every Go program
-gets it for free, so it is the one to watch, but it is 2.1× behind today.
+`encoding/json/v2` is no longer hypothetical: Go 1.27 intends to make its
+engine the stdlib default (golang/go#79788), and under `GOEXPERIMENT=jsonv2`
+the v1 surface is already reimplemented on it — stdlib struct decode jumps
+2.5–3× for free. Measured here (`make bench-v2`): v1-via-v2 decodes twitter /
+citm / canada at 614 / 712 / 241 MB/s, the native v2 API at 759 / 896 / 283 —
+against this package's 2,001 / 1,498 / 834. Every row holds; the margins
+compress from ~8× to 2–3×, and the README's stdlib columns say which engine
+they mean.
+
+The rest of the 2026 field, measured in bench/ under fair configurations:
+jsoniter is archived (Dec 2025) and trails everywhere; segmentio/encoding is
+the other maintained drop-in, level with us on citm and behind elsewhere;
+easyjson (revived, v0.9.2) measures 2.5–3.8× behind with its errors actually
+checked — the viral "363×" table fed it one object and discarded an error.
+The C++ original is in `docs/cpp-baseline.md`: 2.4× ahead single-threaded on
+string-heavy validated parse, behind us on canada, and inverted entirely past
+8 MB, where nothing else parallelizes one document.
 
 ## minio/simdjson-go — the same design, done differently
 
