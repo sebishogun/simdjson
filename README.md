@@ -417,7 +417,7 @@ sets — so none needs cgo, and none is amd64-only.
 
 | | |
 |---|---|
-| [**simd.go**](https://github.com/sebishogun/simd) | Vector operations over slices, bytes and text. The kernels everything else is built from. |
+| [**simd.go**](https://github.com/sebishogun/simd) | 473 vector operations over slices, bytes and text. The kernels everything else is built from. |
 | [**simdblas**](https://github.com/sebishogun/simdblas) | A BLAS backend for gonum. One `blas64.Use` call and `mat`, `stat` and `optimize` run on it. |
 | [**simdcsv**](https://github.com/sebishogun/simdcsv) | CSV reading on one vector scan per record. |
 | [**simdvec**](https://github.com/sebishogun/simdvec) | Embedding search whose whole index scan is one matrix-vector product. |
