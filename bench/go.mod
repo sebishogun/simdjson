@@ -7,7 +7,7 @@ require (
 	github.com/bytedance/sonic v1.15.2
 	github.com/goccy/go-json v0.10.6
 	github.com/minio/simdjson-go v0.4.5
-	github.com/sebishogun/simd v1.9.1
+	github.com/sebishogun/simd v1.10.0
 	github.com/sebishogun/simdjson v0.0.0
 	github.com/tidwall/gjson v1.19.0
 	github.com/valyala/fastjson v1.6.10

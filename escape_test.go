@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/sebishogun/simd"
 )
 
 // escapedRef is the definition escapedMask has to meet: a byte is escaped if
@@ -180,5 +182,18 @@ func toAny(v Value) any {
 		return v.Bool()
 	default:
 		return nil
+	}
+}
+
+// kernelScanMin mirrors the simd side's guard threshold for JSONCopyRun --
+// one decision, previously written down in two repositories, and the drift
+// between the two once put a Go byte loop behind a kernel's name for 35% of a
+// Marshal (docs/wrong.md, "A kernel call below the kernel's own threshold").
+// simd exports the number now, so the mirror is asserted rather than
+// remembered.
+func TestKernelScanMinMatchesSimd(t *testing.T) {
+	if got := simd.KernelThreshold("JSONCopyRun"); got != kernelScanMin {
+		t.Fatalf("kernelScanMin is %d; simd.KernelThreshold(JSONCopyRun) is %d — "+
+			"one of the two moved without the other", kernelScanMin, got)
 	}
 }
