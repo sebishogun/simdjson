@@ -23,14 +23,14 @@ because half of what it said has changed.
 | validate canada | **this** | 891 µs | 1.10× over sonic |
 | unmarshal into a struct | **this** | 329 µs | 1.02× over goccy |
 | marshal a decoded document, sorted | **this** | 769 µs | 1.05× over sonic |
-| **marshal a struct** | **sonic** | 58 µs | sonic 1.8–2.1× |
+| **marshal a struct** | **sonic** | 57 µs | sonic 1.7–2.0× |
 | **marshal `map[string]struct`, n=256** | **sonic** | 28 µs | sonic 1.34× |
 
 Two passes of eight samples on an idle machine, minimum of each, and every row
 above appeared in both within 1.6%. The exception is noted below and it is
 sonic's own.
 
-**sonic leads two rows and both are the same thing.** Escaping is 17,266 ns on
+**sonic leads two rows and both are the same thing.** Escaping is 15,000 ns on
 top of a 35,009 ns base here, and sonic does escaping and UTF-8 validation
 inside its whole 27,446. Its `quote.c` reserves worst-case output space — six
 bytes per input byte — and then runs a vector pass that writes the escapes

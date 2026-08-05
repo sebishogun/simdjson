@@ -1409,3 +1409,37 @@ minority of the input and paid for it on the majority.
 structure is the optimisation, a change that is locally better needs to be
 measured on the whole before it is believed -- and "locally better" here meant
 43% on a microbenchmark, five times, while the thing that matters got worse.
+
+## The sixth attempt was the fifth attempt with the call on the other side
+
+The escaping path took six tries. The fifth and the sixth are the same
+optimisation -- an escape interrupts the ASCII run instead of ending it, so a
+string that is all ASCII never pays for the UTF-8 validation pass -- with the
+same isolated numbers:
+
+	escapes in 512 bytes    0      1      2      4      8     16     32
+	before              131.8  195.4  202.1  218.7  240.1  262.7  301.7
+	fifth               128.9  137.8  140.0  124.1  133.8  158.6  197.1
+	sixth               133.1  154.2  147.0  130.3  139.6  163.6  207.7
+
+The fifth is the better of the two in isolation. On the encode:
+
+	fifth    52,455 -> 55,644   +6.1%
+	sixth    52,589 -> 50,008   -4.9%
+
+The difference is which side of the branch got the function call. The fifth put
+the non-ASCII path behind one, and non-ASCII strings are the long ones -- 248 of
+1201, holding 84.8% of the bytes. The sixth leaves that path exactly where it
+was, straight-line, and puts the ASCII-with-escapes case behind the call: 25% of
+strings, and the short ones.
+
+**What distinguished them was not the microbenchmark.** The fifth looks better
+there. What said it would lose was that `jp/48` and `jp/96` -- non-ASCII, and
+untouched by the change in principle -- had moved. In the sixth they did not:
+42.31 against a 42.8 baseline, 19.89 against 19.6.
+
+**The rule.** In a function tuned to within a few percent by its shape, the
+optimisation is not the only variable; where the compiler is allowed to keep the
+code together is another, and it can be larger. When measuring one, watch the
+paths the change is not supposed to touch -- if they moved, the shape changed,
+and the shape is what will decide the result.

@@ -91,16 +91,17 @@ vector instructions:
 | | this | sonic | goccy | encoding/json |
 |---|---|---|---|---|
 | `Marshal`, a decoded document, sorted keys | **769 µs** | 810 µs | 1,742 µs | 2,175 µs |
-| `Marshal`, a struct | 58 µs | **27–33 µs** | 88 µs | 110 µs |
+| `Marshal`, a struct | 57 µs | **27–33 µs** | 88 µs | 110 µs |
 | `Marshal`, `map[string]struct`, 256 entries | 28 µs | **21 µs** | 38 µs | 58 µs |
 
 The two rows sonic wins are the same problem seen twice: escaping strings.
-Escaping costs 17.3 µs on top of a 35.0 µs base here, and sonic does escaping
+Escaping costs 15.0 µs on top of a 35.0 µs base here, and sonic does escaping
 *and* UTF-8 validation inside its whole 27 µs. Its `quote.c` reserves worst-case
 output space and writes escapes inline in one vector pass; this package's kernel
-stops at each byte needing an escape and returns to Go for it. Five attempts at
-closing that in Go are recorded in [docs/wrong.md](docs/wrong.md) — all of them
-regressions, including one worth 43% in isolation and −5.3% in place.
+stops at each byte needing an escape and returns to Go for it. Six attempts at closing
+that in Go are recorded in [docs/wrong.md](docs/wrong.md); the sixth is in and
+worth 5%, and the five before it were regressions or nothing — including one
+identical to the sixth but for which side of a branch took a function call.
 
 sonic's own two passes differed by 19% on the struct row, where every other
 number here agreed within 1.6%, which is why that cell is a range.
