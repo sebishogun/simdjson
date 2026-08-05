@@ -293,7 +293,7 @@ structural index across cores — segments are indexed in parallel and the
 bracket pairs that cross a segment are merged serially, with output
 bit-identical to the single-threaded path, errors included. 64 MB of
 numbers-heavy JSON scans at 31.1 GB/s on 32 cores against 5.1 single-threaded;
-`BenchmarkParallelScan` reproduces it. `Valid` stays single-threaded: its time
+BenchmarkParallelScan reproduces it. `Valid` stays single-threaded: its time
 is the grammar walk, not the index.
 
 Past 2 GiB, `Parse` and `Scan` return an error naming the alternative — see
