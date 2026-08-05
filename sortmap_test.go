@@ -549,3 +549,35 @@ func truncate(s string) string {
 	}
 	return s
 }
+
+// TestBucketPathIsTaken guards the threshold, not the timing.
+//
+// The counting pass and the three-way partition produce identical output, so
+// nothing in the suite would notice if a refactor stopped the counting path
+// firing -- and what it is worth is large and grows with n: 8,181 ns against
+// 5,770 at n=256, and 40,123 against 27,827 at n=1024. A benchmark assertion
+// would be flaky on a shared machine; counting the calls is deterministic.
+func TestBucketPathIsTaken(t *testing.T) {
+	sortN := func(n int) int {
+		p := make([]pair[int], n)
+		for i := range p {
+			p[i] = pair[int]{k: fmt.Sprintf("field_name_%04d", n-i), v: i}
+		}
+		bucketPasses = 0
+		sortPairs(p)
+		if !sort.SliceIsSorted(p, func(a, b int) bool { return p[a].k < p[b].k }) {
+			t.Fatalf("n=%d: not sorted", n)
+		}
+		return bucketPasses
+	}
+	if got := sortN(bucketTotalMin - 1); got != 0 {
+		t.Errorf("n=%d is below bucketTotalMin=%d but took the counting path %d times",
+			bucketTotalMin-1, bucketTotalMin, got)
+	}
+	for _, n := range []int{bucketTotalMin, bucketTotalMin + 1, 8 * bucketTotalMin} {
+		if got := sortN(n); got == 0 {
+			t.Errorf("n=%d is at or above bucketTotalMin=%d and never took the counting path",
+				n, bucketTotalMin)
+		}
+	}
+}

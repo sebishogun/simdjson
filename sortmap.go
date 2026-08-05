@@ -58,34 +58,57 @@ func sortPairs[V any](p []pair[V]) {
 	if len(p) < 2 {
 		return
 	}
+	// Scratch, and therefore the counting pass, only for a sort big enough to
+	// defeat the branch predictor. See bucketTotalMin.
 	var scratch []pair[V]
-	if len(p) >= bucketMin {
+	if len(p) >= bucketTotalMin {
 		scratch = make([]pair[V], len(p))
 	}
 	radixQsort(p, 0, 2*bits.Len(uint(len(p)+1)), scratch)
 }
 
-// bucketMin is where a counting pass replaces the three-way partition.
+// bucketTotalMin and bucketGroupMin decide when the counting pass is used.
+// They are two thresholds because they answer two different questions.
 //
-// The partition branches three ways on a data byte, which is unpredictable
-// when the bytes are. Below about sixty-four keys that is free, because the
-// whole recursion fits the branch history table and the predictor learns it.
-// Above, it is not -- measured on keys of one shape, cycling through
-// permutations so the predictor cannot learn the input:
+// The three-way partition branches on a data byte, which is unpredictable when
+// the bytes are. Whether that costs anything depends on the size of the WHOLE
+// sort, because that is what decides whether the recursion fits the branch
+// history table -- at n=64 the predictor learns it and the branches are free,
+// at n=256 it does not and they are about three mispredictions per element.
+// So bucketTotalMin is checked once, against the whole sort.
 //
-//	n=64    0.1 branch misses/elem      647 ns
-//	n=256   3.1 branch misses/elem    7,954 ns
+// Given a sort large enough to be worth it, the counting pass then applies to
+// any GROUP big enough to amortise its fixed cost: about 770 operations to zero
+// a 258-entry counter, prefix-sum it and scan 256 buckets. That is
+// bucketGroupMin, and it is much smaller.
 //
-// Four times the keys for twelve times the time where n log n predicts 4.6x,
-// with instructions per element up only 15%. The gap is mispredictions.
+// Both are measured. Sweeping bucketMin as a single threshold, minimum of two,
+// keys of one shape, cycling permutations so the predictor cannot learn them:
 //
-// A counting pass has no data-dependent branch at all. It does have about 770
-// operations of fixed cost per call -- zero a 258-entry counter, prefix-sum it,
-// scan 256 buckets -- so it is worth it only for a level that actually splits
-// the group, and only when the group is large enough to amortise it. Applying
-// it at every level from d=0 was 61% SLOWER at n=256, because these keys share
-// an eleven-byte prefix and eleven of the levels split nothing at all.
-const bucketMin = 96
+//	                  2      16      32      64      96     128   never
+//	n=64           1007    1017     951     952       -     655     652
+//	n=256          5881    5544    5426    6032    5864    7966    8236
+//	n=1024        28508   27249   28554   28506       -   37191   40079
+//
+// n=64 wants the counting pass never; n=256 and n=1024 want it from about 16 to
+// 32. One threshold cannot express that, which is why there are two.
+//
+// A first attempt read a crossover of 128 out of a different sweep, comparing
+// "counting at every level" against "branchy at every level" per n. That is not
+// the choice the code makes -- a threshold applies to every group the recursion
+// produces -- and 128 turned out to be the worst value tried at n=256, 7966
+// against 5426, because these keys split into groups of 100, 100 and 56 and a
+// threshold of 128 sends all three back to the branchy path.
+var (
+	bucketTotalMin = 128
+	bucketGroupMin = 32
+)
+
+// bucketPasses counts calls to bucketPass, for TestBucketPathIsTaken. One
+// increment per group of bucketMin keys or more is not a cost worth a build
+// tag, and a threshold that silently stops firing is exactly the regression
+// this is here to catch: nothing else about the output would change.
+var bucketPasses int
 
 // bucketPass sorts p by byte d with a counting pass and recurses per bucket. It
 // reports whether it did: a group whose keys have all ended at d is already
@@ -103,6 +126,7 @@ func bucketPass[V any](p []pair[V], d, maxDepth int, scratch []pair[V]) bool {
 	// 257 buckets: one for "the key ended here", which byteAt reports as -1,
 	// and one per byte value. The extra slot makes the prefix sum a running
 	// total whose entry b ends bucket b.
+	bucketPasses++
 	var count [258]int32
 	for i := range p {
 		count[byteAt(p[i].k, d)+2]++
@@ -138,7 +162,7 @@ func bucketPass[V any](p []pair[V], d, maxDepth int, scratch []pair[V]) bool {
 // this cheaper than a comparison sort: that prefix is never looked at again.
 func radixQsort[V any](p []pair[V], d, maxDepth int, scratch []pair[V]) {
 	for len(p) > 11 {
-		if len(p) >= bucketMin && len(scratch) >= len(p) {
+		if len(p) >= bucketGroupMin && len(scratch) >= len(p) {
 			// Skip to the first byte the group disagrees on BEFORE counting, so
 			// the counting pass runs once per level that splits rather than
 			// once per byte of shared prefix. Without this it loses.
