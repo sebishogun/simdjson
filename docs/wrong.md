@@ -2111,3 +2111,29 @@ Third strike closes the line for real: the quote kernel loses whole-string,
 loses hybrid, and the reservation it demands was itself a prior entry's
 regression. Small-struct Marshal stays sonic's row pending a mechanism that
 is not this kernel.
+
+## Stepping the bracket cursor past a leaf's closer
+
+matchBracket plus lowerBound was 17% of the citm struct decode, and the miss
+pattern looked structural: after a leaf container the cursor points at the
+closer nothing will ask for, so the sibling asked for next misses by one
+entry, a hundred thousand times. Landing the cursor past the closer when
+match[k] == k+1 — one comparison in the hit path — should have turned the
+sibling misses into hits.
+
+	Interleaved builds, three rounds, minima:
+	citm      1,149 -> 1,161 us    wash
+	canada    2,682 -> 3,203 us    +19%, every round
+	twitter Parse                  wash
+
+citm did not care and canada was wrecked. The cursor serves every
+matchBracket consumer — the decode descent, Parse's validation walk, the
+navigation paths — and their access orders differ; the leaf-step helped the
+one pattern the profile pointed at and broke a hotter one in canada's
+deeply nested rings, where the next request after a leaf is NOT the sibling.
+The one-entry gallop the fix removed costs two probes; the mispredicted
+landing it introduced costs a full gallop somewhere else.
+
+The rule, again from a different angle: shared infrastructure tuned to one
+caller's trace is a regression for the callers not in the profile. The 17%
+line stands until a fix knows which walk it is serving.
