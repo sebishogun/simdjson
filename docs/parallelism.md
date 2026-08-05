@@ -143,3 +143,26 @@ One limit on all of this: minio pays head-of-line blocking to keep order —
 one slow chunk stalls every later result — and nothing in the field does
 out-of-order completion with reordering. That is available and untried, and it
 is also more machinery than the problem has yet been shown to need.
+
+## What happened since, and the wall Decode sits behind
+
+The at-scale family made item 3 moot — the index, the walks, Marshal, Compact
+and Indent all shard past 8 MB — and item 1's mechanism landed in a different
+place than minio put it: the batch a `Value` loop drains is **validated**
+across cores at load (stream_parallel.go), which is the per-record cost with
+no serial dependency. 1,443 → 1,755 MB/s on 64 MB of records.
+
+`Decode` cannot be fanned out the same way, and the reason is contract, not
+machinery. Decoding element k into the caller's variable starts from that
+variable's state after element k−1: a struct field the record omits keeps
+whatever the previous record left there, exactly as encoding/json behaves, and
+callers lean on it. So the deliverable of element k depends on the delivery of
+element k−1 — a serial chain. Predecoding the batch into fresh slots and
+copying slot k out would zero every omitted field; seeding the slots from the
+variable's pre-batch state gets the omitted-after-set case wrong instead
+(record j sets a field, record k omits it: the chain keeps record j's value,
+the seed restores the pre-batch one). Any fan-out is observable through the
+API's own documented semantics, which is disqualifying for a drop-in. What
+remains available for Decode is overlap — stage one of the next batch behind
+the drain of the current one, C++ simdjson's one-worker shape — which hides
+the index cost, not the decode.

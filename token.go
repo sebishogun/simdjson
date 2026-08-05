@@ -42,8 +42,11 @@ type Delim = json.Delim
 // interleave: after Token has returned the opening bracket of an array, Decode
 // reads the next element of it, which is the whole point.
 func (d *Decoder) Token() (Token, error) {
-	// Any index built for Decode describes bytes this is about to step past.
+	// Any index built for Decode describes bytes this is about to step past,
+	// and a caller walking tokens is not the pure Value loop the batch
+	// staging is armed for.
 	d.doc, d.data = nil, nil
+	d.valStreak, d.stElems = 0, d.stElems[:0]
 
 	c, err := d.peek()
 	if err != nil {

@@ -79,6 +79,13 @@ type Decoder struct {
 	// be checked against its opener. Reused across calls; a stack allocated per
 	// value would cost more than the scan.
 	vstack []byte
+
+	// Batch validation staging; see stream_parallel.go. stElems empty means no
+	// staging, which is always safe.
+	stElems   []topExtent // extents of the batch's top-level values
+	stNext    int         // next staged element to deliver
+	stBad     int         // first invalid element, len(stElems) if none
+	valStreak int         // consecutive Value deliveries, the arming evidence
 }
 
 // NewDecoder returns a Decoder reading from r.
@@ -239,6 +246,11 @@ func (d *Decoder) separator() error {
 // It returns [io.EOF] when the stream holds no further value, which is what
 // ends a read loop.
 func (d *Decoder) Decode(out any) error {
+	// Decode moves the cursor without consulting the staging, so the staged
+	// positions stop lining up; the position guard in stagedOK would catch it,
+	// but the streak is evidence about the CALLER, and a caller mixing Decode
+	// in is not the pure Value loop the staging is for.
+	d.valStreak, d.stElems = 0, d.stElems[:0]
 	// Inside a container, an element after the first has a comma in front of
 	// it. Token consumes its own separators; Decode has to consume this one,
 	// because the framing scan that follows only knows how to start at a value.
@@ -296,20 +308,26 @@ func (d *Decoder) Value() (Value, error) {
 			i := d.doc.skip(d.cur)
 			if i < len(d.data) {
 				v, next, err := d.doc.value(i)
-				if err == nil {
+				if err == nil && !d.stagedOK(i) {
 					// value() settles the extent and the kind; it does not walk
 					// inside a container. Decode validates as it decodes and
 					// Scan is documented not to validate at all, but a caller
 					// reading a log line by line is asking "is this a record",
 					// and answering yes for `{bad}` because nobody looked
 					// inside is the mistake gjson's ForEachLine makes.
+					//
+					// stagedOK short-circuits it for a record a batch worker
+					// already walked; see stream_parallel.go.
 					err = v.validate()
 				}
 				if next > d.cur {
 					d.cur, d.off = next, d.base+next
 				}
-				if err == nil && len(d.tstack) > 0 {
-					d.afterItem()
+				if err == nil {
+					d.valStreak++
+					if len(d.tstack) > 0 {
+						d.afterItem()
+					}
 				}
 				return v, err
 			}
@@ -356,6 +374,7 @@ func (d *Decoder) load() error {
 					doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
 					d.doc, d.data = doc, d.buf[d.off:d.off+ix.safeEnd]
 					d.base, d.cur = d.off, 0
+					d.stageValidate()
 					return nil
 				}
 			}
@@ -397,6 +416,7 @@ func (d *Decoder) load() error {
 			doc.strictSkip = true
 			doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
 			d.doc, d.data, d.base, d.cur = doc, d.buf[d.off:limit], d.off, 0
+			d.stageValidate()
 			return nil
 		}
 		// Nothing whole in the buffer. If the next byte cannot begin a value at
@@ -459,6 +479,9 @@ func (d *Decoder) loadBatch() error {
 					doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
 					d.doc, d.data = doc, d.buf[d.off:end]
 					d.base, d.cur = d.off, 0
+					// Clears the staging (comma gaps make it decline), so a
+					// stale batch's positions cannot leak into this one.
+					d.stageValidate()
 					return nil
 				}
 			}
@@ -527,6 +550,7 @@ func (d *Decoder) loadWindow() bool {
 	doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
 	d.doc, d.data = doc, d.buf[d.off:end]
 	d.base, d.cur = d.off, 0
+	d.stageValidate()
 	return true
 }
 
@@ -610,6 +634,7 @@ func (d *Decoder) loadOne() error {
 			doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
 			d.doc, d.data = doc, d.buf[d.off:end]
 			d.base, d.cur = d.off, 0
+			d.stageValidate()
 			return nil
 		}
 		if d.err != nil {
