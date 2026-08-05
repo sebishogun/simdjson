@@ -323,19 +323,20 @@ pending-newline flag) carried across segment folds — at 0.5 → 2.5 GB/s and
 Past 2 GiB, `Parse` and `Scan` return an error naming the alternative — see
 [Limits](#limits). That alternative is `Decoder`, which has no size limit. Ten
 gigabytes of tweets, 2.93 M records of about 3.4 KB each, from
-`go test ./bench -run TestHuge -huge -huge-bytes 10e9`:
+`cd bench && go test -run TestHuge -huge -huge-bytes 10000000000 .` — better
+of two passes, worse of the two heap peaks:
 
 | 10 GB | decoded into | time | throughput | peak heap |
 |---|---|---|---|---|
-| line-delimited | `Value` | 3.74 s | **2,676 MB/s** | 7.4 MB |
-| line-delimited | struct, 4 fields | 5.14 s | 1,944 | 8.3 MB |
-| line-delimited | `map[string]any` | 30.23 s | 331 | 8.5 MB |
-| one array | `Value` | 3.76 s | 2,662 | 7.6 MB |
-| one array | struct, 4 fields | 5.27 s | 1,899 | 8.2 MB |
-| one array | `map[string]any` | 31.64 s | 316 | 8.4 MB |
-| one array, 300 M small elements | struct, 3 fields | 23.54 s | 425 | 8.3 MB |
+| line-delimited | `Value` | 3.46 s | **2,892 MB/s** | 8.0 MB |
+| line-delimited | struct, 4 fields | 5.03 s | 1,988 | 9.4 MB |
+| line-delimited | `map[string]any` | 30.03 s | 333 | 9.3 MB |
+| one array | `Value` | 3.66 s | 2,731 | 8.5 MB |
+| one array | struct, 4 fields | 5.04 s | 1,985 | 8.9 MB |
+| one array | `map[string]any` | 29.82 s | 335 | 9.2 MB |
+| one array, 300 M small elements | struct, 3 fields | 22.65 s | 441 | 9.3 MB |
 
-Under nine megabytes of heap for ten gigabytes of input, because nothing is
+Under ten megabytes of heap for ten gigabytes of input, because nothing is
 held whole.
 
 The decode target sets the throughput more than the parser does. `Value` builds
