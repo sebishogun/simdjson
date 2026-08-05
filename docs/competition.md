@@ -14,48 +14,54 @@ because half of what it said has changed.
 
 | operation | leader | this | margin |
 |---|---|---|---|
-| parse twitter / citm / canada | **this** | 222 / 603 / 1,345 µs | 1.06× / 1.17× / 1.47× over fastjson |
-| index without validating | **this** | 52 / 188 / 314 µs | 4.5× fastjson on twitter |
-| validate twitter / citm | **this** | 3,954 / 4,326 MB/s | 1.10× / 1.12× over sonic |
-| validate canada | **this** | 2,430 MB/s | 1.06× over sonic |
-| unmarshal into a struct | **this** | 330 µs | 1.02× over goccy |
-| marshal a struct slice | **this** | 835 µs | 1.80× over sonic |
-| marshal a float-heavy document | **this** | 4,005 µs | 1.12× over sonic |
-| marshal a decoded document, unsorted | tie | 576 µs | sonic 573 µs |
-| marshal a decoded document, sorted | **this** | 796 µs | 1.05× over sonic |
-| one field by path | **this** | 83 µs | 1.27× over gjson |
-| ten fields by path | **this** | 239 µs | 2.65× over gjson |
-| NDJSON, several cores | **this** | 1,185 MB/s | nothing else parallelises a parse |
-| 10 GB in one piece | **this** | 833 MB/s | `SIMDJSON_MAXSIZE_BYTES` caps a C++ document at 4 GB − 1 |
+| parse twitter | **this** | 219 µs | 1.06× over fastjson |
+| parse citm | **this** | 592 µs | 1.12× over minio |
+| parse canada | **this** | 1,130 µs | 1.69× over fastjson |
+| index without validating (`Scan`) | **this** | 52 / 188 / 318 µs | no equivalent elsewhere |
+| validate twitter | **this** | 153 µs | 1.14× over sonic |
+| validate citm | **this** | 394 µs | 1.12× over sonic |
+| validate canada | **this** | 891 µs | 1.10× over sonic |
+| unmarshal into a struct | **this** | 329 µs | 1.02× over goccy |
+| marshal a decoded document, sorted | **this** | 769 µs | 1.05× over sonic |
+| **marshal a struct** | **sonic** | 58 µs | sonic 1.8–2.1× |
+| **marshal `map[string]struct`, n=256** | **sonic** | 28 µs | sonic 1.34× |
 
-Nothing else leads any row now. The last one to go was goccy on unmarshalling
-into a struct, and it took three separate things rather than one: not hashing a
-key that is longer than every field name (6.2%), a table instead of a chain of
-byte comparisons to dispatch on a value's first byte (1.1%, inside the noise and
-not counted), and sending strings over 64 bytes to the vector UTF-8 validator
-this already ships instead of the standard library's scalar one (6.1%). Three
-passes, minimum of twelve each, ours ahead in every one by 1.15% to 2.15%.
+Two passes of eight samples on an idle machine, minimum of each, and every row
+above appeared in both within 1.6%. The exception is noted below and it is
+sonic's own.
 
-Two larger ideas were measured and rejected first, which is what left those
-three as the things worth doing — see docs/wrong.md.
+**sonic leads two rows and both are the same thing.** Escaping is 17,266 ns on
+top of a 35,009 ns base here, and sonic does escaping and UTF-8 validation
+inside its whole 27,446. Its `quote.c` reserves worst-case output space — six
+bytes per input byte — and then runs a vector pass that writes the escapes
+inline; `simd.JSONCopyRun` stops at the first byte needing an escape and returns
+to Go. Five attempts at closing that from the Go side are in
+[wrong.md](wrong.md), all regressions; the sixth idea is a kernel that emits
+escapes, which is [#144].
 
-The other two closed. Sorting map keys was a three-way radix quicksort in place
-of `slices.SortFunc`, which cut the sort itself from 418 µs to 214 µs and took
-that row from 1.20× behind to 1.05× ahead — 1.51× ahead on citm_catalog and
-1.21× on canada. Validating canada.json was the number scanner's fraction loop,
-which walked the last few digits of every number one byte at a time; computing
-the end of the digit run from the SWAR mask instead took Valid from 1,103 µs to
-923 µs against sonic's 979, and Parse from 1,313 to 1,156 with it.
-Note which sonic that is: `sonic.Marshal` does not sort by default, and thirty
-calls on the same map give five different outputs, so `sonic.ConfigStd` is the
-only one of the two that compares like with like.
+**Why sonic's row is a range.** Its two passes came out at 27,446 and 32,783 ns,
+a 19% spread where every other number here agreed within 1.6%. That is JIT
+warm-up, and it is why this says 1.8–2.1× rather than picking the end that
+flatters either side. Ours was 57,977 and 58,146.
 
-Re-measured on the harness that now lives in [bench/](../bench). The one that
-produced the original table read its corpora from /tmp and skipped when they
-were missing — so a competitor with no line in the output read exactly like a
-competitor that had been run — and two rows moved when it was re-run against the
-vendored corpus: goccy's lead on unmarshalling narrowed from 10% to 4%, and our
-lead on *unsorted* marshalling turned out to be a tie.
+**Which sonic.** `sonic.ConfigStd` throughout, which sorts map keys, escapes
+HTML and validates strings, because that is what `encoding/json` does and what
+this package's default does. `sonic.Marshal` skips all three and is much faster;
+thirty calls on the same map give five different outputs. The benchmark carries
+it as `sonic-default-NOT-comparable` rather than leaving it out.
+
+**Not in this table**, because nothing here measures them: the 10 GB row and the
+NDJSON row that earlier versions carried. The NDJSON number came from this
+module's own benchmark rather than the comparison harness, and its old margin
+column — "nothing else parallelises a parse" — is a claim about other libraries'
+APIs, checkable by reading them, not a measurement. The 10 GB number came from a
+generated file no committed benchmark reproduces. Both are [#142].
+
+Reading one field by path is also absent, and deliberately: `gjson.Get` stops at
+the first match and keeps nothing, so on a single lookup it is three orders
+faster than building an index and the comparison says nothing. What it costs is
+that the second lookup costs the same as the first. That trade is described
+below rather than given a row.
 
 <details><summary>The table this replaced, from before the work</summary>
 

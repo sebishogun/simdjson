@@ -55,49 +55,60 @@ checked against the standard library's token stream by the same fuzzer.
 
 ## Where it stands
 
-One machine, minimum of four, and every number below appeared twice in two
-separate passes — anything the two passes disagreed about is not here. The
-competitors are measured in the same process on the same bytes.
+Two passes of eight samples on an idle machine, minimum of each. Every number
+below appeared in both within 1.6% — the one that did not is called out where it
+appears. The competitors run in the same process on the same bytes, and
+[bench/](bench) is the harness, so all of it can be re-run.
 
 **Parsing.** A document in, a navigable and validated structure out:
 
-| 1 MB–2.3 MB document | this | fastjson | minio | |
+| | this | fastjson | minio | |
 |---|---|---|---|---|
-| twitter, 1.17 MB | **222 µs** | 234 µs | 315 µs | **1.06×** |
-| citm, 1.73 MB | **603 µs** | 703 µs | 692 µs | **1.17×** |
-| canada, 2.25 MB | **1,345 µs** | 1,980 µs | 5,609 µs | **1.47×** |
+| twitter, 1.17 MB | **219 µs** | 232 µs | 305 µs | **1.06×** |
+| citm, 1.73 MB | **592 µs** | 736 µs | 664 µs | **1.12×** |
+| canada, 2.25 MB | **1,130 µs** | 1,910 µs | 5,569 µs | **1.69×** |
 
-`Scan`, the index without the grammar descent, is 52 µs / 188 µs / 314 µs on the
-same three — 4.5× fastjson on twitter. It is not the same operation; see below.
+`Scan`, the index without the grammar descent, is 52 / 188 / 318 µs on the same
+three. It is not the same operation; see below.
 
-**Into and out of Go values**, twitter into a struct and back:
+**Validating**, against sonic, which is the only other library doing it with
+vector instructions:
 
-| twitter into a struct | this | goccy | sonic | encoding/json |
+| | this | sonic | encoding/json | |
 |---|---|---|---|---|
-| `Unmarshal` → struct | 329 µs | **300 µs** | 381 µs | 2,431 µs |
+| twitter | **153 µs** | 174 µs | 1,251 µs | **1.14×** |
+| citm | **394 µs** | 441 µs | 3,173 µs | **1.12×** |
+| canada | **891 µs** | 978 µs | 4,153 µs | **1.10×** |
 
-**Encoding**, a slice of 4,000 structs and a decoded document back out:
+**Into Go values**, twitter into a struct:
+
+| | this | goccy | sonic | encoding/json |
+|---|---|---|---|---|
+| `Unmarshal` → struct | **329 µs** | 336 µs | 410 µs | 2,645 µs |
+
+**Out of Go values.** Here sonic leads, and it is worth being exact about where:
 
 | | this | sonic | goccy | encoding/json |
 |---|---|---|---|---|
-| `Marshal`, struct slice | **895 µs** | 1,502 µs | 1,850 µs | 2,148 µs |
-| `MarshalTo`, caller's buffer | **835 µs** | — | — | — |
-| `Marshal`, decoded document | **1,036 µs** | 899 µs | 1,889 µs | 2,380 µs |
-| the same, keys unsorted | **609 µs** | 678 µs | — | — |
-| `Marshal`, canada — all floats | **4,005 µs** | 4,482 µs | 7,560 µs | 8,008 µs |
+| `Marshal`, a decoded document, sorted keys | **769 µs** | 810 µs | 1,742 µs | 2,175 µs |
+| `Marshal`, a struct | 58 µs | **27–33 µs** | 88 µs | 110 µs |
+| `Marshal`, `map[string]struct`, 256 entries | 28 µs | **21 µs** | 38 µs | 58 µs |
 
-Encoding was 2.1× behind sonic and is now ahead of it on a struct slice, on a
-float-heavy document, and on a decoded one when neither sorts map keys. **sonic
-does not sort map keys by default** — thirty calls on the same map give five
-different outputs — which is about 30% of the work and a different promise
-rather than a faster implementation. Both orderings are supported here; sorted
-is byte-identical to `encoding/json`.
+The two rows sonic wins are the same problem seen twice: escaping strings.
+Escaping costs 17.3 µs on top of a 35.0 µs base here, and sonic does escaping
+*and* UTF-8 validation inside its whole 27 µs. Its `quote.c` reserves worst-case
+output space and writes escapes inline in one vector pass; this package's kernel
+stops at each byte needing an escape and returns to Go for it. Five attempts at
+closing that in Go are recorded in [docs/wrong.md](docs/wrong.md) — all of them
+regressions, including one worth 43% in isolation and −5.3% in place.
 
-Where sonic is still ahead is a decoded document with sorted keys, by 1.15×. It
-compiles an encoder to machine code at run time, on amd64 only — on arm64 it
-falls back to an interpreter, and on riscv64, s390x, ppc64le, loong64 and Go
-1.27 or later its whole API becomes `encoding/json`. Run-time code generation is
-the trade this package does not make.
+sonic's own two passes differed by 19% on the struct row, where every other
+number here agreed within 1.6%, which is why that cell is a range.
+
+**Which sonic**: `sonic.ConfigStd` throughout, which sorts map keys, escapes HTML and
+validates strings. `sonic.Marshal` does none of the three and is faster for it;
+thirty calls on the same map give five different outputs. Both are in the
+harness, the second labelled not comparable.
 
 **Text in, text out**, against `encoding/json`, MB/s:
 
