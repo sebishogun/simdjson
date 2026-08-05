@@ -7,6 +7,7 @@ import (
 	"github.com/bytedance/sonic"
 	gojson "github.com/goccy/go-json"
 	ours "github.com/sebishogun/simdjson"
+	segjson "github.com/segmentio/encoding/json"
 )
 
 func BenchmarkMarshalStruct(b *testing.B) {
@@ -126,6 +127,36 @@ func BenchmarkMarshalStruct(b *testing.B) {
 		b.SetBytes(int64(len(a)))
 		for b.Loop() {
 			if _, err := sonic.ConfigStd.Marshal(v); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("jsoniter", func(b *testing.B) {
+		s, err := jsoniterStd.Marshal(v)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if string(s) != string(c) {
+			b.Fatal("jsoniter compat config still differs from encoding/json")
+		}
+		b.SetBytes(int64(len(a)))
+		for b.Loop() {
+			if _, err := jsoniterStd.Marshal(v); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("segmentio", func(b *testing.B) {
+		s, err := segjson.Marshal(v)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if string(s) != string(c) {
+			b.Fatal("segmentio still differs from encoding/json")
+		}
+		b.SetBytes(int64(len(a)))
+		for b.Loop() {
+			if _, err := segjson.Marshal(v); err != nil {
 				b.Fatal(err)
 			}
 		}
