@@ -155,11 +155,14 @@ instructions:
 | 2 MB `[]float64` | **1.97 ms** | 5.2 ms | 2.10 ms | 10.8 ms |
 
 canada is level with sonic — 1.1% apart, inside the noise floor — after the
-compiled-array, extent-float and one-pass work. citm is goccy's row: tiny
-objects of small integers, where its hand-tuned scanner core pays less per
-token than this design's index amortizes; an index-free prototype measured
+compiled-array, extent-float and one-pass work. citm is goccy's row — and
+segmentio's lean core also lands ahead there (1,388 MB/s to our ~1,330):
+tiny objects of small integers, where a hand-tuned scanner pays less per
+token than this design's index amortizes. An index-free prototype measured
 4–5× SLOWER on every corpus, and the entry in [`wrong.md`](docs/wrong.md)
-has the numbers.
+has the numbers. jsoniter and segmentio trail everywhere else measured —
+191 and 404 MB/s on canada, 213 and 484 on the `[]float64` — and both are
+in the harness under stdlib-compatible configurations.
 
 **Out of Go values**:
 

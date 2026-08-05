@@ -7,7 +7,9 @@ import (
 
 	sonic "github.com/bytedance/sonic"
 	goccy "github.com/goccy/go-json"
+	jsoniter "github.com/json-iterator/go"
 	ours "github.com/sebishogun/simdjson"
+	segjson "github.com/segmentio/encoding/json"
 )
 
 // citm's natural struct: the heavy parts are performances and seatCategory
@@ -36,6 +38,10 @@ type citmDoc struct {
 	} `json:"performances"`
 }
 
+// jsoniterStd is the configuration that matches encoding/json's semantics;
+// the "fastest" config skips validation and is not comparable.
+var jsoniterStd = jsoniter.ConfigCompatibleWithStandardLibrary
+
 func benchAll(b *testing.B, data []byte, mk func() any) {
 	run := func(name string, f func([]byte, any) error) {
 		b.Run(name, func(b *testing.B) {
@@ -52,6 +58,8 @@ func benchAll(b *testing.B, data []byte, mk func() any) {
 	run("sonic", func(d []byte, v any) error { return sonic.ConfigStd.Unmarshal(d, v) })
 	run("goccy", func(d []byte, v any) error { return goccy.Unmarshal(d, v) })
 	run("stdlib", func(d []byte, v any) error { return json.Unmarshal(d, v) })
+	run("jsoniter", func(d []byte, v any) error { return jsoniterStd.Unmarshal(d, v) })
+	run("segmentio", func(d []byte, v any) error { return segjson.Unmarshal(d, v) })
 }
 
 func BenchmarkUnmarshalCitmStruct(b *testing.B) {

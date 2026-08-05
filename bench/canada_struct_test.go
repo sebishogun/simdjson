@@ -7,6 +7,7 @@ import (
 	sonic "github.com/bytedance/sonic"
 	goccy "github.com/goccy/go-json"
 	ours "github.com/sebishogun/simdjson"
+	segjson "github.com/segmentio/encoding/json"
 )
 
 type canadaFC struct {
@@ -52,4 +53,6 @@ func BenchmarkUnmarshalCanadaStruct(b *testing.B) {
 	run("sonic", func(d []byte, v any) error { return sonic.ConfigStd.Unmarshal(d, v) })
 	run("goccy", func(d []byte, v any) error { return goccy.Unmarshal(d, v) })
 	run("stdlib", func(d []byte, v any) error { return json.Unmarshal(d, v) })
+	run("jsoniter", func(d []byte, v any) error { return jsoniterStd.Unmarshal(d, v) })
+	run("segmentio", func(d []byte, v any) error { return segjson.Unmarshal(d, v) })
 }
