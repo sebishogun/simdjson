@@ -120,7 +120,11 @@ and 286 µs against 345 µs on a 230 KB document.
 
 ## Performance
 
-Two passes of eight samples on an idle amd64 machine, minimum of each. Every
+Two passes of eight samples on an idle amd64 machine, minimum of each. The
+`encoding/json` columns are the v1 engine; Go 1.27 intends to make the much
+faster jsonv2 engine the default, and `make bench-v2` measures against it —
+stdlib struct decode rises to 614–712 MB/s (native v2 API: 759–896), and every
+row here still holds, at roughly 2–3× instead of 8×. Every
 number appeared in both passes within 1.6% unless noted. Competitors run in the
 same process on the same bytes; [bench/](bench) is the harness.
 

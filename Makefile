@@ -68,6 +68,9 @@ BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
 bench-run: ## Run the gate benchmarks and write the raw output
 	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT)
 
+bench-v2: ## The stdlib rows under GOEXPERIMENT=jsonv2, the engine Go 1.27 makes default
+	cd bench && GOEXPERIMENT=jsonv2 go test -run '^$$' -bench 'JSONv2Native|/stdlib' -benchtime 30x -count=3 .
+
 bench-check: bench-run ## Benchmark and fail on anything slower than the baseline
 	cd tools && $(GO) run ./benchcheck -baseline ../$(BENCH_BASELINE) $(BENCH_OUT)
 
