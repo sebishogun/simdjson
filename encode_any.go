@@ -60,18 +60,24 @@ func (e *encodeState) encodeAny(v any) (bool, error) {
 		}
 	case []any:
 		// A big one shards across workers wherever it appears -- a decoded
-		// document is a two-key map whose bytes are all in this slice, so
-		// gating only the top level would miss the exact case the arm is for.
-		// Worker states carry noParallel, so ranges cannot shard again.
-		if !e.noParallel {
-			if ok, err := e.marshalParallelSlice(reflect.ValueOf(x)); ok {
-				return true, err
-			}
-		}
+		// document is a two-key map whose bytes are all in one nested slice.
+		// The decision happens INSIDE the loop, after four elements are
+		// already encoded, from their size times the count: on a slice that
+		// declines it costs one predicted compare per element and one
+		// estimate ever. The first version wrapped the whole thing in
+		// reflect machinery that ran per slice even to decline, and canada --
+		// thousands of thousand-element coordinate rings, every one entering
+		// and declining -- paid 23% on the floats gate row for it.
+		mark := len(e.buf)
 		e.buf = append(e.buf, '[')
 		for i, el := range x {
 			if i > 0 {
 				e.buf = append(e.buf, ',')
+			}
+			if i == 4 && !e.noParallel && e.hint >= parallelMarshalMin && len(x) >= 24 {
+				if done, err := e.shardAnyRest(x, i, mark); done {
+					return true, err
+				}
 			}
 			if err := e.encodeAnyOrFall(el); err != nil {
 				return true, err

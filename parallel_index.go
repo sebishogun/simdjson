@@ -159,7 +159,7 @@ func parallelSegments(data []byte) []int {
 
 // buildIndexParallel indexes data across segments. ok reports whether it ran;
 // when false the caller uses the serial path and nothing has been touched.
-func buildIndexParallel(data []byte, ix *index, validate bool) (*index, error, bool) {
+func buildIndexParallel(data []byte, ix *index, validate, noBrackets bool) (*index, error, bool) {
 	bounds := parallelSegments(data)
 	if bounds == nil {
 		return nil, nil, false
@@ -210,11 +210,18 @@ func buildIndexParallel(data []byte, ix *index, validate bool) (*index, error, b
 	} else {
 		ix.wsw = nil
 	}
-	if cap(ix.pos) < total || cap(ix.match) < total {
-		ix.pos = make([]int32, total)
-		ix.match = make([]int32, total)
+	// Valid's masks-only mode never touches the brackets: pos and match stay
+	// as buildIndexMode reset them, exactly as the serial masks-only pass
+	// leaves them, and the grammar walk downstream is what finds unterminated
+	// containers there.
+	var pos, match []int32
+	if !noBrackets {
+		if cap(ix.pos) < total || cap(ix.match) < total {
+			ix.pos = make([]int32, total)
+			ix.match = make([]int32, total)
+		}
+		pos, match = ix.pos[:total], ix.match[:total]
 	}
-	pos, match := ix.pos[:total], ix.match[:total]
 
 	// Phase two: the full window loop per segment, in parallel.
 	res := make([]segResult, nseg)
@@ -223,7 +230,7 @@ func buildIndexParallel(data []byte, ix *index, validate bool) (*index, error, b
 		go func(s int) {
 			defer wg.Done()
 			res[s] = fillSegment(data, bounds[s], bounds[s+1], win, carry[s],
-				kbase[s], pos, match, ix.inStr, ix.wsw, validate)
+				kbase[s], pos, match, ix.inStr, ix.wsw, validate, noBrackets)
 		}(s)
 	}
 	wg.Wait()
@@ -285,10 +292,12 @@ func buildIndexParallel(data []byte, ix *index, validate bool) (*index, error, b
 		ix.noWS = anyWS == 0
 		ix.wsCount = wsCount
 	}
-	if len(stack) != 0 {
-		return nil, errAt("unterminated container", len(data)-1), true
+	if !noBrackets {
+		if len(stack) != 0 {
+			return nil, errAt("unterminated container", len(data)-1), true
+		}
+		ix.pos, ix.match, ix.stack = pos, match, stack
 	}
-	ix.pos, ix.match, ix.stack = pos, match, stack
 	return ix, nil, true
 }
 
@@ -347,7 +356,7 @@ func summarizeSegment(seg []byte, win int) segSummary {
 // differential test is what keeps the two from drifting.
 func fillSegment(data []byte, lo, hi, win int, strCarry uint64,
 	kBase int, pos, match []int32, inStr []uint64, wsw []uint64,
-	validate bool) segResult {
+	validate, noBrackets bool) segResult {
 
 	quote := make([]byte, win/8)
 	esc := make([]byte, win/8)
@@ -447,6 +456,9 @@ func fillSegment(data []byte, lo, hi, win int, strCarry uint64,
 			}
 		}
 
+		if noBrackets {
+			continue
+		}
 		for w := 0; w < cnw; w++ {
 			st := binary.LittleEndian.Uint64(structural[w*8:]) &^ inStr[wbase+w]
 			bpos := int32(base + w*64)

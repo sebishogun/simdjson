@@ -39,9 +39,16 @@ func compareIndexes(t *testing.T, name string, data []byte, validate bool) bool 
 // legitimately fail -- a decline is correct behaviour there, not a miss, and
 // the serial path handles the document.
 func compareIndexesOpt(t *testing.T, name string, data []byte, validate, allowDecline bool) bool {
+	return compareIndexesMode(t, name, data, validate, false, allowDecline)
+}
+
+// compareIndexesMode also covers Valid's masks-only mode, where pos and match
+// are not built and the comparison is the masks, the whitespace accounting and
+// the errors.
+func compareIndexesMode(t *testing.T, name string, data []byte, validate, noBrackets, allowDecline bool) bool {
 	t.Helper()
-	sIx, sErr := buildIndexWindowed(data, &index{}, validate, false, false)
-	pIx, pErr, ok := buildIndexParallel(data, &index{}, validate)
+	sIx, sErr := buildIndexWindowed(data, &index{}, validate, noBrackets, false)
+	pIx, pErr, ok := buildIndexParallel(data, &index{}, validate, noBrackets)
 	if !ok {
 		if allowDecline {
 			return sErr == nil
@@ -56,6 +63,11 @@ func compareIndexesOpt(t *testing.T, name string, data []byte, validate, allowDe
 			t.Fatalf("%s: serial err %q, parallel err %q", name, sErr, pErr)
 		}
 		return false
+	}
+	if noBrackets {
+		if len(pIx.pos) != 0 || len(pIx.match) != 0 {
+			t.Fatalf("%s: masks-only built %d/%d brackets", name, len(pIx.pos), len(pIx.match))
+		}
 	}
 	if len(sIx.pos) != len(pIx.pos) {
 		t.Fatalf("%s: pos length %d vs %d", name, len(sIx.pos), len(pIx.pos))
@@ -188,7 +200,7 @@ func TestParallelIndexRandom(t *testing.T) {
 func TestParallelDeclines(t *testing.T) {
 	forceParallel(t)
 	all := bytes.Repeat([]byte{'\\'}, 4*chunkBytes)
-	if _, _, ok := buildIndexParallel(all, &index{}, false); ok {
+	if _, _, ok := buildIndexParallel(all, &index{}, false, false); ok {
 		t.Fatal("parallel path accepted a document that is one backslash run")
 	}
 	// And through the public entry point the serial path answers.
@@ -344,4 +356,47 @@ func splitRepeats(data []byte, one int) [][]byte {
 		data = data[one:]
 	}
 	return out
+}
+
+// TestParallelMasksOnly is the differential for Valid's mode: no brackets are
+// built, unbalanced brackets are NOT an index error there -- the grammar walk
+// owns that -- and everything else must still match word for word.
+func TestParallelMasksOnly(t *testing.T) {
+	forceParallel(t)
+	seg := chunkBytes
+	cases := map[string]string{
+		"ordinary":      `[` + strings.Repeat(`{"k":"v","n":[1,2]},`, 3*seg/20) + `1]`,
+		"huge string":   `{` + pad(3*seg) + `"z":1}`,
+		"unbalanced ok": strings.Repeat(`[`, seg) + `1`, // masks-only must NOT error
+		"pretty":        `[` + strings.Repeat("\n\t[ 1 , {\"k\" : \"v\"} ] ,", 9000) + "1]",
+		"ctl in string": `{` + pad(2*seg) + `"k":"a` + "\x01" + `"}`,
+		"bad escape":    `{` + pad(2*seg) + `"k":"a\qb"}`,
+		"unterm string": `{` + pad(2*seg) + `"k":"open`,
+	}
+	for name, doc := range cases {
+		for _, validate := range []bool{false, true} {
+			compareIndexesMode(t, fmt.Sprintf("%s validate=%v", name, validate),
+				[]byte(doc), validate, true, false)
+		}
+	}
+	// And end to end: Valid itself, parallel against forced-serial.
+	rng := rand.New(rand.NewSource(41))
+	atoms := []string{`{"a":1}`, `[1,2]`, `"s"`, `,`, `[`, `]`, ` `, `3`}
+	for trial := 0; trial < 40; trial++ {
+		var b bytes.Buffer
+		b.WriteByte('[')
+		for b.Len() < 100_000+rng.Intn(100_000) {
+			b.WriteString(atoms[rng.Intn(len(atoms))])
+		}
+		b.WriteString(`1]`)
+		doc := b.Bytes()
+		got := Valid(doc)
+		old := parallelMinBytes
+		parallelMinBytes = 1 << 62
+		want := Valid(doc)
+		parallelMinBytes = old
+		if got != want {
+			t.Fatalf("soup %d: parallel Valid %v, serial %v", trial, got, want)
+		}
+	}
 }

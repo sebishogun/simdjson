@@ -50,28 +50,69 @@ func (e *encodeState) marshalParallelSlice(rv reflect.Value) (bool, error) {
 	if e.hint < parallelMarshalMin {
 		return false, nil
 	}
-	workers := e.hint / parallelMarshalPerWork
-	if m := runtime.GOMAXPROCS(0); workers > m {
-		workers = m
-	}
-	if workers > parallelMarshalMaxProc {
-		workers = parallelMarshalMaxProc
-	}
 	n := rv.Len()
-	if workers < 2 || n < 2*workers {
+	if n < 8 {
+		return false, nil
+	}
+	maxw := runtime.GOMAXPROCS(0)
+	if maxw > parallelMarshalMaxProc {
+		maxw = parallelMarshalMaxProc
+	}
+	if maxw < 2 {
 		return false, nil
 	}
 
+	// Element zero is encoded serially into the output first, and its size
+	// decides for the rest. The pooled hint is the WHOLE last output, and
+	// gating on it alone armed the path for every sufficiently-long slice
+	// anywhere under a big document -- canada is thousands of small
+	// coordinate rings under one 2 MB value, and paying a fan-out per ring
+	// cost the floats gate row 21.5%. One element's bytes times the count is
+	// an estimate the slice itself provides, and the work of producing it is
+	// not wasted: the element is already encoded either way.
+	// FOUR elements, not one: element sizes in real documents are skewed, and
+	// a single short first element under-estimated twitter's statuses by half
+	// and disarmed the path that is worth 3.5x there. Four smooths the skew
+	// and their encoding is not wasted -- they are the head of the output
+	// either way.
+	sample := 4
+	if sample > n/2 {
+		sample = n / 2
+	}
+	mark := len(e.buf)
+	e.buf = append(e.buf, '[')
+	for i := 0; i < sample; i++ {
+		if err := e.encodeElem(rv, i); err != nil {
+			return true, err
+		}
+	}
+	est := (len(e.buf) - mark - 1) / sample * (n - sample)
+	workers := est / parallelMarshalPerWork
+	if workers > maxw {
+		workers = maxw
+	}
+	if est < parallelMarshalMin || workers < 2 || n-sample < 2*workers {
+		// The rest goes serially, right here: the element loop for []any, one
+		// stripped sub-encode for a typed slice. Falling back to the caller
+		// instead would re-encode the sampled head.
+		if err := e.encodeRestSerial(rv, sample, n); err != nil {
+			return true, err
+		}
+		e.buf = append(e.buf, ']')
+		return true, nil
+	}
+
 	type result struct {
-		buf []byte // the worker's whole output, brackets included
+		buf []byte
 		st  *encodeState
 		err error
 	}
 	res := make([]result, workers)
-	chunk := (n + workers - 1) / workers
+	rest := n - sample
+	chunk := (rest + workers - 1) / workers
 	var wg sync.WaitGroup
 	for w := 0; w < workers; w++ {
-		lo, hi := w*chunk, min((w+1)*chunk, n)
+		lo, hi := sample+w*chunk, sample+min((w+1)*chunk, rest)
 		if lo >= hi {
 			break
 		}
@@ -84,8 +125,7 @@ func (e *encodeState) marshalParallelSlice(rv reflect.Value) (bool, error) {
 			// The worker state goes back to the pool when this range is done,
 			// and the NEXT Marshal may draw it as its parent. A cold hint
 			// there disarms the gate, so the pool degrades to serial after one
-			// parallel encode -- which is exactly what the first measurement
-			// showed: the arm fired once and never again.
+			// parallel encode.
 			if st.hint < e.hint {
 				st.hint = e.hint
 			}
@@ -103,8 +143,6 @@ func (e *encodeState) marshalParallelSlice(rv reflect.Value) (bool, error) {
 	}
 	wg.Wait()
 
-	// The first failing range by element order is the error the serial encode
-	// would have stopped at; every state goes home whatever happened.
 	var firstErr error
 	for w := range res {
 		if res[w].err != nil && firstErr == nil {
@@ -120,10 +158,7 @@ func (e *encodeState) marshalParallelSlice(rv reflect.Value) (bool, error) {
 		return true, firstErr
 	}
 
-	// Stitch: each worker produced "[elems]", and the join keeps the inner
-	// bytes only. Sizing once keeps the copies from growing the buffer
-	// mid-merge.
-	total := 2
+	total := 1
 	for w := range res {
 		if res[w].st != nil && len(res[w].buf) > 2 {
 			total += len(res[w].buf) - 2 + 1
@@ -135,22 +170,152 @@ func (e *encodeState) marshalParallelSlice(rv reflect.Value) (bool, error) {
 		copy(nb, b)
 		b = nb
 	}
-	b = append(b, '[')
-	first := true
 	for w := range res {
 		if res[w].st == nil {
 			continue
 		}
 		inner := res[w].buf
 		if len(inner) > 2 {
-			if !first {
-				b = append(b, ',')
-			}
-			first = false
+			b = append(b, ',')
 			b = append(b, inner[1:len(inner)-1]...)
 		}
 		encoderPool.Put(res[w].st)
 	}
 	e.buf = append(b, ']')
 	return true, nil
+}
+
+// shardAnyRest is the []any loop's mid-flight decision, called once when
+// four elements are already in the buffer (a trailing comma for the fifth has
+// been written and is rewound here if the shard happens). It reports whether
+// it took over and finished the slice, closing bracket included.
+func (e *encodeState) shardAnyRest(x []any, from, mark int) (bool, error) {
+	est := (len(e.buf) - mark - 1) / from * (len(x) - from)
+	if est < parallelMarshalMin {
+		return false, nil
+	}
+	maxw := runtime.GOMAXPROCS(0)
+	if maxw > parallelMarshalMaxProc {
+		maxw = parallelMarshalMaxProc
+	}
+	workers := est / parallelMarshalPerWork
+	if workers > maxw {
+		workers = maxw
+	}
+	rest := len(x) - from
+	if workers < 2 || rest < 2*workers {
+		return false, nil
+	}
+	// The loop wrote the separator for the element it thought it was about to
+	// encode; the workers' bracket-stripped output starts with its own.
+	e.buf = e.buf[:len(e.buf)-1]
+
+	type result struct {
+		buf []byte
+		st  *encodeState
+		err error
+	}
+	res := make([]result, workers)
+	chunk := (rest + workers - 1) / workers
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		lo, hi := from+w*chunk, from+min((w+1)*chunk, rest)
+		if lo >= hi {
+			break
+		}
+		wg.Add(1)
+		go func(w, lo, hi int) {
+			defer wg.Done()
+			st := encoderPool.Get().(*encodeState)
+			st.opts = e.opts
+			st.buf = st.buf[:0]
+			if st.hint < e.hint {
+				st.hint = e.hint
+			}
+			st.noParallel = true
+			res[w] = result{st: st}
+			res[w].err = st.marshal(x[lo:hi])
+			st.noParallel = false
+			res[w].buf = st.buf
+		}(w, lo, hi)
+	}
+	wg.Wait()
+
+	var firstErr error
+	for w := range res {
+		if res[w].err != nil && firstErr == nil {
+			firstErr = res[w].err
+		}
+	}
+	if firstErr != nil {
+		for w := range res {
+			if res[w].st != nil {
+				encoderPool.Put(res[w].st)
+			}
+		}
+		return true, firstErr
+	}
+	total := 1
+	for w := range res {
+		if res[w].st != nil && len(res[w].buf) > 2 {
+			total += len(res[w].buf) - 2 + 1
+		}
+	}
+	b := e.buf
+	if cap(b)-len(b) < total {
+		nb := make([]byte, len(b), len(b)+total)
+		copy(nb, b)
+		b = nb
+	}
+	for w := range res {
+		if res[w].st == nil {
+			continue
+		}
+		inner := res[w].buf
+		if len(inner) > 2 {
+			b = append(b, ',')
+			b = append(b, inner[1:len(inner)-1]...)
+		}
+		encoderPool.Put(res[w].st)
+	}
+	e.buf = append(b, ']')
+	return true, nil
+}
+
+// encodeElem writes one element of a TYPED slice through its own compiled
+// encoder, separator included when it is not the first -- a one-element
+// bracket-stripped sub-encode, the same trick the merge uses.
+func (e *encodeState) encodeElem(rv reflect.Value, i int) error {
+	return e.encodeRestSerial(rv, i, i+1)
+}
+
+// encodeRestSerial writes elements [lo,n) of a typed slice: one sub-encode of
+// the range through the type's compiled encoder, stripped of its brackets and
+// joined to what the caller already wrote.
+func (e *encodeState) encodeRestSerial(rv reflect.Value, lo, n int) error {
+	if lo >= n {
+		return nil
+	}
+	sub := reflect.New(rv.Type()).Elem()
+	sub.Set(rv.Slice(lo, n))
+	mark := len(e.buf)
+	if err := encoderFor(rv.Type())(e, ptrOf(sub), sub); err != nil {
+		return err
+	}
+	inner := e.buf[mark:]
+	if len(inner) <= 2 {
+		e.buf = e.buf[:mark]
+		return nil
+	}
+	if lo > 0 {
+		// "[elems]" becomes ",elems": the opener turns into the separator and
+		// the closer goes.
+		inner[0] = ','
+		e.buf = e.buf[:len(e.buf)-1]
+		return nil
+	}
+	// "[elems]" becomes "elems": both brackets go.
+	copy(inner, inner[1:])
+	e.buf = e.buf[:len(e.buf)-2]
+	return nil
 }

@@ -243,8 +243,8 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 	// the boundary snap -- runs the serial paths unchanged. Partial mode never
 	// goes parallel: safeEnd and the note mechanism are left-to-right by
 	// definition.
-	if !partial && !noBrackets && len(data) >= parallelMinBytes {
-		if px, err, ok := buildIndexParallel(data, ix, validate); ok {
+	if !partial && len(data) >= parallelMinBytes {
+		if px, err, ok := buildIndexParallel(data, ix, validate, noBrackets); ok {
 			return px, err
 		}
 	}
