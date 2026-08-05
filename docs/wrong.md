@@ -1813,3 +1813,60 @@ forwarding latency on spill slots feeding a call.
 seconds and there is no cost to looking. A counter can tell you that something
 is slow; only the instructions tell you that the compiler put your loop counter
 in memory.
+
+## A sort benchmark that measured a trained branch predictor
+
+sortPairs on 256 keys measured 2,855 ns, against slices.SortFunc's 6,224 on the
+same input. That was used to conclude the radix sort was not the problem, and
+to go looking elsewhere for the map encoder's n=256 deficit.
+
+The benchmark shuffled its input ONCE with a fixed seed and sorted that same
+permutation every iteration. The branch predictor learns a fixed sequence of
+branch outcomes in a few iterations and then gets them all right. Cycling
+through sixty-four permutations instead:
+
+	one permutation     2,810 ns
+	many permutations   7,844 ns
+
+2.8x. A real map walk produces a different order on every call, because Go
+randomises map iteration, so the honest number was always the second one.
+
+**What it was hiding.** Branch misses per element:
+
+	n=64    0.1 misses/elem      647 ns
+	n=256   3.1 misses/elem    7,954 ns
+
+Four times the keys for twelve times the time, where n log n predicts 4.6x,
+while instructions per element rose only 15% across that range. Below about
+sixty-four keys the whole recursion fits the branch history table; above it,
+the three-way partition's branch on a data byte mispredicts about three times
+per element, and at roughly fifteen cycles each that is the entire
+superlinearity.
+
+**The obvious fix is slower.** A counting pass has no data-dependent branch at
+all -- count each byte value, prefix-sum, scatter -- so it was written and
+tried for groups of 96 or more:
+
+	n=256    7,992 -> 12,901    61% SLOWER
+	n=1024  40,034 -> 45,780    14% slower
+
+Because the counting pass costs about 770 operations of FIXED overhead per
+level -- zero a 258-entry counter, prefix-sum it, then scan 256 buckets to find
+the ones worth recursing into -- and it pays that whether the level splits the
+group or not. These keys share an eleven-byte prefix, so most levels split
+nothing at all. The three-way path already handles exactly that case with
+commonPrefixEnd, which finds where a group stops agreeing and jumps straight
+there; the bucket path had no equivalent and paid full price per byte of shared
+prefix.
+
+Reverted. The finding stands and the fix does not: the sort is misprediction
+bound at n >= 256, and a branch-free partition is not enough on its own,
+because the fixed cost of being branch-free exceeds what the mispredictions
+cost until the groups are much larger.
+
+**The rule.** A microbenchmark over randomised data must randomise per
+iteration, or it measures the predictor. This is the second benchmark in this
+file to have measured its own harness rather than the code -- see also the
+cleanRun microbenchmark, which fed the function inputs it never receives.
+BenchmarkSortPredictorTrap in sortmap_test.go now carries both numbers so the
+factor of 2.8 is in the tree and not only in this file.

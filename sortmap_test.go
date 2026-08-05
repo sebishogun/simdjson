@@ -349,3 +349,71 @@ func TestCommonPrefixEndRandom(t *testing.T) {
 		}
 	}
 }
+
+// permSets returns k distinct shufflings of n keys of one shape.
+//
+// A sort benchmark that reuses ONE permutation measures a trained branch
+// predictor, not a sort. See BenchmarkSortPermutations and docs/wrong.md: the
+// same input measured 2,807 ns reusing one permutation and 7,909 ns cycling
+// through sixty-four, a factor of 2.8. A real map walk produces a different
+// order on every call, because Go randomises map iteration.
+func permSets(n, k int) [][]pair[int] {
+	base := make([]pair[int], n)
+	for i := range base {
+		base[i] = pair[int]{k: fmt.Sprintf("field_name_%04d", i), v: i}
+	}
+	rng := rand.New(rand.NewSource(1))
+	out := make([][]pair[int], k)
+	for i := range out {
+		out[i] = append([]pair[int](nil), base...)
+		rng.Shuffle(n, func(a, c int) { out[i][a], out[i][c] = out[i][c], out[i][a] })
+	}
+	return out
+}
+
+// BenchmarkSortPermutations is the honest version, and the copyonly rows are
+// the floor to subtract: the loop has to restore the input each iteration.
+func BenchmarkSortPermutations(b *testing.B) {
+	const k = 64
+	for _, n := range []int{16, 64, 256, 1024} {
+		ps := permSets(n, k)
+		buf := make([]pair[int], n)
+		b.Run(fmt.Sprintf("n=%d/sort", n), func(b *testing.B) {
+			i := 0
+			for b.Loop() {
+				copy(buf, ps[i%k])
+				i++
+				sortPairs(buf)
+			}
+		})
+		b.Run(fmt.Sprintf("n=%d/copyonly", n), func(b *testing.B) {
+			i := 0
+			for b.Loop() {
+				copy(buf, ps[i%k])
+				i++
+			}
+		})
+	}
+}
+
+// One permutation against many, so the trap has a number attached to it in the
+// tree rather than only in docs/wrong.md.
+func BenchmarkSortPredictorTrap(b *testing.B) {
+	const n, k = 256, 64
+	ps := permSets(n, k)
+	buf := make([]pair[int], n)
+	b.Run("one-permutation", func(b *testing.B) {
+		for b.Loop() {
+			copy(buf, ps[0])
+			sortPairs(buf)
+		}
+	})
+	b.Run("many-permutations", func(b *testing.B) {
+		i := 0
+		for b.Loop() {
+			copy(buf, ps[i%k])
+			i++
+			sortPairs(buf)
+		}
+	})
+}
