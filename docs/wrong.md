@@ -1350,6 +1350,32 @@ and this package's own primitives beat both. Which is the actual finding: the
 dispatch overhead is real but smaller than what the primitives buy back, so the
 compiled-closure design is not what is costing anything.
 
+**That last sentence was wrong, and this is the part worth reading.** "The
+primitives beat the floor's primitives" says nothing about dispatch; it says the
+experiment held two things different at once and attributed the difference to
+the wrong one. The floor was rebuilt in the main package so it could call this
+package's own appendInt and appendQuoted, leaving the field sequence being
+straight-line rather than a loop as the only remaining difference:
+
+	hand-written, our primitives   41,394 ns
+	compiled encoder               50,530
+
+The floor is 18% FASTER. Per-field dispatch IS a cost, the first floor could not
+have shown it, and "codegen would not help" did not follow from that run. See
+floor_test.go and task #146.
+
+It is not the encodeFn calls: the leaf set covers string, int64/int, uint64/uint,
+bool and float64, so in this struct only the nested User and the Statuses slice
+reach f.fn -- 101 calls against roughly 2,100 field writes. It is the loop
+itself. Per field: load &fields[i], test f.simple, test omitAll, compute
+unsafe.Add(p, f.offset), switch on f.leaf. Generated code has the offsets and
+key bytes as constants and does none of it.
+
+So the rule below stands, but with a second clause: measuring the floor was the
+right call, and a floor is only a floor if the ONLY thing it changes is the
+thing under test. Two variables in one experiment is how a measurement produces
+a confident wrong answer instead of no answer.
+
 **Where the gap is instead**, from sonic's native/quote.c:
 
 	if (*dn >= nb * MAX_ESCAPED_BYTES) {
