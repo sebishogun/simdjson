@@ -84,3 +84,63 @@ func TestValidateStringsOffWritesThrough(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateStringsSkipsASCII covers the branch reached when exactly one of
+// EscapeHTML and ValidateStrings is set -- the other combinations go through
+// appendQuoted, which the main fuzzer exercises and this one does not.
+//
+// That branch now proves the ASCII prefix before validating, so the strings
+// that matter are the ones where the prefix ends: at a byte above ASCII, at a
+// byte needing an escape, and at neither. Every case is checked against the
+// documented behaviour, which is that invalid UTF-8 becomes U+FFFD.
+func TestValidateStringsSkipsASCII(t *testing.T) {
+	cases := []string{
+		"", "plain ascii", "with \"quote\"", "with\nnewline", "<html>&</html>",
+		"café", "日本語", "🙂",
+		"ascii then \xff",
+		"\xff then ascii",
+		"quote \" then \xff",
+		"\xff then quote \"",
+		"valid \xc3\xa9 then invalid \xff",
+		"\xed\xa0\x80",     // surrogate half
+		"\xf4\x90\x80\x80", // above U+10FFFF
+		"\xc3",             // truncated two-byte
+		"\xe2\x80",         // truncated three-byte
+		"a\xc3",            // truncated after ASCII
+		strings.Repeat("x", 200) + "\xff",
+		strings.Repeat("x", 200) + "é",
+		strings.Repeat("é", 100) + "\xff",
+	}
+	for _, o := range []Options{
+		{ValidateStrings: true},
+		{EscapeHTML: true, ValidateStrings: true},
+		{ValidateStrings: true, SortMapKeys: true},
+	} {
+		for _, in := range cases {
+			got, err := o.Marshal(in)
+			if err != nil {
+				t.Fatalf("%+v %q: %v", o, in, err)
+			}
+			// Round-trip: whatever came out must be valid JSON holding valid
+			// UTF-8, which is the whole point of the option.
+			var back string
+			if err := stdjson.Unmarshal(got, &back); err != nil {
+				t.Fatalf("%+v %q: output %q is not JSON: %v", o, in, got, err)
+			}
+			if !utf8.ValidString(back) {
+				t.Errorf("%+v %q: decoded output is not valid UTF-8: %q", o, in, back)
+			}
+			// And it must agree with encoding/json, which does the same
+			// replacement, whenever HTML escaping matches its default.
+			if o.EscapeHTML {
+				want, err := stdjson.Marshal(in)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(got) != string(want) {
+					t.Errorf("%+v %q:\n got %s\nwant %s", o, in, got, want)
+				}
+			}
+		}
+	}
+}

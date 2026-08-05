@@ -1921,3 +1921,48 @@ loses on short inputs -- but it means the caller's threshold and the kernel's
 are one constant that happens to be written down twice. When they disagree the
 result is not a slow kernel, it is no kernel, and the only place that shows is a
 profile.
+
+## Replacing a vector pass with a scalar one to "skip work"
+
+With exactly one of EscapeHTML and ValidateStrings set, appendQuotedOpts
+validates the whole string before writing it:
+
+	if o.ValidateStrings && !validUTF8String(s) {
+
+which validates pure-ASCII strings too, and those are 95% of the strings in
+twitter.json. appendQuoted -- the branch taken when BOTH options are set -- has
+had a fast path for that since it was written: run plainASCIIRun, and if it
+consumes the string there is nothing to validate. So the fix looked obvious:
+give this branch the same prefix skip.
+
+3 to 4% SLOWER, three interleaved rounds:
+
+	opts=validate   before 52,313-52,864   after 54,207-54,513
+
+Because validUTF8String is VECTOR above 64 bytes -- it calls simd.ValidUTF8 --
+and plainASCIIRun is a scalar byte loop. On a pure-ASCII string the "skip" put a
+scalar pass in front of a vector one that was already nearly free on that input,
+and on a string with an escape early it added the scalar pass and kept the
+validation as well.
+
+The reasoning was sound for appendQuoted and does not transfer, because there
+plainASCIIRun is already being run for its own sake -- it has to find the first
+byte needing an escape -- so the validation skip is free. Here it is not run for
+anything else, and paying for it to avoid a cheaper pass is backwards.
+
+**A number that nearly caused a wrong conclusion.** In the same runs opts=both
+moved 3% the other way, which looks like the change helping. It cannot have:
+both options set takes appendQuoted and never reaches the line that changed.
+That 3% is the code-layout noise floor, on a benchmark the change provably does
+not touch, and it is the reminder that a delta on an untouched path is the
+control -- if the control moves as much as the treatment, neither number means
+anything.
+
+**The rule.** "Skip the work" only pays if the thing doing the skipping is
+cheaper than the thing skipped. Check which of the two is vectorised before
+assuming the guard is free.
+
+TestValidateStringsSkipsASCII stays. That branch had no differential coverage --
+the main marshal fuzzer only reaches appendQuoted -- and the twenty cases here
+cover prefixes ending at a byte above ASCII, at a byte needing an escape, and at
+neither, against encoding/json.
