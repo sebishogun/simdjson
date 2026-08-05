@@ -2195,3 +2195,29 @@ nanoseconds later. The sub-2KB floor stays what the contract prices it at:
 one Doc and one index for a real promise about broken input. A future
 GetPathTrusted with Scan's documented looseness could revisit this; GetPath
 itself cannot.
+
+## The 70ns kernel call that was 8ns: profile flat% lies below ~10ns
+
+The small-document profile showed jsonMasksAVX512 at 17.6% flat -- ~70ns of
+a 395ns decode -- and the manifest showed its guard using thScan=64, tuned
+for one-mask scanners. The story wrote itself: five-predicate entry cost,
+mistuned crossover, route small inputs to the SWAR ref.
+
+The crossover sweep, interleaved, minimum of three, said there is no
+crossover:
+
+	n=64    kernel  5.5ns    ref   59ns
+	n=192   kernel  7.8ns    ref  164ns
+	n=2048  kernel 46.9ns    ref 1692ns
+
+The kernel wins 10-36x at EVERY size. The 70ns was sampling skid: a sub-10ns
+function invoked three million times collects interrupt samples from the
+code around its call site, and its flat share inflates roughly tenfold.
+The profile was not wrong about where the program counter was; it was wrong
+about what that means for a function this small.
+
+The rule joins entry 13's family: below ~10ns per call, pprof flat% is not
+a cost decomposition. Counters (instructions:u, cycles:u) or an interleaved
+microbench of the function alone are the only honest instruments at that
+scale -- the same instruments the 8.3% wall-clock floor already mandates for
+small deltas. thScan stays 64; nothing ships.
