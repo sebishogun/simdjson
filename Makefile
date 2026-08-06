@@ -66,7 +66,7 @@ BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
 .PHONY: bench-run bench-check bench-update bench-agree bench-vs bench-vs-test vet-vs
 
 bench-run: ## Run the gate benchmarks and write the raw output
-	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT)
+	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) -shuffle=on . > $(BENCH_OUT)
 
 bench-v2: ## The stdlib rows under GOEXPERIMENT=jsonv2, the engine Go 1.27 makes default
 	cd bench && GOEXPERIMENT=jsonv2 go test -run '^$$' -bench 'JSONv2Native|/stdlib' -benchtime 30x -count=3 .
@@ -85,8 +85,8 @@ bench-check: bench-run ## Benchmark and fail on anything slower than the baselin
 # that is always available. See docs/wrong.md entries 21 and 23; both times a
 # baseline was nearly recorded from a run something else was using.
 bench-agree: ## Record twice and fail unless the two runs agree
-	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT).1
-	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) . > $(BENCH_OUT).2
+	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) -shuffle=on . > $(BENCH_OUT).1
+	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) -shuffle=on . > $(BENCH_OUT).2
 	cd tools && $(GO) run ./benchcheck -agree -threshold 5 -baseline $(BENCH_OUT).1 $(BENCH_OUT).2
 	@cat $(BENCH_OUT).1 > $(BENCH_OUT)
 	@grep '^Benchmark' $(BENCH_OUT).2 >> $(BENCH_OUT)
