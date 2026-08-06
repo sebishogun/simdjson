@@ -134,11 +134,20 @@ func (g *gen) emitType(named *types.Named) error {
 	// encodeGStatus without ever emitting it. The fixture hid it: a direct
 	// field of the same type emitted what the slice needed.
 	for _, f := range fields {
-		for n := &f; n != nil; n = n.slice {
+		n := &f
+		for n != nil {
 			if n.nested != nil {
 				if err := g.emitType(n.nested); err != nil {
 					return fmt.Errorf("field %s: %w", f.goName, err)
 				}
+			}
+			switch {
+			case n.slice != nil:
+				n = n.slice
+			case n.ptr != nil:
+				n = n.ptr
+			default:
+				n = nil
 			}
 		}
 	}
@@ -164,6 +173,18 @@ func (g *gen) emitType(named *types.Named) error {
 
 func (g *gen) emitValue(expr string, f field) {
 	switch {
+	case f.ptr != nil:
+		fmt.Fprintf(&g.buf, "\tif %s == nil {\n", expr)
+		fmt.Fprintf(&g.buf, "\t\tdst = append(dst, \"null\"...)\n")
+		fmt.Fprintf(&g.buf, "\t} else {\n")
+		if f.ptr.nested != nil {
+			// The pointer IS the address the nested encoder wants.
+			fmt.Fprintf(&g.buf, "\t\tdst = encode%s(dst, unsafe.Pointer(%s), o)\n",
+				f.ptr.nested.Obj().Name(), expr)
+		} else {
+			g.emitValue("(*"+expr+")", *f.ptr)
+		}
+		fmt.Fprintf(&g.buf, "\t}\n")
 	case f.nested != nil:
 		fmt.Fprintf(&g.buf, "\tdst = encode%s(dst, unsafe.Pointer(&%s), o)\n",
 			f.nested.Obj().Name(), expr)
@@ -213,6 +234,7 @@ type field struct {
 	jsonName string
 	basic    types.BasicKind
 	nested   *types.Named
+	ptr      *field
 	slice    *field
 }
 
@@ -288,6 +310,18 @@ func describe(t types.Type) (field, error) {
 			return field{}, fmt.Errorf("slice element: %w", err)
 		}
 		return field{slice: &elem}, nil
+	case *types.Pointer:
+		// nil encodes as null, otherwise the pointee encodes -- which is
+		// encoding/json's rule and lets the generated code hand the pointer
+		// itself to a nested encoder with no copy.
+		elem, err := describe(u.Elem())
+		if err != nil {
+			return field{}, fmt.Errorf("pointer element: %w", err)
+		}
+		if elem.ptr != nil {
+			return field{}, fmt.Errorf("pointer to pointer")
+		}
+		return field{ptr: &elem}, nil
 	default:
 		return field{}, fmt.Errorf("unsupported type %s", t)
 	}

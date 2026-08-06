@@ -10,6 +10,7 @@ import (
 
 func init() {
 	simdjson.RegisterEncoder[SmallPayload](encodeSmallPayload)
+	simdjson.RegisterEncoder[LargePayload](encodeLargePayload)
 }
 
 func encodeSmallPayload(dst []byte, p unsafe.Pointer, o simdjson.Options) []byte {
@@ -33,5 +34,77 @@ func encodeSmallPayload(dst []byte, p unsafe.Pointer, o simdjson.Options) []byte
 	dst = simdjson.AppendInt(dst, int64(v.Tz))
 	dst = append(dst, ",\"V\":"...)
 	dst = simdjson.AppendInt(dst, int64(v.V))
+	return append(dst, '}')
+}
+
+func encodeDSUser(dst []byte, p unsafe.Pointer, o simdjson.Options) []byte {
+	v := (*DSUser)(p)
+	_ = v
+	dst = append(dst, "{\"Username\":"...)
+	dst = simdjson.AppendString(dst, v.Username, o)
+	return append(dst, '}')
+}
+
+func encodeDSTopic(dst []byte, p unsafe.Pointer, o simdjson.Options) []byte {
+	v := (*DSTopic)(p)
+	_ = v
+	dst = append(dst, "{\"Id\":"...)
+	dst = simdjson.AppendInt(dst, int64(v.Id))
+	dst = append(dst, ",\"Slug\":"...)
+	dst = simdjson.AppendString(dst, v.Slug, o)
+	return append(dst, '}')
+}
+
+func encodeDSTopicsList(dst []byte, p unsafe.Pointer, o simdjson.Options) []byte {
+	v := (*DSTopicsList)(p)
+	_ = v
+	dst = append(dst, "{\"Topics\":"...)
+	if v.Topics == nil {
+		dst = append(dst, "null"...)
+	} else {
+		dst = append(dst, '[')
+		for i := range v.Topics {
+			if i > 0 {
+				dst = append(dst, ',')
+			}
+			if v.Topics[i] == nil {
+				dst = append(dst, "null"...)
+			} else {
+				dst = encodeDSTopic(dst, unsafe.Pointer(v.Topics[i]), o)
+			}
+		}
+		dst = append(dst, ']')
+	}
+	dst = append(dst, ",\"MoreTopicsUrl\":"...)
+	dst = simdjson.AppendString(dst, v.MoreTopicsUrl, o)
+	return append(dst, '}')
+}
+
+func encodeLargePayload(dst []byte, p unsafe.Pointer, o simdjson.Options) []byte {
+	v := (*LargePayload)(p)
+	_ = v
+	dst = append(dst, "{\"Users\":"...)
+	if v.Users == nil {
+		dst = append(dst, "null"...)
+	} else {
+		dst = append(dst, '[')
+		for i := range v.Users {
+			if i > 0 {
+				dst = append(dst, ',')
+			}
+			if v.Users[i] == nil {
+				dst = append(dst, "null"...)
+			} else {
+				dst = encodeDSUser(dst, unsafe.Pointer(v.Users[i]), o)
+			}
+		}
+		dst = append(dst, ']')
+	}
+	dst = append(dst, ",\"Topics\":"...)
+	if v.Topics == nil {
+		dst = append(dst, "null"...)
+	} else {
+		dst = encodeDSTopicsList(dst, unsafe.Pointer(v.Topics), o)
+	}
 	return append(dst, '}')
 }
