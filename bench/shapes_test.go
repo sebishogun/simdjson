@@ -14,7 +14,8 @@ import (
 )
 
 var shapeNames = []string{"numbers", "github_events", "apache_builds",
-	"gsoc-2018", "instruments", "update-center", "mesh", "mesh.pretty", "marine_ik"}
+	"gsoc-2018", "instruments", "update-center", "mesh", "mesh.pretty", "marine_ik",
+	"twitter", "citm", "canada"}
 
 func BenchmarkShapeValid(b *testing.B) {
 	for _, name := range shapeNames {

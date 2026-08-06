@@ -288,10 +288,16 @@ func (v Value) typeErr(t reflect.Type) error {
 }
 
 // str returns a string value's contents and whether it needed unescaping.
+//
+// Through the document's string buffer, exactly as the compiled decoders'
+// decString goes -- this used to call unquote, an allocation per string,
+// and on gsoc-2018 decoded into `any` that was 72% of every byte the
+// decode allocated. decodeStr's comment tells the same story about the
+// compiled path's first version; the reflect and any paths just took
+// eleven months longer to hear it.
 func (v Value) str() (string, bool) {
-	raw := v.d.data[v.start:v.end]
-	s, _ := unquote(raw)
-	return s, len(s) != len(raw)-2
+	s := v.d.decodeStr(v.start, v.end)
+	return s, len(s) != v.end-v.start-2
 }
 
 func (v Value) decodeInt(rv reflect.Value) error {
@@ -400,7 +406,9 @@ func (v Value) eachField(fn func(string, Value) error) error {
 				return err
 			}
 		}
-		key, _ := unquote(d.data[i:kend])
+		// Interned like every other decoded string; this was one allocation
+		// per key of every object decoded into an any or a map.
+		key := d.decodeStr(i, kend)
 		i = d.skip(kend)
 		if i >= v.end || d.data[i] != ':' {
 			return errAt("expected ':' after object key", i)
