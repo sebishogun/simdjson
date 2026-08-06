@@ -174,6 +174,21 @@ instructions:
 | citm | 1.18 ms | **0.97 ms** | 1.60 ms | 7.8 ms |
 | 2 MB `[]float64` | **1.97 ms** | 5.2 ms | 2.10 ms | 10.8 ms |
 
+The memory column, same rows (`-benchmem`, minimum of two):
+
+| bytes / allocations per op | this | goccy | sonic | encoding/json |
+|---|---|---|---|---|
+| twitter | **177 KB / 14** | 701 KB / 103 | 753 KB / 182 | 194 KB / 1,410 |
+| canada | **1.0 MB / 966** | 4.2 MB / 56,538 | 4.9 MB / 2,588 | 3.1 MB / 3,095 |
+| citm | **276 KB / 4,871** | 2.0 MB / 12,565 | 2.2 MB / 15,344 | 373 KB / 6,430 |
+| 2 MB `[]float64` | 2.1 MB / **31** | 4.2 MB / 107,555 | 3.6 MB / 62 | 4.1 MB / 31 |
+
+Interned strings, pooled scratch and one-walk numbers add up: fourteen
+allocations decode twitter into structs. goccy's citm speed lead costs 7.4×
+the memory and 2.6× the allocations; on the `any` tables the same holds —
+ours runs every shape at 40–70% of sonic's bytes and a quarter to a half of
+its allocations.
+
 canada is level with sonic — 1.1% apart, inside the noise floor — after the
 compiled-array, extent-float and one-pass work.
 
