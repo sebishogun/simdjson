@@ -52,6 +52,17 @@ range-over-func: `All`, `Values`, `Keys`, `Members`.
 `GetPath` and `GetMany` read one or several dotted paths straight from a byte
 slice.
 
+On gjson's own published fixture and rotated paths
+(bench/getpath_rows_test.go), the trade is: gjson and jsonparser answer a
+one-shot path on the 1.1 KB document in ~145 ns where `GetPath` costs 518 —
+they scan forward and stop, this indexes first, and `GetPath`'s documented
+promise (a document that does not parse yields Invalid) is what that index
+buys. From the SECOND query on the same document, `Parse` + `Doc.Path` runs
+each path at 143 ns — level with gjson's every-query price — and on
+documents twitter-sized and up the index wins from the first query (83 µs
+vs 105, further down). One-shot small-document gets are gjson's; everything
+repeated or sizable is ours.
+
 ### `encoding/json` drop-in
 
 `Marshal`, `MarshalIndent`, `Unmarshal`, `Valid`, `Compact`, `Indent`,
