@@ -1084,6 +1084,7 @@ func encodeGeneralField(e *encodeState, f *encField, t reflect.Type, p unsafe.Po
 
 func compileStructEncoder(t reflect.Type) encodeFn {
 	var fields []encField
+	var dom []domField
 	var walk func(reflect.Type, []int, uintptr, bool, int)
 	walk = func(st reflect.Type, index []int, off uintptr, viaPtr bool, depth int) {
 		if depth > 10 {
@@ -1119,6 +1120,8 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 			key = append(key, '{')
 			key = appendQuoted(key[:0], name)
 			key = append(key, ':')
+			dom = append(dom, domField{name: name, depth: depth,
+				tagged: tag != "" && name != "", ord: len(fields)})
 			fields = append(fields, encField{
 				key:       key,
 				offset:    off + sf.Offset,
@@ -1135,6 +1138,17 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		}
 	}
 	walk(t, nil, 0, false, 0)
+	// Embedded-field dominance: drop what stdlib's rules suppress; see
+	// fielddominance.go. Survivors keep declaration order.
+	if keep := dominantOrds(dom); len(keep) < len(fields) {
+		out := fields[:0]
+		for i, f := range fields {
+			if keep[i] {
+				out = append(out, f)
+			}
+		}
+		fields = out
+	}
 	for i := range fields {
 		f := &fields[i]
 		f.simple = !f.ptrPath && !f.omitEmpty && !f.omitZero && !f.quoted && f.leaf != leafNone
