@@ -76,6 +76,11 @@ const structSet = "{}[]"
 type index struct {
 	pos []int32 // bracket positions, ascending, outside strings
 
+	// stage1 is the JSONStage1 kernel's out buffer: inStr, wsw and the
+	// escape-verification targets, three nw-word regions in one allocation.
+	// When the kernel path runs, inStr and wsw below are re-pointed into it.
+	stage1 []uint64
+
 	// inStr is one bit per byte of the document, set where that byte is inside
 	// a string literal. The opening quote of a string is set and the closing
 	// quote is not, which is what makes finding the end of a string the search
@@ -471,6 +476,44 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 		w0, prevEsc, strCarry, total = indexWordsPlain(ix, nw, noBrackets)
 		goto tail
 	}
+	// The fused kernel does this whole pass -- escapes, quote parity via
+	// carry-less multiply, in-string mask, both counts, the control check,
+	// and the escape worklist -- and the scalar loop below stays for the
+	// partial mode, whose error notes it does not speak.
+	if !partial {
+		if cap(ix.stage1) < 3*nw {
+			ix.stage1 = make([]uint64, 3*nw)
+		}
+		s1 := ix.stage1[:3*nw]
+		var carr [3]uint64
+		res := [3]int64{0, 0, -1}
+		simd.JSONStage1(s1, ix.masks[:5*nw*8], nw, carr[:], res[:])
+		ix.inStr = s1[0:nw:nw]
+		ix.wsw = s1[nw : 2*nw : 2*nw]
+		if res[2] >= 0 {
+			return nil, errSyntax("control character in string")
+		}
+		for w, t := range s1[2*nw : 3*nw] {
+			if t != 0 {
+				if err := ix.checkEscapes(data, w*64, t, false); err != nil {
+					return nil, err
+				}
+			}
+		}
+		if carr[2] != 0 {
+			return nil, errSyntax("string ends in a backslash")
+		}
+		wsCount = int(res[1])
+		ix.noWS = wsCount == 0
+		ix.wsCount = wsCount
+		if carr[1] != 0 {
+			return nil, errAt("unterminated string", len(data)-1)
+		}
+		if !noBrackets {
+			total = int(res[0])
+		}
+		goto emit
+	}
 	// The mask slices, hoisted. checkEscapes and note are CALLS inside this
 	// loop, and every call boundary made the compiler re-derive each
 	// ix.field slice header from the heap object -- the disassembly showed
@@ -627,6 +670,7 @@ tail:
 		return nil, errAt("unterminated string", len(data)-1)
 	}
 
+emit:
 	if noBrackets {
 		ix.pos, ix.match = ix.pos[:0], ix.match[:0]
 		return ix, nil
