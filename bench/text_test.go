@@ -11,7 +11,10 @@ import (
 )
 
 func BenchmarkTextOps(b *testing.B) {
-	for _, name := range []string{"twitter", "citm", "canada"} {
+	// The full shape corpus: Compact and Indent had only ever been measured
+	// on the three classics, and five of this session's wins came from
+	// shapes no table had measured.
+	for _, name := range shapeNames {
 		src := loadCorpus(b, name)
 		b.Run(name+"/Valid/ours", func(b *testing.B) {
 			b.SetBytes(int64(len(src)))

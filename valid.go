@@ -212,18 +212,21 @@ func writeIndent(dst *bytes.Buffer, src []byte, ix *index, prefix, indent string
 	pad := make([]byte, 0, 1+len(prefix)+16*len(indent))
 	pad = append(append(pad, '\n'), prefix...)
 	head := len(pad)
-	grow := func(depth int) {
-		for (len(pad)-head)/max(len(indent), 1) < depth && len(indent) > 0 {
-			pad = append(pad, indent...)
-		}
-	}
+	// Everything is appended to a local buffer and written to dst once at
+	// the end. The loop used to go through dst's methods a call per comma,
+	// and on a document of two-digit numbers -- mesh is millions of them --
+	// the capacity checks and interface calls were 57% of the operation.
+	// Indented output outgrows its input, so the opening bet is half again.
+	out := make([]byte, 0, end+end/2+64)
 	newline := func(depth int) {
 		if len(indent) == 0 {
-			dst.Write(pad[:head])
+			out = append(out, pad[:head]...)
 			return
 		}
-		grow(depth)
-		dst.Write(pad[:head+depth*len(indent)])
+		for (len(pad)-head)/max(len(indent), 1) < depth {
+			pad = append(pad, indent...)
+		}
+		out = append(out, pad[:head+depth*len(indent)]...)
 	}
 
 	depth := 0
@@ -241,7 +244,7 @@ func writeIndent(dst *bytes.Buffer, src []byte, ix *index, prefix, indent string
 				pending = false
 			}
 			j := stringRunEnd(ix, i, end)
-			dst.Write(src[i:j])
+			out = append(out, src[i:j]...)
 			i = j
 			continue
 		}
@@ -261,7 +264,7 @@ func writeIndent(dst *bytes.Buffer, src []byte, ix *index, prefix, indent string
 			}
 			depth++
 			pending = true
-			dst.WriteByte(c)
+			out = append(out, c)
 		case '}', ']':
 			depth--
 			if pending {
@@ -269,13 +272,12 @@ func writeIndent(dst *bytes.Buffer, src []byte, ix *index, prefix, indent string
 			} else {
 				newline(depth)
 			}
-			dst.WriteByte(c)
+			out = append(out, c)
 		case ',':
-			dst.WriteByte(c)
+			out = append(out, c)
 			newline(depth)
 		case ':':
-			dst.WriteByte(c)
-			dst.WriteByte(' ')
+			out = append(out, c, ' ')
 		default:
 			if pending {
 				newline(depth)
@@ -288,11 +290,12 @@ func writeIndent(dst *bytes.Buffer, src []byte, ix *index, prefix, indent string
 			for j < end && !indentBreak[src[j]] {
 				j++
 			}
-			dst.Write(src[i-1 : j])
+			out = append(out, src[i-1:j]...)
 			i = j
 		}
 	}
-	dst.Write(src[end:])
+	out = append(out, src[end:]...)
+	dst.Write(out)
 }
 
 // indentBreak marks the bytes that end a run of untouched text: the structural
