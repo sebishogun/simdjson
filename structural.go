@@ -421,7 +421,7 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 	// survives, the second writes it. Counting first is what lets the second
 	// pass write by index into an exactly-sized array instead of appending —
 	// no capacity check per position, and no growth.
-	var prevEsc, strCarry, anyWS, prevLead uint64
+	var prevEsc, strCarry, prevLead uint64
 	wsCount := 0
 	total := 0
 	// Two words at a time. The six shift-XOR steps below are a twelve-operation
@@ -456,77 +456,85 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 		w0, prevEsc, strCarry, total = indexWordsPlain(ix, nw, noBrackets)
 		goto tail
 	}
-	for ; w0+2 <= nw; w0 += 2 {
-		off := w0 * 8
-		bs0 := binary.LittleEndian.Uint64(ix.esc[off:])
-		bs1 := binary.LittleEndian.Uint64(ix.esc[off+8:])
-		e0 := escapedMask(bs0, &prevEsc)
-		e1 := escapedMask(bs1, &prevEsc)
-		x0 := binary.LittleEndian.Uint64(ix.quote[off:]) &^ e0
-		x1 := binary.LittleEndian.Uint64(ix.quote[off+8:]) &^ e1
-		x0 ^= x0 << 1
-		x1 ^= x1 << 1
-		x0 ^= x0 << 2
-		x1 ^= x1 << 2
-		x0 ^= x0 << 4
-		x1 ^= x1 << 4
-		x0 ^= x0 << 8
-		x1 ^= x1 << 8
-		x0 ^= x0 << 16
-		x1 ^= x1 << 16
-		x0 ^= x0 << 32
-		x1 ^= x1 << 32
-		in0 := x0 ^ strCarry
-		in1 := x1 ^ uint64(int64(in0)>>63)
-		strCarry = uint64(int64(in1) >> 63)
-		ix.inStr[w0], ix.inStr[w0+1] = in0, in1
+	// The mask slices, hoisted. checkEscapes and note are CALLS inside this
+	// loop, and every call boundary made the compiler re-derive each
+	// ix.field slice header from the heap object -- the disassembly showed
+	// 149 stack references in a 518-instruction loop body, accumulators and
+	// headers round-tripping through a 464-byte frame. Locals cannot be
+	// invalidated by a call. Same idiom as compileStruct's data hoist.
+	{
+		mEsc, mQuote, mStructural, mCtl, mWs := ix.esc, ix.quote, ix.structural, ix.ctl, ix.ws
+		mInStr, mWsw := ix.inStr, ix.wsw
+		for ; w0+2 <= nw; w0 += 2 {
+			off := w0 * 8
+			bs0 := binary.LittleEndian.Uint64(mEsc[off:])
+			bs1 := binary.LittleEndian.Uint64(mEsc[off+8:])
+			e0 := escapedMask(bs0, &prevEsc)
+			e1 := escapedMask(bs1, &prevEsc)
+			x0 := binary.LittleEndian.Uint64(mQuote[off:]) &^ e0
+			x1 := binary.LittleEndian.Uint64(mQuote[off+8:]) &^ e1
+			x0 ^= x0 << 1
+			x1 ^= x1 << 1
+			x0 ^= x0 << 2
+			x1 ^= x1 << 2
+			x0 ^= x0 << 4
+			x1 ^= x1 << 4
+			x0 ^= x0 << 8
+			x1 ^= x1 << 8
+			x0 ^= x0 << 16
+			x1 ^= x1 << 16
+			x0 ^= x0 << 32
+			x1 ^= x1 << 32
+			in0 := x0 ^ strCarry
+			in1 := x1 ^ uint64(int64(in0)>>63)
+			strCarry = uint64(int64(in1) >> 63)
+			mInStr[w0], mInStr[w0+1] = in0, in1
 
-		if !noBrackets {
-			total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off:]) &^ in0)
-			total += bits.OnesCount64(binary.LittleEndian.Uint64(ix.structural[off+8:]) &^ in1)
-		}
-		// The string checks ride along here rather than in a pass of their own.
-		// They need the escape mask and the in-string mask, and both are in
-		// registers at this point — a separate pass recomputed escapedMask for
-		// every word of the document to get back what this loop had already
-		// worked out.
-		if c := binary.LittleEndian.Uint64(ix.ctl[off:]) & in0; c != 0 {
-			if !partial {
-				return nil, errSyntax("control character in string")
+			if !noBrackets {
+				total += bits.OnesCount64(binary.LittleEndian.Uint64(mStructural[off:]) &^ in0)
+				total += bits.OnesCount64(binary.LittleEndian.Uint64(mStructural[off+8:]) &^ in1)
 			}
-			ix.note(w0*64+bits.TrailingZeros64(c), "control character in string")
-		}
-		wsw0 := binary.LittleEndian.Uint64(ix.ws[off:])
-		ix.wsw[w0] = wsw0
-		outWS0 := wsw0 &^ in0
-		anyWS |= outWS0
-		wsCount += bits.OnesCount64(outWS0)
-		leaders0 := bs0 & in0 &^ e0
-		target0 := leaders0<<1 | prevLead
-		prevLead = leaders0 >> 63
-		if target0 != 0 {
-			if err := ix.checkEscapes(data, w0*64, target0, partial); err != nil {
-				return nil, err
+			// The string checks ride along here rather than in a pass of their own.
+			// They need the escape mask and the in-string mask, and both are in
+			// registers at this point — a separate pass recomputed escapedMask for
+			// every word of the document to get back what this loop had already
+			// worked out.
+			if c := binary.LittleEndian.Uint64(mCtl[off:]) & in0; c != 0 {
+				if !partial {
+					return nil, errSyntax("control character in string")
+				}
+				ix.note(w0*64+bits.TrailingZeros64(c), "control character in string")
 			}
-		}
+			wsw0 := binary.LittleEndian.Uint64(mWs[off:])
+			mWsw[w0] = wsw0
+			outWS0 := wsw0 &^ in0
+			wsCount += bits.OnesCount64(outWS0)
+			leaders0 := bs0 & in0 &^ e0
+			target0 := leaders0<<1 | prevLead
+			prevLead = leaders0 >> 63
+			if target0 != 0 {
+				if err := ix.checkEscapes(data, w0*64, target0, partial); err != nil {
+					return nil, err
+				}
+			}
 
-		if c := binary.LittleEndian.Uint64(ix.ctl[off+8:]) & in1; c != 0 {
-			if !partial {
-				return nil, errSyntax("control character in string")
+			if c := binary.LittleEndian.Uint64(mCtl[off+8:]) & in1; c != 0 {
+				if !partial {
+					return nil, errSyntax("control character in string")
+				}
+				ix.note((w0+1)*64+bits.TrailingZeros64(c), "control character in string")
 			}
-			ix.note((w0+1)*64+bits.TrailingZeros64(c), "control character in string")
-		}
-		wsw1 := binary.LittleEndian.Uint64(ix.ws[off+8:])
-		ix.wsw[w0+1] = wsw1
-		outWS1 := wsw1 &^ in1
-		anyWS |= outWS1
-		wsCount += bits.OnesCount64(outWS1)
-		leaders1 := bs1 & in1 &^ e1
-		target1 := leaders1<<1 | prevLead
-		prevLead = leaders1 >> 63
-		if target1 != 0 {
-			if err := ix.checkEscapes(data, (w0+1)*64, target1, partial); err != nil {
-				return nil, err
+			wsw1 := binary.LittleEndian.Uint64(mWs[off+8:])
+			mWsw[w0+1] = wsw1
+			outWS1 := wsw1 &^ in1
+			wsCount += bits.OnesCount64(outWS1)
+			leaders1 := bs1 & in1 &^ e1
+			target1 := leaders1<<1 | prevLead
+			prevLead = leaders1 >> 63
+			if target1 != 0 {
+				if err := ix.checkEscapes(data, (w0+1)*64, target1, partial); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -579,7 +587,6 @@ tail:
 		wsw := binary.LittleEndian.Uint64(ix.ws[off:])
 		ix.wsw[w] = wsw
 		outWS := wsw &^ in
-		anyWS |= outWS
 		wsCount += bits.OnesCount64(outWS)
 
 		leaders := bs & in &^ escaped
@@ -595,7 +602,7 @@ tail:
 		if prevLead != 0 && !partial {
 			return nil, errSyntax("string ends in a backslash")
 		}
-		ix.noWS = anyWS == 0
+		ix.noWS = wsCount == 0
 		ix.wsCount = wsCount
 	}
 	if strCarry != 0 && !partial {
@@ -750,7 +757,7 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 	pos, match := ix.pos[:0], ix.match[:0]
 	stack := ix.stack[:0]
 
-	var prevEsc, strCarry, anyWS, prevLead uint64
+	var prevEsc, strCarry, prevLead uint64
 	wsCount := 0
 	for base := 0; base < len(data); base += win {
 		end := base + win
@@ -823,7 +830,6 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 				wsw := binary.LittleEndian.Uint64(ix.ws[off:])
 				ix.wsw[wbase+w] = wsw
 				outWS := wsw &^ in
-				anyWS |= outWS
 				wsCount += bits.OnesCount64(outWS)
 
 				// The escaped bytes are looked at directly rather than masked
@@ -919,7 +925,7 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 		if prevLead != 0 {
 			return nil, errSyntax("string ends in a backslash")
 		}
-		ix.noWS = anyWS == 0
+		ix.noWS = wsCount == 0
 		ix.wsCount = wsCount
 	}
 	if len(stack) != 0 {
