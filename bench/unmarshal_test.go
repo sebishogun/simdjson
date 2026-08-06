@@ -11,8 +11,10 @@ import (
 )
 
 // Unmarshal into map[string]any, which every library supports identically.
+// The full shape corpus, so the README's any-decode table is reproducible
+// from a named benchmark rather than a one-off run.
 func BenchmarkUnmarshalAny(b *testing.B) {
-	for _, name := range corpus {
+	for _, name := range shapeNames {
 		data := loadCorpus(b, name)
 		b.Run(fmt.Sprintf("%s/ours", name), func(b *testing.B) {
 			b.SetBytes(int64(len(data)))

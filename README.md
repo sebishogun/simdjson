@@ -263,37 +263,45 @@ per box (the float payloads live in a document slab, like decoded strings):
 
 | into `any`, MB/s | ours | sonic | goccy | stdlib |
 |---|---|---|---|---|
-| twitter | **548** | 536 | 371 | 188 |
-| citm | **696** | 643 | 433 | 203 |
-| canada | 363 | 357 | 178 | 151 |
-| numbers | 477 | 480 | 190 | 159 |
-| github_events | 568 | **621** | 466 | 201 |
-| apache_builds | 526 | 549 | 433 | 197 |
-| gsoc-2018 | 1,371 | **1,514** | 892 | 273 |
-| instruments | 472 | 485 | 308 | 172 |
-| update-center | **373** | 347 | 281 | 165 |
-| mesh | 344 | **377** | 149 | 131 |
-| mesh.pretty | **744** | 681 | 299 | 186 |
-| marine_ik | 328 | 352 | 156 | 127 |
+| twitter | 554 | **683** | 354 | 188 |
+| citm | 729 | 735 | 418 | 203 |
+| canada | 361 | 351 | 161 | 152 |
+| numbers | 508 | 516 | 198 | 153 |
+| github_events | 619 | **827** | 459 | 195 |
+| apache_builds | 525 | **749** | 428 | 186 |
+| gsoc-2018 | 1,399 | **2,080** | 880 | 271 |
+| instruments | 479 | **557** | 297 | 173 |
+| update-center | 348 | **410** | 274 | 159 |
+| mesh | 350 | 371 | 147 | 130 |
+| mesh.pretty | **743** | 652 | 299 | 186 |
+| marine_ik | 334 | 347 | 148 | 127 |
 
 Bold marks a lead past the 8.3% noise floor; unmarked cells are
-statistically level. sonic keeps three shapes by 9–10%; gsoc-2018's share
-is the index build, which is the stage-one kernel's problem to solve.
-goccy trails this entire family.
+statistically level. These numbers are against sonic v1.15.2, whose
+any-decode improved substantially over the v1.13 line the earlier revision
+of this table was measured against: it now holds six shapes — the string-
+and object-heavy ones — by 9% to 49%, this package holds mesh.pretty, and
+five are level. Decoding into `any` is the one family where sonic's
+arena-allocated tree pays off hardest; if it is your hot path, measure
+both. goccy and stdlib trail throughout.
 
 **Text in, text out**, against `encoding/json`, MB/s:
 
 | | twitter | citm | canada | vs stdlib |
 |---|---|---|---|---|
-| `Valid` | 3,954 | 4,326 | 2,026 | **4.0–8.0×** |
-| `Compact` | 1,457 | 1,895 | 1,702 | **3.9–5.2×** |
-| `Indent` | 1,046 | 1,074 | 612 | **2.2–3.1×** |
+| `Valid` | 4,602 | 4,883 | 2,619 | **4.7–9.6×** |
+| `Compact` | 1,531 | 2,128 | 2,241 | **4.3–5.7×** |
+| `Indent` | 1,117 | 1,128 | 670 | **2.4–3.3×** |
 
-`Valid` is 15–24× goccy's, and leads sonic's on all three corpora — 1.11× on
-twitter, 1.12× on citm, 1.11× on canada (two passes of five, best of the
-minima, same process). canada — 2.25 MB of floating-point numbers and 24 bytes
-of whitespace — is the closest, because it is the shape an index gains least
-from; the number validator's SWAR digit runs are what closed it.
+`Valid` leads sonic on eleven of the twelve corpus shapes — 1.27× on twitter,
+1.26× on citm, 1.15× on canada, up to 1.7× on the small-document shapes
+(200 iterations, minimum of two passes, same process). The one exception is
+gsoc-2018, 3.3 MB of long escape-free strings, where sonic holds 1.46×: the
+index pays per byte and the strings are bytes it validates that sonic's
+skip-oriented scan does not touch. The stage-one kernel (quote parity by
+carry-less multiply, `simd` v1.11.0) took a 1.7× deficit to that; the string
+walk that remains is `validTokens` and `checkEscapes`, measured at 29% and
+18% of the operation.
 
 **Under concurrency** — aggregate throughput, every goroutine decoding its
 own twitter into its own struct (the many-requests server shape;
