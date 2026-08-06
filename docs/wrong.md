@@ -2245,3 +2245,30 @@ architecture unless that wall falls, and three entries now say what
 falling would take. The medium and large fixtures' gaps are the same wall
 at larger n. pprof was not consulted this time (see the entry above on
 skid); every number here is instructions retired.
+
+## Splitting the ride-alongs out of the chain loop, with the spills as motive
+
+The disassembly that found the 464-byte frame made the split look
+overdue: run the chain in the plain loop even when validating, give the
+ride-alongs a tight pass of their own, recompute escapedMask there. The
+fold's own comment justified itself with "both are in registers at this
+point," and the frame said they were not.
+
+	gsoc-2018 index, instructions, interleaved, three rounds:
+	fused (with hoist + anyWS fold)   13,573k
+	split                             15,381k    +13.3%, cycles +16%
+
+The fold survives its broken premise. Recomputing escapedMask -- a real
+call per word -- plus re-loading esc and inStr and paying a second loop's
+overhead costs more than the spill traffic it removes. The hoist and the
+accumulator fold were the right size of fix; the restructure was not.
+Second time this file's own design commentary has been re-litigated with
+counters and won.
+
+What remains for the validated index is not a Go-shape question. The
+whole word loop -- prefix-XOR parity, carries, ride-alongs, 13.5M
+instructions on gsoc -- is scalar Go against C++ simdjson's stage 1,
+which does quote parity with carry-less multiply inside the vector pass.
+The library's own architecture (C kernels, committed assembly) can do the
+same: a stage-one kernel is the mechanism that changes this number, and
+it changes it for every operation that builds an index.
