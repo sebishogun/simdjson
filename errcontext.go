@@ -151,3 +151,82 @@ func (d *Doc) takeSaved(err error) error {
 	}
 	return err
 }
+
+// quotable reports whether a ,string tag can apply to this field type:
+// bool, integer, float, string and json.Number, reached through any number
+// of pointers, and never a type that implements its own unmarshaling --
+// encoding/json ignores the option everywhere else (issue 9812).
+func quotable(t reflect.Type) bool {
+	if implementsUnmarshaler(t) || reflect.PointerTo(t).Implements(textUnmarshalerType) {
+		return false
+	}
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t == numberRType {
+		return true
+	}
+	switch t.Kind() {
+	case reflect.Bool, reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
+		reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		return true
+	}
+	return false
+}
+
+// numberFailPos re-walks a failed number token byte by byte and returns the
+// index of the character that broke the grammar. Cold: only error paths call
+// it; the hot scanner stays exactly as laid out.
+func numberFailPos(b []byte, i int) int {
+	j := i
+	if j < len(b) && b[j] == '-' {
+		j++
+	}
+	switch {
+	case j >= len(b):
+		return j
+	case b[j] == '0':
+		j++
+	case b[j] >= '1' && b[j] <= '9':
+		for j < len(b) && b[j] >= '0' && b[j] <= '9' {
+			j++
+		}
+	default:
+		return j
+	}
+	if j < len(b) && b[j] == '.' {
+		j++
+		if j >= len(b) || b[j] < '0' || b[j] > '9' {
+			return j
+		}
+		for j < len(b) && b[j] >= '0' && b[j] <= '9' {
+			j++
+		}
+	}
+	if j < len(b) && (b[j] == 'e' || b[j] == 'E') {
+		j++
+		if j < len(b) && (b[j] == '+' || b[j] == '-') {
+			j++
+		}
+		if j >= len(b) || b[j] < '0' || b[j] > '9' {
+			return j
+		}
+		for j < len(b) && b[j] >= '0' && b[j] <= '9' {
+			j++
+		}
+	}
+	return j
+}
+
+// litFailPos is numberFailPos for literals: the first byte where the token
+// stops matching the keyword.
+func litFailPos(b []byte, i int, want string) int {
+	j := i
+	for j < len(b) && j-i < len(want) && b[j] == want[j-i] {
+		j++
+	}
+	return j
+}

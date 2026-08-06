@@ -187,10 +187,10 @@ func (v Value) decode(rv reflect.Value) error {
 			}
 			return clearStructCtx(u.UnmarshalText([]byte(s)))
 		}
-	} else if v.kind == Object || v.kind == Array {
-		// A container into a TextUnmarshaler type is reported against the
-		// receiver, *T -- stdlib's indirect() has already taken the address
-		// by the time its array()/object() raise the mismatch.
+	} else if v.kind != Null {
+		// Any non-string value into a TextUnmarshaler type is reported
+		// against the receiver, *T -- stdlib's indirect() has already taken
+		// the address by the time the mismatch is raised.
 		if t := rv.Type(); t.Kind() != reflect.Pointer &&
 			reflect.PointerTo(t).Implements(textUnmarshalerType) &&
 			!implementsUnmarshaler(t) {
@@ -685,6 +685,10 @@ func (v Value) decodeStruct(rv reflect.Value) error {
 				if fv.Kind() == reflect.Pointer {
 					if fv.IsNil() {
 						if !fv.CanSet() {
+							// An embedded pointer to an unexported type
+							// cannot be allocated from here; stdlib saves
+							// this exact complaint and keeps walking.
+							d.saveErr(fmt.Errorf("json: cannot set embedded pointer to unexported struct: %v", fv.Type().Elem()))
 							fv = reflect.Value{}
 							break
 						}
@@ -746,6 +750,14 @@ func decodeQuoted(v Value, rv reflect.Value) error {
 	if s == "null" {
 		return nil
 	}
+	// Through pointers, allocating as needed -- a *int with ,string takes
+	// the quoted number into its pointee.
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			rv.Set(reflect.New(rv.Type().Elem()))
+		}
+		rv = rv.Elem()
+	}
 	bad := func() error {
 		return fmt.Errorf("json: invalid use of ,string struct tag, "+
 			"trying to unmarshal %q into %s", s, rv.Type())
@@ -756,8 +768,7 @@ func decodeQuoted(v Value, rv reflect.Value) error {
 	}
 	if rv.Type() == numberRType {
 		if !isValidNumber(s) {
-			return fmt.Errorf("json: invalid number literal, "+
-				"trying to unmarshal %q into Number", string(v.Raw()))
+			return bad()
 		}
 		rv.SetString(v.d.intern([]byte(s)))
 		return nil
@@ -1024,7 +1035,7 @@ func buildPlan(t reflect.Type) *structPlan {
 					hops+sf.Name+".")
 				continue
 			}
-			if !sf.IsExported() {
+			if !sf.IsExported() && !(sf.Anonymous && ft.Kind() == reflect.Struct) {
 				continue
 			}
 			if name == "" {
@@ -1033,7 +1044,8 @@ func buildPlan(t reflect.Type) *structPlan {
 			idx := append(append([]int{}, prefix...), i)
 			// name keys the lookup; the error label walks the embedded hops
 			// the way stdlib's FieldStack does ("Embed0a.Level1a").
-			f := field{name: hops + name, index: idx, asString: strings.Contains(opts, "string")}
+			f := field{name: hops + name, index: idx,
+				asString: strings.Contains(opts, "string") && quotable(sf.Type)}
 			dom = append(dom, domField{name: name, depth: depth,
 				tagged: tagged, ord: len(cands)})
 			cands = append(cands, planCand{name: name, f: f})

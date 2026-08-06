@@ -477,7 +477,7 @@ func (d *Doc) value(i int) (Value, int, error) {
 	case c == '-' || (c >= '0' && c <= '9'):
 		end, ok := d.number(i)
 		if !ok {
-			return Value{}, i, errAt("invalid number", i)
+			return Value{}, i, errAt("invalid number", numberFailPos(d.data, i))
 		}
 		return Value{d: d, kind: Number, start: i, end: end}, end, nil
 	}
@@ -640,7 +640,7 @@ func (d *Doc) lit(i int, want string, k Kind) (Value, int, error) {
 		return Value{}, i, errAt("invalid literal", len(d.data)-1)
 	}
 	if string(d.data[i:i+len(want)]) != want {
-		return Value{}, i, errAt("invalid literal", i)
+		return Value{}, i, errAt("invalid literal", litFailPos(d.data, i, want))
 	}
 	return Value{d: d, kind: k, start: i, end: i + len(want)}, i + len(want), nil
 }
@@ -761,7 +761,7 @@ func (d *Doc) validateValue(i int) (int, error) {
 	case vsNumber:
 		end, ok := d.number(i)
 		if !ok {
-			return 0, errAt("invalid number", i)
+			return 0, errAt("invalid number", numberFailPos(d.data, i))
 		}
 		return end, nil
 	case vsString:
@@ -880,7 +880,7 @@ func (d *Doc) skipValue(i int) (int, error) {
 	case c == '-' || (c >= '0' && c <= '9'):
 		end, ok := d.number(i)
 		if !ok {
-			return 0, errAt("invalid number", i)
+			return 0, errAt("invalid number", numberFailPos(d.data, i))
 		}
 		return end, nil
 	}
@@ -890,7 +890,10 @@ func (d *Doc) skipValue(i int) (int, error) {
 // litEnd is lit() without the Value, for the same reason.
 func (d *Doc) litEnd(i int, want string) (int, error) {
 	if i+len(want) > len(d.data) || string(d.data[i:i+len(want)]) != want {
-		return 0, errAt("invalid literal", i)
+		if i+len(want) > len(d.data) {
+			return 0, errAt("invalid literal", len(d.data)-1)
+		}
+		return 0, errAt("invalid literal", litFailPos(d.data, i, want))
 	}
 	return i + len(want), nil
 }

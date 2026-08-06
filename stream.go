@@ -464,6 +464,13 @@ func (d *Decoder) load() error {
 		// after it.
 		if d.err != nil {
 			if d.err == io.EOF {
+				// The buffered prefix may already hold a definite syntax
+				// error -- a close bracket that matches nothing is wrong no
+				// matter what would have followed. Report it where stdlib's
+				// scanner would, not as a truncation.
+				if e := d.pendingSyntaxErr(); e != nil {
+					return e
+				}
 				return io.ErrUnexpectedEOF
 			}
 			return d.err
@@ -672,6 +679,13 @@ func (d *Decoder) loadOne() error {
 		}
 		if d.err != nil {
 			if d.err == io.EOF {
+				// The buffered prefix may already hold a definite syntax
+				// error -- a close bracket that matches nothing is wrong no
+				// matter what would have followed. Report it where stdlib's
+				// scanner would, not as a truncation.
+				if e := d.pendingSyntaxErr(); e != nil {
+					return e
+				}
 				return io.ErrUnexpectedEOF
 			}
 			return d.err
@@ -1106,4 +1120,19 @@ func (e *Encoder) Encode(v any) error {
 		e.err = err
 	}
 	return err
+}
+
+// pendingSyntaxErr returns the partial-index builder's definite error for
+// the unconsumed tail, shifted into stream coordinates, or nil.
+func (d *Decoder) pendingSyntaxErr() error {
+	if d.ix == nil || d.ix.partErr == nil {
+		return nil
+	}
+	if se, ok := d.ix.partErr.(*SyntaxError); ok {
+		// note() stores the position separately, and errAt-built errors
+		// carry window-relative offsets; either way the stream position is
+		// partErrAt shifted to the window's base, one past the byte.
+		return &SyntaxError{msg: se.msg, Offset: int64(d.off + d.ix.partErrAt + 1)}
+	}
+	return d.ix.partErr
 }

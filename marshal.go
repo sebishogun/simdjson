@@ -1139,7 +1139,16 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				}
 			}
 			if !sf.IsExported() {
-				continue
+				base := ft
+				if base.Kind() == reflect.Pointer {
+					base = base.Elem()
+				}
+				// A tagged anonymous unexported struct is a real, named
+				// field -- stdlib emits it; only unexported non-struct
+				// anonymity is dropped.
+				if !(sf.Anonymous && base.Kind() == reflect.Struct) {
+					continue
+				}
 			}
 			if name == "" {
 				name = sf.Name
@@ -1160,7 +1169,7 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				omitZero:  containsOpt(opts, "omitzero"),
 				leaf:      encLeafOf(sf.Type),
 				isZero:    isZeroMethod(sf.Type),
-				quoted:    containsOpt(opts, "string"),
+				quoted:    containsOpt(opts, "string") && quotable(sf.Type),
 				ptrPath:   viaPtr,
 			})
 		}
