@@ -26,7 +26,7 @@ import (
 // than whether it is on. Unsorted output is a set of bytes, not a value, so
 // only the sorted column compares like with like.
 func BenchmarkMarshalDecoded(b *testing.B) {
-	for _, name := range corpus {
+	for _, name := range shapeNames {
 		data := loadCorpus(b, name)
 		var v any
 		if err := json.Unmarshal(data, &v); err != nil {

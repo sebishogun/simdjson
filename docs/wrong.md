@@ -2364,3 +2364,23 @@ win. The crossover would need twenty-plus escapes per word, which no
 real corpus has. Removed whole, kernel and wiring both; the 18% is the
 price of validating escapes at all, and the remaining gsoc gap is the
 token walk, same conclusion as the any-decode family.
+
+## Unrolled eight-digit blocks in appendUint: the divide chain was not the cost
+
+Marshalling a decoded document of doubles puts a third of its profile in
+appendUint -- seventeen-digit mantissas run the two-digit divide loop
+eight deep -- and sonic's own integer path goes SSE2 above 10^8, so an
+unrolled fixed-width block emitter with independent divides looked like
+the portable equivalent. Measured, three interleaved rounds:
+
+    numbers  337 -> 334 us   mesh  1362 -> 1330   canada  2086 -> 2191
+
+Everything inside the noise band. The compiler already turns the divides
+into multiplies and overlaps them; the loop-carried dependency this
+removed was not binding. sonic's lead on the flat-float shapes (numbers
+1.26x, mesh 1.2x) lives in its whole native dtoa pipeline, not in digit
+emission -- the same fused-native family as its any-decode walker, and
+the same verdict: a rewrite-scale replacement weighed against three
+shapes, while the structure-heavy marshals run 2-3x ahead the other way
+(citm 0.29, twitter 0.33 of sonic's time). Reverted; the sweep table is
+the deliverable.
