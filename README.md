@@ -269,6 +269,33 @@ minima, same process). canada — 2.25 MB of floating-point numbers and 24 bytes
 of whitespace — is the closest, because it is the shape an index gains least
 from; the number validator's SWAR digit runs are what closed it.
 
+**Under concurrency** — aggregate throughput, every goroutine decoding its
+own twitter into its own struct (the many-requests server shape;
+bench/parallel_curve_test.go):
+
+| MB/s aggregate | 1 thread | 4 | 16 | 32 |
+|---|---|---|---|---|
+| ours | **1,950** | **7,494** | **17,661** | **20,041** |
+| goccy | 1,694 | 6,104 | 13,365 | 15,762 |
+| sonic | 1,387 | 4,976 | 10,562 | 11,952 |
+| encoding/json | 208 | 850 | 2,038 | 2,382 |
+
+Fastest at every width, and the flattest curve is sonic's, not ours. This is
+the *many documents* axis; the *one document* axis — a single payload sharded
+across cores past 8 MB — is the at-scale family above, which no other
+library has at all.
+
+**Cold start** — the first operation on a never-seen type, measured by
+building a fresh type per iteration (bench/coldstart_test.go), which is what
+a deploy's first request meets and what the Pretouch warm-up in published tables hides:
+
+| first contact, ns | ours | goccy | encoding/json | sonic |
+|---|---|---|---|---|
+| Unmarshal, 5-field struct | **1,995** | 2,542 | 2,678 | 4,950 |
+
+sonic's 2.5× is its JIT compiling; ours is a table build, and structgen'd
+types pay nothing at all.
+
 **Streaming**, 50,000 newline-delimited records, 6.5 MB:
 
 | | this | goccy | sonic | encoding/json |
