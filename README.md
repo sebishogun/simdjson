@@ -344,6 +344,13 @@ types pay nothing at all.
 Allocation for the same input is 9.5 MB in 150,183 allocations, against goccy's
 12.9 MB in 306,525.
 
+Record size is the axis that decides it. Streams of two-kilobyte records --
+real tweets, newline-delimited, decoded into `any` -- run 524 MB/s here
+against sonic's 484; at fifty-kilobyte records the per-value work is almost
+entirely the any-decode itself and sonic's assembled walker takes it, 507
+against 415. The crossover is the same residual the any-decode table above
+prices, reached through a different door.
+
 **Small documents** are the size where an index does not pay. It costs the same
 few passes whether the document is 64 bytes or a megabyte:
 
