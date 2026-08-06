@@ -48,16 +48,54 @@ func (p *Parser) Scan(data []byte) (*Doc, error) {
 
 // scanRoot identifies the root value without descending into it.
 func scanRoot(data []byte, ix *index) (*Doc, error) {
-	return scanRootInto(new(Doc), data, ix)
+	return scanRootInto(new(Doc), data, ix, false)
+}
+
+// scanRootCapped is scanRoot for decode-bearing callers, which draw
+// encoding/json's 10,000-level line. Scan stays loose by its own contract.
+func scanRootCapped(data []byte, ix *index) (*Doc, error) {
+	return scanRootInto(new(Doc), data, ix, true)
 }
 
 // scanRootInto is scanRoot writing into a caller-supplied Doc, so a path
 // whose Doc does not escape (Unmarshal's) can pool it.
-func scanRootInto(d *Doc, data []byte, ix *index) (*Doc, error) {
+func scanRootInto(d *Doc, data []byte, ix *index, capDepth bool) (*Doc, error) {
 	// wsw comes along too. It is nil after Scan, which does not build it, and
 	// set when Unmarshal came through here with a validated index — without
 	// this, that path skipped whitespace a byte at a time, which on a document
 	// that is 27% whitespace was 5.6% of the decode.
+	// Decode-bearing callers draw encoding/json's 10,000-level line here.
+	// The serial builders record the crossing position as they push -- one
+	// compare per opener -- so the common case is one compare here; the
+	// first draft re-walked every bracket and cost Scan/canada 21%, which
+	// the gate refused. depthPos only counts inside THIS data because a
+	// partial-mode index can run past its batch. The parallel builder
+	// leaves the sentinel -2 (unknown): depth past the cap needs at least
+	// 2*cap+2 brackets, so almost every >=8 MB document proves itself
+	// shallow in one length compare, and only the implausible tail pays a
+	// walk that amortizes at that size.
+	if capDepth {
+		if ix.depthPos >= 0 && ix.depthPos < len(data) {
+			return nil, errAt("exceeded max depth", ix.depthPos)
+		}
+		if ix.depthPos == -2 && len(ix.pos) >= 2*maxNestingDepth+2 {
+			depth := 0
+			for _, p := range ix.pos {
+				if int(p) >= len(data) {
+					break
+				}
+				switch data[p] {
+				case '{', '[':
+					depth++
+					if depth > maxNestingDepth {
+						return nil, errAt("exceeded max depth", int(p))
+					}
+				case '}', ']':
+					depth--
+				}
+			}
+		}
+	}
 	*d = Doc{data: data, ix: ix, inStr: ix.inStr, noWS: ix.noWS, wsw: ix.wsw}
 	i := d.skip(0)
 	if i >= len(data) {

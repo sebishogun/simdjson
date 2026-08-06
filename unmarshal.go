@@ -48,7 +48,7 @@ func Unmarshal(data []byte, v any) error {
 	if err != nil {
 		return err
 	}
-	d, err := scanRootInto(docFromPool(), data, ix)
+	d, err := scanRootInto(docFromPool(), data, ix, true)
 	if err != nil {
 		return err
 	}

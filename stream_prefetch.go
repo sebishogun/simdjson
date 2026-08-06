@@ -119,7 +119,7 @@ func (d *Decoder) pfLaunch() {
 			return
 		}
 		data := buf[i : i+nix.safeEnd]
-		doc, err := scanRoot(data, nix)
+		doc, err := scanRootCapped(data, nix)
 		if err != nil {
 			return
 		}

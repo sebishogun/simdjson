@@ -186,6 +186,13 @@ type Doc struct {
 	noWS bool
 	wsw  []uint64
 
+	// depth is the validation walk's nesting level, capped where
+	// encoding/json caps it: the pathological battery found this package
+	// accepting 10,001 levels where stdlib's decoder stops at 10,000, and a
+	// drop-in draws the same line. Workers validating subtrees seed it with
+	// the subtree's absolute depth.
+	depth int
+
 	// navigating is false during the initial pass, where containers are
 	// descended into and checked, and true afterwards, where their extent is
 	// taken from the index instead. Without it every Get and ForEach pays for
@@ -883,6 +890,11 @@ func (d *Doc) litEnd(i int, want string) (int, error) {
 // rejects a trailing comma, a missing colon and a non-string key — all of which
 // encoding/json rejects and all of which an index-only parse accepts.
 func (d *Doc) validateObject(i int) (int, error) {
+	if d.depth >= maxNestingDepth {
+		return 0, errAt("exceeded max depth", i)
+	}
+	d.depth++
+	defer func() { d.depth-- }()
 	data := d.data
 	j := d.skip(i + 1)
 	if j < len(data) && data[j] == '}' {
@@ -932,6 +944,11 @@ func (d *Doc) validateObject(i int) (int, error) {
 
 // validateArray is validateObject for arrays.
 func (d *Doc) validateArray(i int) (int, error) {
+	if d.depth >= maxNestingDepth {
+		return 0, errAt("exceeded max depth", i)
+	}
+	d.depth++
+	defer func() { d.depth-- }()
 	data := d.data
 	j := d.skip(i + 1)
 	if j < len(data) && data[j] == ']' {
@@ -1047,3 +1064,7 @@ func (d *Doc) boxFloat(f float64) any {
 	e.data = unsafe.Pointer(&d.f64buf[len(d.f64buf)-1])
 	return out
 }
+
+// maxNestingDepth is encoding/json's nesting cap, drawn in the same place so
+// the drop-in surface refuses exactly what stdlib refuses.
+const maxNestingDepth = 10000

@@ -37,7 +37,9 @@ func walkTopParallel(data []byte, ix *index, elems []topExtent, rootClose int) (
 			defer wg.Done()
 			my := *ix
 			my.wsW, my.wsX = -1, 0
-			pd := &Doc{data: data, ix: &my, inStr: my.inStr, noWS: my.noWS, wsw: my.wsw}
+			pd := &Doc{data: data, ix: &my, inStr: my.inStr, noWS: my.noWS, wsw: my.wsw,
+				// Top-level elements sit at absolute depth 1; the cap counts from there.
+				depth: 1}
 			for i := lo; i < hi; i++ {
 				end, err := pd.validateValue(int(elems[i].startB))
 				if err != nil || end != int(elems[i].endB) {

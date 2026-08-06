@@ -78,7 +78,9 @@ func unmarshalParallel(data []byte, d *Doc, out any) (err error, ok bool) {
 			my := *ix
 			my.wsW, my.wsX = -1, 0
 			pd := &Doc{data: data, ix: &my, inStr: my.inStr, noWS: my.noWS,
-				wsw: my.wsw, strictSkip: true}
+				wsw: my.wsw, strictSkip: true,
+				// Top-level elements sit at absolute depth 1; the cap counts from there.
+				depth: 1}
 			for i := lo; i < hi; i++ {
 				p := unsafe.Add(base, uintptr(i)*size)
 				end, err := dec(p, pd, int(elems[i].startB))

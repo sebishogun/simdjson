@@ -122,6 +122,12 @@ type index struct {
 	// validate.go. It is a popcount per word in a loop that already runs.
 	wsCount int
 
+	// depthPos is the byte position of the opener that pushed nesting past
+	// encoding/json's 10,000-level cap, or -1 -- recorded by the bracket
+	// pass with one compare per opener, read by scanRootInto with one, so
+	// no path re-walks anything to draw stdlib's line.
+	depthPos int
+
 	// wsW and wsX are the last word of ws skipRun looked at, already inverted,
 	// and which word it was.
 	//
@@ -218,6 +224,7 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 	ix.pos = ix.pos[:0]
 	ix.wsW, ix.wsX = -1, 0
 	ix.safeEnd, ix.partErr, ix.partErrAt = 0, nil, 0
+	ix.depthPos = -1
 	// Cleared here rather than in the validating half, because Scan never runs
 	// that — a Parser reused for Scan after a Parse would otherwise carry the
 	// previous document's answer and skip whitespace that is really there.
@@ -245,6 +252,11 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 	// definition.
 	if !partial && len(data) >= parallelMinBytes {
 		if px, err, ok := buildIndexParallel(data, ix, validate, noBrackets); ok {
+			if err == nil && px != nil {
+				// The parallel pass does not track nesting depth; -2 tells
+				// scanRootInto's capped callers to decide for themselves.
+				px.depthPos = -2
+			}
 			return px, err
 		}
 	}
@@ -395,11 +407,14 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 		want |= simd.JSONMaskControl | simd.JSONMaskSpace
 	}
 	simd.JSONMasks(ix.masks, data, want)
-	ix.quote = ix.masks[0:stride]
-	ix.esc = ix.masks[stride : 2*stride]
-	ix.structural = ix.masks[2*stride : 3*stride]
-	ix.ctl = ix.masks[3*stride : 4*stride]
-	ix.ws = ix.masks[4*stride : 5*stride]
+	// Three-index slices: each view's CAPACITY ends where its region does,
+	// so no later reuse can silently extend one view into its neighbor --
+	// the windowed builder once did exactly that through a pooled index.
+	ix.quote = ix.masks[0:stride:stride]
+	ix.esc = ix.masks[stride : 2*stride : 2*stride]
+	ix.structural = ix.masks[2*stride : 3*stride : 3*stride]
+	ix.ctl = ix.masks[3*stride : 4*stride : 4*stride]
+	ix.ws = ix.masks[4*stride : 5*stride : 5*stride]
 	// No tail to clear: the regions are whole words and the kernel zeroes the
 	// bytes past the document, which is why its stride is word-aligned rather
 	// than (n+7)/8.
@@ -648,8 +663,14 @@ tail:
 			// through the document rather than jumping around it.
 			switch data[p] {
 			case '{':
+				if len(stack) >= maxNestingDepth && ix.depthPos < 0 {
+					ix.depthPos = int(p)
+				}
 				stack = append(stack, int64(k)<<1)
 			case '[':
+				if len(stack) >= maxNestingDepth && ix.depthPos < 0 {
+					ix.depthPos = int(p)
+				}
 				stack = append(stack, int64(k)<<1|1)
 			case '}', ']':
 				if len(stack) == 0 {
@@ -727,12 +748,28 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 	// carried parity below stays aligned.
 	win := chunkBytes
 	wnw := win / 64
-	ix.quote = maskBuf(ix.quote, wnw, win)
-	ix.esc = maskBuf(ix.esc, wnw, win)
-	ix.structural = maskBuf(ix.structural, wnw, win)
+	// The five window masks are carved out of ix.masks exactly as the whole
+	// builder carves its document masks -- one backing, fixed regions. They
+	// used to be five independently-reused buffers, and a pooled index that
+	// last served the WHOLE builder left quote/esc/... as views into masks;
+	// treating those views as independent buffers made the windows alias
+	// each other, and every kernel pass clobbered a neighbor's region. The
+	// pathological battery caught it as a clean 4.2 MB document validating
+	// false after a small one -- on exactly the paths that pool (Valid,
+	// Compact, Indent, Unmarshal, the streaming loaders). Parse allocates a
+	// fresh index and was immune, which is why it disagreed with Valid on
+	// the same bytes and made the bug look impossible.
+	w8 := wnw * 8
+	if cap(ix.masks) < 5*w8 {
+		ix.masks = make([]byte, 5*w8)
+	}
+	ix.masks = ix.masks[:5*w8]
+	ix.quote = ix.masks[0:w8:w8]
+	ix.esc = ix.masks[w8 : 2*w8 : 2*w8]
+	ix.structural = ix.masks[2*w8 : 3*w8 : 3*w8]
 	if validate {
-		ix.ctl = maskBuf(ix.ctl, wnw, win)
-		ix.ws = maskBuf(ix.ws, wnw, win)
+		ix.ctl = ix.masks[3*w8 : 4*w8 : 4*w8]
+		ix.ws = ix.masks[4*w8 : 5*w8 : 5*w8]
 		if cap(ix.wsw) < nw {
 			ix.wsw = make([]uint64, nw)
 		}
@@ -892,8 +929,14 @@ func buildIndexWindowed(data []byte, ix *index, validate, noBrackets, partial bo
 				pos[k] = p
 				switch data[p] {
 				case '{':
+					if len(stack) >= maxNestingDepth && ix.depthPos < 0 {
+						ix.depthPos = int(p)
+					}
 					stack = append(stack, int64(k)<<1)
 				case '[':
+					if len(stack) >= maxNestingDepth && ix.depthPos < 0 {
+						ix.depthPos = int(p)
+					}
 					stack = append(stack, int64(k)<<1|1)
 				case '}', ']':
 					if len(stack) == 0 {
@@ -989,22 +1032,6 @@ const chunkBytes = 64 << 10
 // which is the right thing to give up for not falling off a cliff on hardware
 // without one.
 const wholeDocMax = 4 << 20
-
-// maskBuf returns a buffer of nw whole words with the bytes past n's mask
-// cleared, reusing buf when it is large enough.
-//
-// The clearing matters: simd.MaskBits writes (n+7)/8 bytes and the word loop
-// reads nw*8, so without it the last word would carry whatever the previous
-// parse left there and invent structural characters past the end of the
-// document.
-func maskBuf(buf []byte, nw, n int) []byte {
-	if cap(buf) < nw*8 {
-		buf = make([]byte, nw*8)
-	}
-	buf = buf[:nw*8]
-	clear(buf[simd.MaskLen(n):])
-	return buf
-}
 
 // escapedMask returns the bits of this word that are escaped by a preceding
 // backslash, and updates the carry into the next word.

@@ -397,7 +397,7 @@ func (d *Decoder) load() error {
 				if ix.partErr != nil && ix.partErrAt < ix.safeEnd {
 					return ix.partErr
 				}
-				if doc, err := scanRoot(d.buf[d.off:d.off+ix.safeEnd], ix); err == nil {
+				if doc, err := scanRootCapped(d.buf[d.off:d.off+ix.safeEnd], ix); err == nil {
 					doc.strictSkip = true
 					doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
 					d.doc, d.data = doc, d.buf[d.off:d.off+ix.safeEnd]
@@ -437,7 +437,7 @@ func (d *Decoder) load() error {
 				}
 				return err
 			}
-			doc, err := scanRoot(d.buf[d.off:limit], d.ix)
+			doc, err := scanRootCapped(d.buf[d.off:limit], d.ix)
 			if err != nil {
 				return err
 			}
@@ -501,7 +501,7 @@ func (d *Decoder) loadBatch() error {
 					return ix.partErr
 				}
 				end := d.off + ix.safeEnd
-				doc, err := scanRoot(d.buf[d.off:end], ix)
+				doc, err := scanRootCapped(d.buf[d.off:end], ix)
 				if err == nil {
 					doc.strictSkip = true
 					doc.useNumber, doc.disallowUnknown = d.useNumber, d.disallowUnknown
@@ -570,7 +570,7 @@ func (d *Decoder) loadWindow() bool {
 		return false
 	}
 	end := d.off + ix.safeEnd
-	doc, err := scanRoot(d.buf[d.off:end], ix)
+	doc, err := scanRootCapped(d.buf[d.off:end], ix)
 	if err != nil {
 		return false
 	}
@@ -654,7 +654,7 @@ func (d *Decoder) loadOne() error {
 			if err != nil {
 				return err
 			}
-			doc, err := scanRoot(d.buf[d.off:end], ix)
+			doc, err := scanRootCapped(d.buf[d.off:end], ix)
 			if err != nil {
 				return err
 			}

@@ -152,7 +152,9 @@ func validParallel(data []byte, ix *index) (valid, ok bool) {
 			// A private index header: shared slices, private wsW/wsX cache.
 			my := *ix
 			my.wsW, my.wsX = -1, 0
-			d := &Doc{data: data, ix: &my, inStr: my.inStr, noWS: my.noWS, wsw: my.wsw}
+			d := &Doc{data: data, ix: &my, inStr: my.inStr, noWS: my.noWS, wsw: my.wsw,
+				// Top-level elements sit at absolute depth 1; the cap counts from there.
+				depth: 1}
 			for i := lo; i < hi; i++ {
 				end, err := d.validateValue(int(elems[i].startB))
 				if err != nil || end != int(elems[i].endB) {
