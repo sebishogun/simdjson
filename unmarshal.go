@@ -145,8 +145,19 @@ func (v Value) validate() error {
 
 // decode stores v into the settable reflect.Value rv.
 func (v Value) decode(rv reflect.Value) error {
-	// The two interfaces come first, and before the null check, because a type
-	// that implements them decides for itself what null means.
+	// One exception outranks the interfaces: null into a POINTER nils the
+	// pointer without consulting the pointee's Unmarshaler. That is
+	// encoding/json's indirect() rule -- a *RawMessage field under null
+	// becomes nil where a RawMessage VALUE field receives the "null" bytes
+	// -- and stdlib's own TestUnmarshalNulls holds all three pointer cases
+	// to it.
+	if v.kind == Null && rv.Kind() == reflect.Pointer {
+		rv.SetZero()
+		return nil
+	}
+	// The two interfaces come next, and before the general null check,
+	// because a non-pointer type that implements them decides for itself
+	// what null means.
 	if u, ok := unmarshalerFor(rv); ok {
 		// The bytes have to be proved well-formed before they go out. Getting
 		// here means the decoder found the extent of the value — by matching
@@ -196,6 +207,17 @@ func (v Value) decode(rv reflect.Value) error {
 	case reflect.Interface:
 		if rv.NumMethod() != 0 {
 			return v.typeErr(rv.Type())
+		}
+		// A non-nil interface already holding a pointer decodes INTO that
+		// pointer rather than being replaced with a fresh map -- stdlib's
+		// indirect() rule, held by its TestUnmarshalInterface. Null only
+		// descends when the pointee is itself a pointer; otherwise the
+		// null-clears-interface rule below applies.
+		if !rv.IsNil() {
+			if e := rv.Elem(); e.Kind() == reflect.Pointer && !e.IsNil() &&
+				(v.kind != Null || e.Elem().Kind() == reflect.Pointer) {
+				return v.decode(e.Elem())
+			}
 		}
 		a, err := v.any()
 		if err != nil {
@@ -494,6 +516,12 @@ func (v Value) decodeMap(rv reflect.Value) error {
 
 func setMapKey(kv reflect.Value, k string) error {
 	switch {
+	case kv.Addr().Type().Implements(textUnmarshalerType):
+		// Before the string case: a string-KINDED key type that implements
+		// TextUnmarshaler must go through it -- encoding/json gives the
+		// interface precedence, and stdlib's own tests carry a lowercasing
+		// key type that caught this three separate ways.
+		return kv.Addr().Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(k))
 	case kv.Kind() == reflect.String:
 		kv.SetString(k)
 		return nil
@@ -838,6 +866,8 @@ func planFor(t reflect.Type) *structPlan {
 
 func buildPlan(t reflect.Type) *structPlan {
 	p := &structPlan{byName: map[string]field{}, byFold: map[string]field{}}
+	var dom []domField
+	var cands []planCand
 	var walk func(t reflect.Type, prefix []int, depth int)
 	walk = func(t reflect.Type, prefix []int, depth int) {
 		if depth > 10 {
@@ -872,16 +902,32 @@ func buildPlan(t reflect.Type) *structPlan {
 			}
 			idx := append(append([]int{}, prefix...), i)
 			f := field{index: idx, asString: strings.Contains(opts, "string")}
-			// Shallower fields win, which is how embedding resolves ties.
-			if old, ok := p.byName[name]; ok && len(old.index) <= len(idx) {
-				continue
-			}
-			p.byName[name] = f
-			p.byFold[strings.ToLower(name)] = f
+			dom = append(dom, domField{name: name, depth: depth,
+				tagged: tag != "" && name != sf.Name, ord: len(cands)})
+			cands = append(cands, planCand{name: name, f: f})
 		}
 	}
 	walk(t, nil, 0)
+	// Embedded-field dominance, the same filter the encoder runs; the old
+	// shallower-wins overwrite missed annihilation and tag precedence. See
+	// fielddominance.go and stdlib's TestMarshalEmbeds.
+	keep := dominantOrds(dom)
+	for i, c := range cands {
+		if !keep[i] {
+			continue
+		}
+		p.byName[c.name] = c.f
+		if _, exists := p.byFold[strings.ToLower(c.name)]; !exists {
+			p.byFold[strings.ToLower(c.name)] = c.f
+		}
+	}
 	return p
+}
+
+// planCand is a collected candidate awaiting the dominance filter.
+type planCand struct {
+	name string
+	f    field
 }
 
 // docPool recycles the Doc an Unmarshal walks with. Only Unmarshal may use
