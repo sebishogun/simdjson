@@ -2342,3 +2342,25 @@ on this family is the assembled value walker, not the string strategy.
 Reverted whole. An adaptive variant -- copy only when an escape scan of
 the document says the unescaped share is high -- would spend a pass to
 choose between two ~equal outcomes on the shapes that matter.
+
+## The escape-check kernel: O(64) classify loses to O(popcount) iterate
+
+checkEscapes is 18% of gsoc Valid, so it got the stage-one treatment: a
+kernel taking stage one's targets words and validating every flagged
+escape with mask algebra -- byte-class masks for the word, \uXXXX as four
+shifted hex ANDs -- skipping zero words. Correct after the guard-clamp
+fix (min(len(b), len(targets)) sheared the document to nw bytes; the
+kernel needed UnclampedDst like stage one). Then the numbers:
+
+    gsoc Valid, scalar checkEscapes   453-458 us
+    gsoc Valid, kernel               531-546 us   +17%
+
+Three interleaved rounds. The scalar walk is O(popcount): gsoc flags
+about six escapes per word, six switch dispatches. The kernel is O(64x3)
+per flagged word -- three classification passes over all sixty-four
+bytes to answer a question about six of them -- and gsoc flags nearly
+every word, so it does the most work exactly where it was supposed to
+win. The crossover would need twenty-plus escapes per word, which no
+real corpus has. Removed whole, kernel and wiring both; the 18% is the
+price of validating escapes at all, and the remaining gsoc gap is the
+token walk, same conclusion as the any-decode family.
