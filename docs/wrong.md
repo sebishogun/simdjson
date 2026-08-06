@@ -2298,3 +2298,47 @@ noise floor here is 8.3% in the first place. Decision: baseline re-recorded
 via bench-agree, no code change. A wall-clock gate red on a path the diff
 does not execute is a layout question, and only instructions retired can
 answer it.
+
+## Presizing the any-decode maps: the counting walk costs more than the growth
+
+twitter into `any` spends 9.7% in aeshashbody and 17.7% cumulative in
+mallocgc, so exact-presizing every `map[string]any` looked like the obvious
+counter to sonic v1.15.2's lead on the string-heavy shapes. Measured with a
+deliberate overpay -- a counting eachField walk, then MakeMapWithSize --
+to bound the ceiling:
+
+    baseline  1197-1243 us   (min 1197)
+    presized  1356-1388 us   (min 1356, +12%)
+
+Three interleaved rounds, 300 iterations each. The counting walk re-scans
+every key and skips every value, and twitter's objects average a handful of
+fields: growth from an empty map is one or two rehashes of a table that
+fits in a cache line. Even a free count -- recorded by the index during the
+emit pass -- could recover at most the growth share of that 9.7%, well
+under the noise floor. The map cost that remains is the cost of building
+real maps; the lever, if there is one, is elsewhere in the allocation
+pattern, not in sizing.
+
+## Zero-copy string views off an owned input copy: gsoc pays double
+
+sonic's any-decode keeps unescaped strings as views into one copy of the
+input (convTstring on the raw buffer, no per-string malloc), so the same
+shape was tried here: decodeStr's two no-escape branches return
+unsafe.String views into a lazily-made owned copy, escaped strings keep
+the slab. The whole suite stayed green; the numbers said no:
+
+    twitter/any  1150 us -> 1140 us      level
+    gsoc/any     2449 us -> 3146 us      +28%, B/op 5.99 MB -> 8.26 MB
+
+Three interleaved rounds each. twitter breaks even because its kept
+strings are most of the document either way -- one big memmove replaces
+many small ones, a wash. gsoc loses because its strings are
+escape-heavy: the slab still unescapes 2.2 MB of them, and their raw
+spans now ALSO ride the 3.3 MB owned copy. The mechanism only pays when
+the unescaped share dominates, which is a property of the corpus, not
+the code; sonic wears it because their escaped strings land in pooled
+conversion slabs rather than a second buffer, and their real advantage
+on this family is the assembled value walker, not the string strategy.
+Reverted whole. An adaptive variant -- copy only when an escape scan of
+the document says the unescaped share is high -- would spend a pass to
+choose between two ~equal outcomes on the shapes that matter.
