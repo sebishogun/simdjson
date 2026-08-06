@@ -584,6 +584,65 @@ whitespace skip, bracket match or validate left on the mainline. 1,450 →
 per-value walk deliberately: decoding element k starts from the caller's
 variable as element k−1 left it, so the results chain by contract.
 
+## When to use it, and when not to
+
+Every claim below cites a table in this README or a file in this repository;
+none of it is asserted from goodwill.
+
+**Use this library when:**
+
+- **Documents are a megabyte or more.** Fastest Go parse and validate on
+  every corpus measured (Performance tables above), and past 8 MB fastest,
+  period — the parallel family has no counterpart in Go or C++
+  ([`docs/cpp-baseline.md`](docs/cpp-baseline.md)).
+- **You serve many requests.** Fastest aggregate decode at every thread
+  count, 20 GB/s at 32 threads, with the flattest competitor curve being
+  sonic's, not ours (concurrency table).
+- **Streams: NDJSON, logs, exports.** The streaming tables, the 10 GB rows
+  under ten megabytes of heap, and a `Value` loop that pipelines its batches
+  across cores.
+- **Numbers dominate.** canada-class struct decode level with sonic, plain
+  `[]float64` ahead of it, the numbers corpus ahead — the one-walk
+  integer/float parsers and slab boxing did this.
+- **You query one document more than once.** The second dotted-path query
+  costs what gjson pays for every query; from twitter-size up the index wins
+  from the first (GetPath notes above).
+- **You decode into `any`.** Four leads, five levels, three floor-adjacent
+  across twelve shapes (the `any` table).
+- **Deploy posture matters.** No cgo, no JIT, no runtime executable memory,
+  same code on six architectures, the fastest cold start in the field
+  (first-contact row — sonic pays 2.5× compiling), and the conformance
+  suites (JSONTestSuite, jsonchecker, UTF-8 stress) run in the ordinary
+  test pass with zero disagreements against encoding/json.
+- **You own your types and want the last drop.** `tools/structgen` emits
+  compile-time encoders: level with goccy on the field's small Marshal
+  fixture, byte-identical output enforced.
+
+**Prefer something else when:**
+
+- **Tiny one-shot parses dominate.** Sub-2 KB single documents: goccy's
+  scanner core leads decode (176 ns vs our 404 on the field's small
+  fixture), stdlib is fine, and Go 1.27's jsonv2 narrows every library's
+  margin there for free.
+- **Small-struct Marshal is the hot path.** sonic's fused JIT writer holds
+  ~2× (the decomposition in [`wrong.md`](docs/wrong.md) says exactly why,
+  and what it would cost to chase) — if its posture fits your deploy.
+- **Dense tiny-object decode.** citm-class shapes: goccy leads by ~1.2×
+  (same scanner-core wall, measured three ways).
+- **One-shot field-gets on small documents.** gjson answers in 145 ns where
+  we pay 518 for the index and the validity promise; the trade flips on
+  size or repetition (GetPath notes).
+- **Indented output is the product.** MarshalIndent trails goccy's fused
+  indent encoder by 1.24×.
+
+**Known costs, stated:** the index is real memory (roughly document-sized;
+`Parser` reuse amortizes it); performance numbers are measured on amd64 —
+the other five architectures run the same code and the same tests, but the
+tables are from one machine; and published comparisons elsewhere often use
+lossy configurations (unsorted keys, skipped validation, warmed JITs) that
+this harness deliberately refuses, so our numbers for competitors run lower
+than their READMEs and are the defensible ones.
+
 ## Status
 
 Early. Measured on amd64; the `simd` package underneath is verified on amd64 and
