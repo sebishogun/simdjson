@@ -293,15 +293,19 @@ both. goccy and stdlib trail throughout.
 | `Compact` | 1,531 | 2,128 | 2,241 | **4.3–5.7×** |
 | `Indent` | 1,117 | 1,128 | 670 | **2.4–3.3×** |
 
-`Valid` leads sonic on eleven of the twelve corpus shapes — 1.27× on twitter,
-1.26× on citm, 1.15× on canada, up to 1.7× on the small-document shapes
-(200 iterations, minimum of two passes, same process). The one exception is
-gsoc-2018, 3.3 MB of long escape-free strings, where sonic holds 1.46×: the
-index pays per byte and the strings are bytes it validates that sonic's
-skip-oriented scan does not touch. The stage-one kernel (quote parity by
-carry-less multiply, `simd` v1.11.0) took a 1.7× deficit to that; the string
-walk that remains is `validTokens` and `checkEscapes`, measured at 29% and
-18% of the operation.
+`Valid` leads sonic on eleven of the twelve corpus shapes — 1.72× on twitter,
+1.52× on citm, up to 2.2× on the small-document shapes (200 iterations,
+minimum of two passes, same process). Two kernels carry it: stage one's
+quote parity by carry-less multiply (`simd` v1.11.0) and the grammar walk
+itself, fused into one scalar routine over the stage-one masks (`simd`
+v1.12.0, twitter −31% on its own). The one exception is gsoc-2018, 3.3 MB
+of escape-heavy strings, where sonic holds 1.43×: its single-pass native
+scan validates those bytes as it classifies them, where this pipeline
+stages masks, walk and escape checks separately — the measured price of
+the staged design on exactly one shape, and the same root as the
+any-decode family's residual. Everything cheaper than a full fusion of
+both stages has been tried and measured; docs/wrong.md holds the
+rejections.
 
 **Under concurrency** — aggregate throughput, every goroutine decoding its
 own twitter into its own struct (the many-requests server shape;
