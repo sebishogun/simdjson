@@ -27,7 +27,11 @@ package simdjson
 // This is used by Valid alone. Parse and Unmarshal need the descent for what it
 // produces along the way; Valid needs only the answer.
 
-import "math/bits"
+import (
+	"math/bits"
+
+	"github.com/sebishogun/simd"
+)
 
 // The grammar as six states. Splitting "first" from "subsequent" is what makes
 // an empty container legal and a trailing comma not: `[]` is stFirstValue
@@ -56,6 +60,22 @@ func sigWord(ix *index, n, w int) uint64 {
 // value, with nothing after it.
 func (d *Doc) validTokens() bool {
 	ix, data := d.ix, d.data
+	if ix.s1ok {
+		nw := (len(data) + 63) / 64
+		if 3*nw <= len(ix.stage1) {
+			// The whole grammar walk in one kernel call, over the stage-one
+			// buffer it already owns: inStr and wsw are its first two
+			// regions, and the dead targets region is the container spill --
+			// depth cannot exceed len/128, so it always fits and the
+			// kernel's too-deep answer is unreachable here.
+			switch simd.JSONValidTokens(data, ix.stage1[:2*nw], ix.stage1[2*nw:3*nw]) {
+			case 1:
+				return true
+			case 0:
+				return false
+			}
+		}
+	}
 	// From the document, not from the mask: an empty input leaves the
 	// whitespace mask at whatever length the previous parse gave it, while the
 	// in-string mask is truncated to nothing. Taking the length from the data

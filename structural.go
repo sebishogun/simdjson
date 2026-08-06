@@ -76,6 +76,11 @@ const structSet = "{}[]"
 type index struct {
 	pos []int32 // bracket positions, ascending, outside strings
 
+	// s1ok is true when stage1 below holds this document's masks -- the
+	// kernel path ran whole and un-partial -- so validTokens may hand the
+	// grammar walk to the JSONValidTokens kernel over that buffer.
+	s1ok bool
+
 	// stage1 is the JSONStage1 kernel's out buffer: inStr, wsw and the
 	// escape-verification targets, three nw-word regions in one allocation.
 	// When the kernel path runs, inStr and wsw below are re-pointed into it.
@@ -229,6 +234,7 @@ func buildIndexMode(data []byte, ix *index, validate, noBrackets, partial bool) 
 	ix.pos = ix.pos[:0]
 	ix.wsW, ix.wsX = -1, 0
 	ix.safeEnd, ix.partErr, ix.partErrAt = 0, nil, 0
+	ix.s1ok = false
 	ix.depthPos = -1
 	// Cleared here rather than in the validating half, because Scan never runs
 	// that — a Parser reused for Scan after a Parse would otherwise carry the
@@ -509,6 +515,7 @@ func buildIndexWhole(data []byte, ix *index, validate, noBrackets, partial bool)
 		if carr[1] != 0 {
 			return nil, errAt("unterminated string", len(data)-1)
 		}
+		ix.s1ok = true
 		if !noBrackets {
 			total = int(res[0])
 		}
