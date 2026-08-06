@@ -714,7 +714,7 @@ func (v Value) any() (any, error) {
 				}
 			}
 		}
-		return f, nil
+		return v.d.boxFloat(f), nil
 	case String:
 		s, _ := v.str()
 		return s, nil

@@ -214,6 +214,12 @@ func parseIntAt(data []byte, pos int, min, max int64) (n int64, end int, status 
 	j := uint(pos)
 	neg := false
 	if j < nn && b[j] == '-' {
+		if min >= 0 {
+			// An unsigned destination rejects the SIGN, not the value:
+			// strconv.ParseUint errors on "-0" as much as on "-1", and the
+			// fuzzer found the difference through a struct's uint32 field.
+			return 0, 0, floatFallback
+		}
 		neg = true
 		j++
 	}

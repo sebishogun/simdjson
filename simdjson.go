@@ -147,6 +147,14 @@ type Doc struct {
 	// strings.
 	strbuf []byte
 
+	// f64buf carries the float64 payloads of numbers decoded into `any`, the
+	// way strbuf carries decoded strings. Boxing a float64 into an interface
+	// is a heap allocation per number (runtime.convT64); pointing the
+	// interface's payload into a slab instead makes a numeric array one
+	// allocation per slab. Chunks are abandoned to the boxes pointing at
+	// them exactly as strbuf's are; nothing moves.
+	f64buf []float64
+
 	// scratch holds one string's bytes while its escapes are undone, before it
 	// is copied into strbuf. Reused, because only one string is in flight.
 	scratch []byte
@@ -1003,4 +1011,39 @@ func lowerBound(a []int32, target int32) int {
 		}
 	}
 	return lo
+}
+
+// eface is the runtime layout of an empty interface, used only to point a
+// boxed float64's payload into the document's slab. The layout is load-bearing
+// ABI shared by every unsafe-using JSON library; the differential and the
+// %T test would fail loudly if it moved.
+type eface struct {
+	rtype unsafe.Pointer
+	data  unsafe.Pointer
+}
+
+var f64rtype = (*eface)(unsafe.Pointer(&anyFloatSeed)).rtype
+
+var anyFloatSeed any = float64(0)
+
+// boxFloat returns f as an any whose payload lives in the document's slab.
+func (d *Doc) boxFloat(f float64) any {
+	if len(d.f64buf) == cap(d.f64buf) {
+		n := 2 * cap(d.f64buf)
+		if n == 0 {
+			// Bounded by the document the way strbuf's first chunk is: a
+			// number is at least one byte plus a separator.
+			n = len(d.data)/2 + 1
+			if n > 64 {
+				n = 64
+			}
+		}
+		d.f64buf = make([]float64, 0, n)
+	}
+	d.f64buf = append(d.f64buf, f)
+	var out any
+	e := (*eface)(unsafe.Pointer(&out))
+	e.rtype = f64rtype
+	e.data = unsafe.Pointer(&d.f64buf[len(d.f64buf)-1])
+	return out
 }
