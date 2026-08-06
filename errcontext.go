@@ -230,3 +230,10 @@ func litFailPos(b []byte, i int, want string) int {
 	}
 	return j
 }
+
+// stringMapType and anySliceType label the cycle errors from the untyped
+// fast paths, where no compile-time reflect.Type is on hand.
+var (
+	stringMapType = reflect.TypeOf(map[string]any(nil))
+	anySliceType  = reflect.TypeOf([]any(nil))
+)

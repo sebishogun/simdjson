@@ -1,9 +1,11 @@
 package simdjson
 
 import (
+	"bytes"
 	"encoding"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math"
 	"reflect"
 	"strconv"
@@ -66,6 +68,14 @@ type encodeState struct {
 	buf     []byte
 	opts    Options
 	scratch [64]byte
+
+	// Cycle detection, encoding/json's exact scheme: free until the
+	// pointer/map/slice nesting depth passes startDetectingCyclesAfter,
+	// then every revisited address is an UnsupportedValueError instead of
+	// a stack overflow. ptrSeen is lazily allocated -- a document a
+	// thousand pointers deep is already not the fast path.
+	ptrLevel uint
+	ptrSeen  map[any]struct{}
 
 	// addrTyp and addrVal give the top-level value somewhere to live that has
 	// an address. A value taken out of an interface has none, and the compiled
@@ -392,6 +402,44 @@ func ptrOf(rv reflect.Value) unsafe.Pointer {
 // speed to gain: these types are rare and their own method dominates whatever
 // wraps it.
 func encodeViaStdlib(t reflect.Type) encodeFn {
+	if t.Kind() == reflect.Interface {
+		// An interface type that itself implements the marshaler: assert on
+		// the interface value, do not unwrap it. Unwrapping loses the static
+		// type, and stdlib would re-dispatch on the dynamic one -- where a
+		// typed nil pointer becomes null instead of a call into a marshaler
+		// that accepts its nil receiver ("0zenil0" in stdlib's own tests).
+		asJSON := t.Implements(marshalerType)
+		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
+			if !rv.IsValid() {
+				rv = reflect.NewAt(t, p).Elem()
+			}
+			if rv.IsNil() {
+				e.buf = append(e.buf, "null"...)
+				return nil
+			}
+			if asJSON {
+				b, err := rv.Interface().(json.Marshaler).MarshalJSON()
+				if err != nil {
+					return &json.MarshalerError{Type: t, Err: err}
+				}
+				// Compacted and validated like stdlib's appendCompact; the
+				// marshaler's output is untrusted bytes. Cold path -- the
+				// marshaler itself already allocated.
+				var cb bytes.Buffer
+				if err := json.Compact(&cb, b); err != nil {
+					return &json.MarshalerError{Type: t, Err: err}
+				}
+				e.buf = append(e.buf, cb.Bytes()...)
+				return nil
+			}
+			b, err := rv.Interface().(encoding.TextMarshaler).MarshalText()
+			if err != nil {
+				return &json.MarshalerError{Type: t, Err: err}
+			}
+			e.writeString(string(b))
+			return nil
+		}
+	}
 	// A marshaler on the pointer receiver only exists through the address;
 	// marshalling the value copy would silently fall back to the plain
 	// representation, which is what stdlib does only when no address exists.
@@ -582,12 +630,39 @@ func compilePointerEncoder(t reflect.Type) encodeFn {
 			e.buf = append(e.buf, "null"...)
 			return nil
 		}
+		if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
+			if err := e.enterCycle(ep, t); err != nil {
+				e.ptrLevel--
+				return err
+			}
+			defer delete(e.ptrSeen, ep)
+		}
 		var erv reflect.Value
 		if rv.IsValid() {
 			erv = rv.Elem()
 		}
-		return inner(e, ep, erv)
+		err := inner(e, ep, erv)
+		e.ptrLevel--
+		return err
 	}
+}
+
+// startDetectingCyclesAfter is encoding/json's threshold: below it cycle
+// tracking costs nothing, beyond it every pointer, map and slice address is
+// remembered for the descent.
+const startDetectingCyclesAfter = 1000
+
+// enterCycle records an address about to be descended into, or reports the
+// cycle if it is already on the path.
+func (e *encodeState) enterCycle(p any, t reflect.Type) error {
+	if _, ok := e.ptrSeen[p]; ok {
+		return &json.UnsupportedValueError{Str: fmt.Sprintf("encountered a cycle via %s", t)}
+	}
+	if e.ptrSeen == nil {
+		e.ptrSeen = make(map[any]struct{})
+	}
+	e.ptrSeen[p] = struct{}{}
+	return nil
 }
 
 func compileSliceEncoder(t reflect.Type) encodeFn {
@@ -629,6 +704,21 @@ func compileSliceEncoder(t reflect.Type) encodeFn {
 			e.buf = append(e.buf, "null"...)
 			return nil
 		}
+		if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
+			// The same struct stdlib keys its slice tracking with: base
+			// pointer and length, since a zero-length view of shared
+			// backing is not the same walk.
+			sp := struct {
+				p unsafe.Pointer
+				n int
+			}{h.data, h.len}
+			if err := e.enterCycle(sp, t); err != nil {
+				e.ptrLevel--
+				return err
+			}
+			defer delete(e.ptrSeen, sp)
+		}
+		defer func() { e.ptrLevel-- }()
 		e.buf = append(e.buf, '[')
 		for i := 0; i < h.len; i++ {
 			if i > 0 {
@@ -756,6 +846,15 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 			e.buf = append(e.buf, "null"...)
 			return nil
 		}
+		if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
+			mp := rv.UnsafePointer()
+			if err := e.enterCycle(mp, t); err != nil {
+				e.ptrLevel--
+				return err
+			}
+			defer delete(e.ptrSeen, mp)
+		}
+		defer func() { e.ptrLevel-- }()
 		// MapRange rather than MapKeys: MapKeys builds a slice of every key
 		// before anything is written, and the keys are wanted one at a time.
 		// Every value in one slice, not one box each.
@@ -906,6 +1005,12 @@ func compileMapEncoder(t reflect.Type) encodeFn {
 
 func mapKeyString(k reflect.Value) (string, error) {
 	if tm, ok := k.Interface().(encoding.TextMarshaler); ok {
+		// A nil pointer key marshals as the empty name without the call --
+		// stdlib's resolveKeyName rule; the method may have a value receiver
+		// that cannot survive the dereference.
+		if k.Kind() == reflect.Pointer && k.IsNil() {
+			return "", nil
+		}
 		b, err := tm.MarshalText()
 		return string(b), err
 	}
@@ -1483,6 +1588,24 @@ func isZeroPtr(f *encField, fp unsafe.Pointer) bool {
 // isZeroMethod returns a call into t's IsZero, if it has one with the right
 // shape. Resolved once at compile time rather than per value.
 func isZeroMethod(t reflect.Type) func(unsafe.Pointer) bool {
+	if t.Kind() == reflect.Interface {
+		// An interface type's MethodByName returns a receiver-less method
+		// type, which the arity check below would reject. The dynamic value
+		// decides: nil interfaces are zero without a call, stdlib's guard.
+		if !t.Implements(isZeroerType) {
+			return nil
+		}
+		return func(p unsafe.Pointer) bool {
+			v := reflect.NewAt(t, p).Elem()
+			// Nil interface, or interface holding a nil pointer: zero
+			// without the call, which could not survive a value-receiver
+			// dereference. Both guards are stdlib's.
+			if v.IsNil() || (v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) {
+				return true
+			}
+			return v.Interface().(interface{ IsZero() bool }).IsZero()
+		}
+	}
 	m, ok := t.MethodByName("IsZero")
 	if !ok {
 		if pt := reflect.PointerTo(t); pt.Implements(isZeroerType) {
@@ -1494,6 +1617,18 @@ func isZeroMethod(t reflect.Type) func(unsafe.Pointer) bool {
 	}
 	if m.Type.NumIn() != 1 || m.Type.NumOut() != 1 || m.Type.Out(0).Kind() != reflect.Bool {
 		return nil
+	}
+	if t.Kind() == reflect.Pointer || t.Kind() == reflect.Interface {
+		return func(p unsafe.Pointer) bool {
+			v := reflect.NewAt(t, p).Elem()
+			// A nil pointer or interface is the zero value, and calling
+			// IsZero through it would panic on a value receiver -- stdlib
+			// short-circuits with v.IsNil() the same way.
+			if v.IsNil() {
+				return true
+			}
+			return v.Interface().(interface{ IsZero() bool }).IsZero()
+		}
 	}
 	return func(p unsafe.Pointer) bool {
 		return reflect.NewAt(t, p).Elem().Interface().(interface{ IsZero() bool }).IsZero()

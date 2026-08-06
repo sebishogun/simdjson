@@ -12,6 +12,7 @@ import (
 	"io"
 	"path"
 	"runtime"
+	"strings"
 	"testing"
 
 	simdjson "github.com/sebishogun/simdjson"
@@ -98,4 +99,38 @@ func diff(t *testing.T, a, b []byte) {
 
 func trim(b []byte) []byte {
 	return b[:min(len(b), 20)]
+}
+
+// MarshalIndent binds the indented encoder; the vendored encode tests use it
+// directly.
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+	return simdjson.MarshalIndent(v, prefix, indent)
+}
+
+// isZeroer is encoding/json's omitzero hook, vendored from encode.go.
+type isZeroer interface {
+	IsZero() bool
+}
+
+// indentNewlines is vendored from encoding/json's scanner_test.go, which the
+// encode tests share helpers with.
+func indentNewlines(s string) string {
+	return strings.Join(strings.Split(s, "\n"), "\n\t")
+}
+
+// The error types the encode tables name, aliased straight to encoding/json's
+// like the decoder-side errors are.
+type (
+	UnsupportedValueError = json.UnsupportedValueError
+	MarshalerError        = json.MarshalerError
+)
+
+// startDetectingCyclesAfter is vendored from encode.go: the depth at which
+// stdlib starts checking for cycles, which its cycle tests multiply against.
+const startDetectingCyclesAfter = 1000
+
+// HTMLEscape binds encoding/json's; this library does not reimplement it and
+// the semantics under test are the escaper's.
+func HTMLEscape(dst *bytes.Buffer, src []byte) {
+	json.HTMLEscape(dst, src)
 }

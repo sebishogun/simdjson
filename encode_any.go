@@ -25,6 +25,7 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"unsafe"
 )
 
 // encodeAny writes a value of one of the types a JSON decode produces, and
@@ -59,37 +60,67 @@ func (e *encodeState) encodeAny(v any) (bool, error) {
 			e.buf = append(e.buf, x...)
 		}
 	case []any:
-		// A big one shards across workers wherever it appears -- a decoded
-		// document is a two-key map whose bytes are all in one nested slice.
-		// The decision happens INSIDE the loop, after four elements are
-		// already encoded, from their size times the count: on a slice that
-		// declines it costs one predicted compare per element and one
-		// estimate ever. The first version wrapped the whole thing in
-		// reflect machinery that ran per slice even to decline, and canada --
-		// thousands of thousand-element coordinate rings, every one entering
-		// and declining -- paid 23% on the floats gate row for it.
-		mark := len(e.buf)
-		e.buf = append(e.buf, '[')
-		for i, el := range x {
-			if i > 0 {
-				e.buf = append(e.buf, ',')
-			}
-			if i == 4 && !e.noParallel && e.hint >= parallelMarshalMin && len(x) >= 24 {
-				if done, err := e.shardAnyRest(x, i, mark); done {
-					return true, err
-				}
-			}
-			if err := e.encodeAnyOrFall(el); err != nil {
+		if x == nil {
+			e.buf = append(e.buf, "null"...)
+			return true, nil
+		}
+		// Cycle tracking with explicit decrements, not defer: this is the
+		// canada hot loop, one call per coordinate ring, and a deferred
+		// closure here is exactly the per-slice overhead entry 23 was about.
+		if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
+			sp := struct {
+				p unsafe.Pointer
+				n int
+			}{unsafe.Pointer(unsafe.SliceData(x)), len(x)}
+			if err := e.enterCycle(sp, anySliceType); err != nil {
+				e.ptrLevel--
 				return true, err
 			}
+			err := e.encodeAnySliceBody(x)
+			delete(e.ptrSeen, sp)
+			e.ptrLevel--
+			return true, err
 		}
-		e.buf = append(e.buf, ']')
+		err := e.encodeAnySliceBody(x)
+		e.ptrLevel--
+		return true, err
 	case map[string]any:
 		return true, e.encodeStringMap(x)
 	default:
 		return false, nil
 	}
 	return true, nil
+}
+
+// encodeAnySliceBody is the []any body of encodeAny, split out so the cycle
+// bookkeeping above can wrap it without a defer on the hot path.
+//
+// A big one shards across workers wherever it appears -- a decoded document
+// is a two-key map whose bytes are all in one nested slice. The decision
+// happens INSIDE the loop, after four elements are already encoded, from
+// their size times the count: on a slice that declines it costs one
+// predicted compare per element and one estimate ever. The first version
+// wrapped the whole thing in reflect machinery that ran per slice even to
+// decline, and canada -- thousands of thousand-element coordinate rings,
+// every one entering and declining -- paid 23% on the floats gate row.
+func (e *encodeState) encodeAnySliceBody(x []any) error {
+	mark := len(e.buf)
+	e.buf = append(e.buf, '[')
+	for i, el := range x {
+		if i > 0 {
+			e.buf = append(e.buf, ',')
+		}
+		if i == 4 && !e.noParallel && e.hint >= parallelMarshalMin && len(x) >= 24 {
+			if done, err := e.shardAnyRest(x, i, mark); done {
+				return err
+			}
+		}
+		if err := e.encodeAnyOrFall(el); err != nil {
+			return err
+		}
+	}
+	e.buf = append(e.buf, ']')
+	return nil
 }
 
 // encodeAnyOrFall is encodeAny with the compiled encoders behind it.
@@ -108,6 +139,25 @@ func (e *encodeState) encodeAnyOrFall(v any) error {
 // back. No reflect, so no boxing: the keys are strings and the values are
 // interfaces already.
 func (e *encodeState) encodeStringMap(m map[string]any) error {
+	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
+		mp := reflect.ValueOf(m).UnsafePointer()
+		if err := e.enterCycle(mp, stringMapType); err != nil {
+			e.ptrLevel--
+			return err
+		}
+		err := e.encodeStringMapBody(m)
+		delete(e.ptrSeen, mp)
+		e.ptrLevel--
+		return err
+	}
+	err := e.encodeStringMapBody(m)
+	e.ptrLevel--
+	return err
+}
+
+// encodeStringMapBody is encodeStringMap behind the cycle bookkeeping,
+// which stays defer-free on the hot path.
+func (e *encodeState) encodeStringMapBody(m map[string]any) error {
 	// Key and value together, not the keys alone. Collecting only the keys
 	// means looking each value up again after the sort, and that second hash
 	// was 10% of marshalling a decoded document -- mapaccess1_faststr, once per
