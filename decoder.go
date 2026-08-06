@@ -2,6 +2,7 @@ package simdjson
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"sync"
@@ -72,6 +73,9 @@ func compile(t reflect.Type) decodeFn {
 	}
 	switch t.Kind() {
 	case reflect.String:
+		if t == numberRType {
+			return decNumber
+		}
 		return decString
 	case reflect.Bool:
 		return decBool
@@ -161,7 +165,13 @@ func compileArray(t reflect.Type) decodeFn {
 				next, err = d.skipValue(j)
 			}
 			if err != nil {
-				return 0, err
+				if !saveable(err) {
+					return 0, err
+				}
+				d.saveErr(err)
+				if next, err = d.skipValue(j); err != nil {
+					return 0, err
+				}
 			}
 			k++
 			j = d.skip(next)
@@ -242,7 +252,13 @@ func compileLeafSlice(t, elem reflect.Type, inner decodeFn, esize uintptr) decod
 			}
 			next, err := inner(unsafe.Add(base, uintptr(k)*esize), d, j)
 			if err != nil {
-				return 0, err
+				if !saveable(err) {
+					return 0, err
+				}
+				d.saveErr(err)
+				if next, err = d.skipValue(j); err != nil {
+					return 0, err
+				}
 			}
 			k++
 			j = d.skip(next)
@@ -310,7 +326,13 @@ func compileLeafArray(t, elem reflect.Type, inner decodeFn, esize uintptr, n int
 				scratchMu.Unlock()
 			}
 			if err != nil {
-				return 0, err
+				if !saveable(err) {
+					return 0, err
+				}
+				d.saveErr(err)
+				if next, err = d.skipValue(j); err != nil {
+					return 0, err
+				}
 			}
 			k++
 			j = d.skip(next)
@@ -397,8 +419,42 @@ func numAt(d *Doc, i int, t reflect.Type) (raw []byte, end int, isNull bool, err
 	return d.data[i:e], e, false, nil
 }
 
-func numErr(raw []byte, t reflect.Type) error {
-	return &json.UnmarshalTypeError{Value: "number " + string(raw), Type: t}
+func numErr(d *Doc, raw []byte, end int, t reflect.Type) error {
+	return &json.UnmarshalTypeError{Value: "number " + string(raw),
+		Type: t, Offset: int64(d.errBase + end)}
+}
+
+// decNumber stores the token's exact text: json.Number keeps digits a
+// float64 would lose, whatever the Decoder's UseNumber setting says.
+func decNumber(p unsafe.Pointer, d *Doc, i int) (int, error) {
+	if d.data[i] == 'n' {
+		if e, ok := nullAt(d, i); ok {
+			return e, nil
+		}
+	}
+	if d.data[i] == '"' {
+		end, sok := d.stringEnd(i)
+		if !sok {
+			var serr error
+			if end, serr = d.stringEndSlow(i); serr != nil {
+				return 0, serr
+			}
+		}
+		// A quoted number is accepted with its quotes stripped; anything
+		// else is stdlib's invalid-number error, raw token and all.
+		if s := d.data[i+1 : end-1]; isValidNumber(bstr(s)) {
+			*(*string)(p) = d.intern(s)
+			return end, nil
+		}
+		return 0, fmt.Errorf("json: invalid number literal, "+
+			"trying to unmarshal %q into Number", string(d.data[i:end]))
+	}
+	e, ok := d.number(i)
+	if !ok {
+		return 0, kindErr(d, i, numberRType)
+	}
+	*(*string)(p) = d.intern(d.data[i:e])
+	return e, nil
 }
 
 // decFloat64 parses and validates in the same pass: parseFloat64At walks
@@ -418,7 +474,7 @@ func decFloat64(p unsafe.Pointer, d *Doc, i int) (int, error) {
 		var perr error
 		f, perr = strconv.ParseFloat(bstr(d.data[i:end]), 64)
 		if perr != nil {
-			return 0, numErr(d.data[i:end], float64Type)
+			return 0, numErr(d, d.data[i:end], end, float64Type)
 		}
 	default:
 		return 0, kindErr(d, i, float64Type)
@@ -434,7 +490,7 @@ func decFloat32(p unsafe.Pointer, d *Doc, i int) (int, error) {
 	}
 	f, perr := strconv.ParseFloat(bstr(raw), 32)
 	if perr != nil {
-		return 0, numErr(raw, float32Type)
+		return 0, numErr(d, raw, end, float32Type)
 	}
 	*(*float32)(p) = float32(f)
 	return end, nil
@@ -464,7 +520,7 @@ func intFn(bits int, t reflect.Type, store func(unsafe.Pointer, int64)) decodeFn
 		}
 		n, perr := strconv.ParseInt(bstr(raw), 10, bits)
 		if perr != nil {
-			return 0, numErr(raw, t)
+			return 0, numErr(d, raw, end, t)
 		}
 		store(p, n)
 		return end, nil
@@ -492,7 +548,7 @@ func uintFn(bits int, t reflect.Type, store func(unsafe.Pointer, uint64)) decode
 		}
 		n, perr := strconv.ParseUint(bstr(raw), 10, bits)
 		if perr != nil {
-			return 0, numErr(raw, t)
+			return 0, numErr(d, raw, end, t)
 		}
 		store(p, n)
 		return end, nil
@@ -587,7 +643,13 @@ func compileSlice(t reflect.Type) decodeFn {
 		for j < end-1 && k < n {
 			next, err := inner(unsafe.Add(base, uintptr(k)*esize), d, j)
 			if err != nil {
-				return 0, err
+				if !saveable(err) {
+					return 0, err
+				}
+				d.saveErr(err)
+				if next, err = d.skipValue(j); err != nil {
+					return 0, err
+				}
 			}
 			k++
 			j = d.skip(next)
@@ -662,6 +724,9 @@ func leafKind(t reflect.Type) uint8 {
 	}
 	switch t.Kind() {
 	case reflect.String:
+		if t == numberRType {
+			return kOther
+		}
 		return kString
 	case reflect.Bool:
 		return kBool
@@ -676,6 +741,7 @@ func leafKind(t reflect.Type) uint8 {
 }
 
 type compiledField struct {
+	name     string
 	offset   uintptr
 	fn       decodeFn
 	typ      reflect.Type
@@ -834,12 +900,17 @@ func compileStruct(t reflect.Type) decodeFn {
 			off += sf.Offset
 			ft = sf.Type
 		}
-		return &compiledField{offset: off, fn: decoderFor(ft), typ: ft,
+		return &compiledField{name: f.name, offset: off, fn: decoderFor(ft), typ: ft,
 			kind: leafKind(ft), asString: f.asString}
 	}
+	// Declaration order end to end: the byLen buckets are scanned linearly
+	// on fold lookups, and the first declared field must win the tie the
+	// way stdlib's ordered field list does. Ranging the maps here once made
+	// the winner random per process.
 	maxLen := 0
-	for name, f := range plan.byName {
-		cf := build(f)
+	for _, c := range plan.ordered {
+		name := c.name
+		cf := build(c.f)
 		cs.byName[name] = cf
 		if len(name) > maxFieldName {
 			cs.longName = true
@@ -848,9 +919,10 @@ func compileStruct(t reflect.Type) decodeFn {
 		}
 	}
 	cs.byLen = make([][]namedField, maxLen+1)
-	for name, cf := range cs.byName {
+	for _, c := range plan.ordered {
+		name := c.name
 		if len(name) <= maxFieldName {
-			cs.byLen[len(name)] = append(cs.byLen[len(name)], namedField{name[0], name, cf})
+			cs.byLen[len(name)] = append(cs.byLen[len(name)], namedField{name[0], name, cs.byName[name]})
 		}
 	}
 	for name, f := range plan.byFold {
@@ -938,10 +1010,17 @@ func compileStruct(t reflect.Type) decodeFn {
 
 			var next int
 			var err error
+			// before is meaningful only on branches that can save an error
+			// below this field: the inline scalar kinds cannot, and loading
+			// it per field cost 14.7% on the struct-decode gate.
+			var before error
+			canNest := false
 			switch {
 			case !found:
 				if d.disallowUnknown {
-					return 0, unknownFieldErr(data, kstart, kend)
+					// Saved, not returned: stdlib notes the unknown field
+					// and keeps decoding the rest of the object.
+					d.saveErr(unknownFieldErr(data, kstart, kend))
 				}
 				// An unknown field is stepped over, not decoded — a bracket
 				// lookup rather than a walk, unless this decode is the thing
@@ -952,6 +1031,7 @@ func compileStruct(t reflect.Type) decodeFn {
 					next, err = d.skipValue(i)
 				}
 			case cf.asString:
+				before, canNest = d.savedErr, true
 				var e Value
 				e, next, err = d.value(i)
 				if err == nil {
@@ -976,11 +1056,25 @@ func compileStruct(t reflect.Type) decodeFn {
 				case kFloat64:
 					next, err = decFloat64(fp, d, i)
 				default:
+					before, canNest = d.savedErr, true
 					next, err = cf.fn(fp, d, i)
 				}
 			}
 			if err != nil {
-				return 0, err
+				if found {
+					err = wrapFieldErr(err, cf.name, t)
+				}
+				if !saveable(err) {
+					return 0, err
+				}
+				d.saveErr(err)
+				// The failed value may be half-read; step over it from its
+				// start so the walk keeps its place.
+				if next, err = d.skipValue(i); err != nil {
+					return 0, err
+				}
+			} else if canNest && found && d.savedErr != before {
+				d.savedErr = wrapFieldErr(d.savedErr, cf.name, t)
 			}
 
 			// The separator is checked here rather than left to a grammar

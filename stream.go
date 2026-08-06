@@ -123,11 +123,16 @@ func (d *Decoder) decodeAt(i int, out any) (int, error) {
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return 0, &json.InvalidUnmarshalError{Type: reflect.TypeOf(out)}
 	}
+	// encoding/json's Decoder reports error offsets relative to the value
+	// being decoded, not to the stream: each Decode hands its decodeState a
+	// fresh slice. i is the value's first byte within the batch.
+	d.doc.errBase = -i
 	if el := rv.Elem(); el.CanAddr() {
 		if t := el.Type(); d.fnTyp != t {
 			d.fn, d.fnTyp = decoderFor(t), t
 		}
-		return d.fn(unsafe.Pointer(el.UnsafeAddr()), d.doc, i)
+		next, err := d.fn(unsafe.Pointer(el.UnsafeAddr()), d.doc, i)
+		return next, d.doc.takeSaved(err)
 	}
 	return d.doc.decodeAt(i, out)
 }

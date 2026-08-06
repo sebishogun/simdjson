@@ -122,6 +122,19 @@ type Doc struct {
 	// rather than a walk through the index struct. It is read once per string.
 	inStr []uint64
 
+	// errBase shifts error offsets when data is a window of a larger input:
+	// the streaming Decoder reports absolute positions, batch-relative ones
+	// are meaningless to its caller. Zero for whole-document decodes.
+	errBase int
+
+	// keyPos is the byte position of the object key most recently walked by
+	// eachField, for map-key errors; setMapKey itself has no position.
+	keyPos int
+
+	// savedErr is the first non-fatal decode error, stdlib's d.savedError:
+	// a type mismatch does not stop the walk, it is reported at the end.
+	savedErr error
+
 	// brAt is where matchBracket last looked. Containers are met in ascending
 	// order by every walk that matters — validation, ForEach, Decode — so the
 	// bracket wanted is almost always the next one in the array, and the

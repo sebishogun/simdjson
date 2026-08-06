@@ -275,6 +275,11 @@ func compileEncoder(t reflect.Type) encodeFn {
 	}
 	switch t.Kind() {
 	case reflect.String:
+		if t == numberRType {
+			return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
+				return e.writeNumberLiteral(*(*string)(p))
+			}
+		}
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
 			e.writeString(*(*string)(p))
 			return nil
@@ -329,6 +334,9 @@ func compileEncoder(t reflect.Type) encodeFn {
 			// composites, which need a pointer to walk, still pay.
 			switch el.Kind() {
 			case reflect.String:
+				if el.Type() == numberRType {
+					return e.writeNumberLiteral(el.String())
+				}
 				e.buf = appendQuotedOpts(e.buf, el.String(), e.opts)
 				return nil
 			case reflect.Bool:
@@ -384,11 +392,21 @@ func ptrOf(rv reflect.Value) unsafe.Pointer {
 // speed to gain: these types are rare and their own method dominates whatever
 // wraps it.
 func encodeViaStdlib(t reflect.Type) encodeFn {
+	// A marshaler on the pointer receiver only exists through the address;
+	// marshalling the value copy would silently fall back to the plain
+	// representation, which is what stdlib does only when no address exists.
+	ptrOnly := !t.Implements(marshalerType) && !t.Implements(textMarshalerType)
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-		if !rv.IsValid() {
-			rv = reflect.NewAt(t, p).Elem()
+		var b []byte
+		var err error
+		if ptrOnly && p != nil {
+			b, err = json.Marshal(reflect.NewAt(t, p).Interface())
+		} else {
+			if !rv.IsValid() {
+				rv = reflect.NewAt(t, p).Elem()
+			}
+			b, err = json.Marshal(rv.Interface())
 		}
-		b, err := json.Marshal(rv.Interface())
 		if err != nil {
 			return err
 		}
@@ -574,7 +592,10 @@ func compilePointerEncoder(t reflect.Type) encodeFn {
 
 func compileSliceEncoder(t reflect.Type) encodeFn {
 	elem := t.Elem()
-	if elem.Kind() == reflect.Uint8 && !elem.Implements(marshalerType) {
+	if elem.Kind() == reflect.Uint8 && !elem.Implements(marshalerType) &&
+		!reflect.PointerTo(elem).Implements(marshalerType) &&
+		!elem.Implements(textMarshalerType) &&
+		!reflect.PointerTo(elem).Implements(textMarshalerType) {
 		return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
 			b := *(*[]byte)(p)
 			if b == nil {
@@ -926,6 +947,9 @@ func encLeafOf(t reflect.Type) encLeaf {
 	}
 	switch t.Kind() {
 	case reflect.String:
+		if t == numberRType {
+			return leafNone
+		}
 		return leafString
 	case reflect.Int64, reflect.Int:
 		if t.Size() == 8 {
@@ -1097,6 +1121,10 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				continue
 			}
 			name, opts, _ := cutComma(tag)
+			// Tagged means the tag NAMED the field; a bare `json:",omitempty"`
+			// does not outrank an untagged sibling, and `json:"X"` on a field
+			// already called X still does.
+			tagged := name != ""
 			ft := sf.Type
 			ptrHere := viaPtr || ft.Kind() == reflect.Pointer
 			if sf.Anonymous && name == "" {
@@ -1121,7 +1149,7 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 			key = appendQuoted(key[:0], name)
 			key = append(key, ':')
 			dom = append(dom, domField{name: name, depth: depth,
-				tagged: tag != "" && name != "", ord: len(fields)})
+				tagged: tagged, ord: len(fields)})
 			fields = append(fields, encField{
 				key:       key,
 				offset:    off + sf.Offset,

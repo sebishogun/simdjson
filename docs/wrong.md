@@ -2272,3 +2272,29 @@ which does quote parity with carry-less multiply inside the vector pass.
 The library's own architecture (C kernels, committed assembly) can do the
 same: a stage-one kernel is the mechanism that changes this number, and
 it changes it for every operation that builds an index.
+
+## Valid/canada +8.2% wall with zero added instructions: the gate red that was layout
+
+The stdlib-semantics batch (save-and-continue, error offsets, Number, field
+dominance) tripped bench-check twice on `BenchmarkGateValid/canada`: +9.0%,
+then +8.2% against an 8% limit — while touching nothing the Valid path
+executes. The first run also showed GateUnmarshal +14.7%, which was real (a
+`d.savedErr` load per field in the compiled struct loop; confining the fence
+to branches that can nest a save removed it), so the batch had one genuine
+regression and one suspect riding along.
+
+Counters on interleaved builds, `perf stat -e instructions:u,cycles:u`,
+BenchmarkGateValid/canada ×400, two rounds each:
+
+| build | instructions | cycles |
+|---|---|---|
+| f315837 (A) | 13.13638 G / 13.13663 G | 1.943 G / 1.932 G |
+| batch (B) | 13.13658 G / 13.13626 G | 1.989 G / 1.996 G |
+
+Instructions identical to 0.003% — the Valid path runs the same work. Cycles
++2.8% on the same stream: frontend stalls from where unrelated new code
+pushed the number loops, the same mechanism as entry 13, which is why the
+noise floor here is 8.3% in the first place. Decision: baseline re-recorded
+via bench-agree, no code change. A wall-clock gate red on a path the diff
+does not execute is a layout question, and only instructions retired can
+answer it.

@@ -68,15 +68,18 @@ func Unmarshal(data []byte, v any) error {
 			return err
 		}
 	}
-	if err := d.Root().Decode(v); err != nil {
+	err = d.Root().Decode(v)
+	if err != nil && !saveable(err) {
 		return err
 	}
 	// Nothing may follow the top-level value. Parse's descent used to prove
 	// this; the decode does not reach past the root, so it is checked here.
+	// It outranks a saved type error: encoding/json proves the whole input
+	// well-formed before it reports what failed to fit.
 	if p := d.skip(d.root.end); p < len(data) {
 		return errAt("trailing data", p)
 	}
-	return nil
+	return err
 }
 
 // Unmarshal decodes an already-parsed document into v.
@@ -103,9 +106,9 @@ func (v Value) Decode(out any) error {
 	el := rv.Elem()
 	if el.CanAddr() {
 		_, err := decoderFor(el.Type())(unsafe.Pointer(el.UnsafeAddr()), v.d, v.start)
-		return err
+		return v.d.takeSaved(err)
 	}
-	return v.decode(el)
+	return v.d.takeSaved(v.decode(el))
 }
 
 // decodeAt decodes the value beginning at i into out, and returns where it
@@ -123,7 +126,8 @@ func (d *Doc) decodeAt(i int, out any) (int, error) {
 		return 0, &json.InvalidUnmarshalError{Type: reflect.TypeOf(out)}
 	}
 	if el := rv.Elem(); el.CanAddr() {
-		return decoderFor(el.Type())(unsafe.Pointer(el.UnsafeAddr()), d, i)
+		next, err := decoderFor(el.Type())(unsafe.Pointer(el.UnsafeAddr()), d, i)
+		return next, d.takeSaved(err)
 	}
 	// Not addressable, which a pointer handed to Decode always is unless it
 	// came from reflection. Worth no cleverness.
@@ -131,7 +135,7 @@ func (d *Doc) decodeAt(i int, out any) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return end, v.decode(rv.Elem())
+	return end, d.takeSaved(v.decode(rv.Elem()))
 }
 
 // validate walks v's bytes and reports the first thing wrong with them.
@@ -173,15 +177,25 @@ func (v Value) decode(rv reflect.Value) error {
 		if err := v.validate(); err != nil {
 			return err
 		}
-		return u.UnmarshalJSON(v.Raw())
+		return clearStructCtx(u.UnmarshalJSON(v.Raw()))
 	}
 	if v.kind == String {
 		if u, ok := textUnmarshalerFor(rv); ok {
 			s, esc := v.str()
 			if !esc {
-				return u.UnmarshalText([]byte(s))
+				return clearStructCtx(u.UnmarshalText([]byte(s)))
 			}
-			return u.UnmarshalText([]byte(s))
+			return clearStructCtx(u.UnmarshalText([]byte(s)))
+		}
+	} else if v.kind == Object || v.kind == Array {
+		// A container into a TextUnmarshaler type is reported against the
+		// receiver, *T -- stdlib's indirect() has already taken the address
+		// by the time its array()/object() raise the mismatch.
+		if t := rv.Type(); t.Kind() != reflect.Pointer &&
+			reflect.PointerTo(t).Implements(textUnmarshalerType) &&
+			!implementsUnmarshaler(t) {
+			return &json.UnmarshalTypeError{Value: v.kind.String(),
+				Type: reflect.PointerTo(t), Offset: v.errOff()}
 		}
 	}
 
@@ -190,7 +204,19 @@ func (v Value) decode(rv reflect.Value) error {
 		// alone. That is what encoding/json does, and it is load-bearing: a
 		// struct field of type int keeps whatever it had.
 		switch rv.Kind() {
-		case reflect.Interface, reflect.Pointer, reflect.Map, reflect.Slice:
+		case reflect.Interface:
+			// An interface holding a chain of pointers takes the null one
+			// level in: stdlib's indirect() stops at the first settable
+			// pointer, which is the held pointer's pointee, so the
+			// interface keeps its outer pointer and the inner one nils.
+			if !rv.IsNil() {
+				if e := rv.Elem(); e.Kind() == reflect.Pointer && !e.IsNil() &&
+					e.Elem().Kind() == reflect.Pointer {
+					return v.decode(e.Elem())
+				}
+			}
+			rv.SetZero()
+		case reflect.Pointer, reflect.Map, reflect.Slice:
 			rv.SetZero()
 		}
 		return nil
@@ -215,7 +241,8 @@ func (v Value) decode(rv reflect.Value) error {
 		// null-clears-interface rule below applies.
 		if !rv.IsNil() {
 			if e := rv.Elem(); e.Kind() == reflect.Pointer && !e.IsNil() &&
-				(v.kind != Null || e.Elem().Kind() == reflect.Pointer) {
+				(v.kind != Null || e.Elem().Kind() == reflect.Pointer) &&
+				!(e.Elem().Kind() == reflect.Interface && e.Elem().Elem() == e) {
 				return v.decode(e.Elem())
 			}
 		}
@@ -234,6 +261,25 @@ func (v Value) decode(rv reflect.Value) error {
 		return nil
 
 	case reflect.String:
+		if rv.Type() == numberRType {
+			if v.kind == String {
+				// A quoted number is accepted with its quotes stripped;
+				// anything else in the quotes is stdlib's invalid-number
+				// error, raw token and all.
+				s, _ := v.str()
+				if !isValidNumber(s) {
+					return fmt.Errorf("json: invalid number literal, "+
+						"trying to unmarshal %q into Number", string(v.Raw()))
+				}
+				rv.SetString(s)
+				return nil
+			}
+			if v.kind != Number {
+				return v.typeErr(rv.Type())
+			}
+			rv.SetString(v.d.intern(v.Raw()))
+			return nil
+		}
 		if v.kind != String {
 			return v.typeErr(rv.Type())
 		}
@@ -262,7 +308,7 @@ func (v Value) decode(rv reflect.Value) error {
 			var err error
 			f, err = strconv.ParseFloat(bstr(v.Raw()), rv.Type().Bits())
 			if err != nil {
-				return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type()}
+				return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type(), Offset: v.errOff()}
 			}
 		}
 		rv.SetFloat(f)
@@ -306,7 +352,18 @@ func bstr(b []byte) string {
 }
 
 func (v Value) typeErr(t reflect.Type) error {
-	return &json.UnmarshalTypeError{Value: v.kind.String(), Type: t}
+	return &json.UnmarshalTypeError{Value: v.kind.String(), Type: t, Offset: v.errOff()}
+}
+
+// errOff is the byte offset encoding/json reports for a type error at this
+// value: one past the opening bracket for containers, one past the whole
+// token for scalars.
+func (v Value) errOff() int64 {
+	off := v.end
+	if v.kind == Object || v.kind == Array {
+		off = v.start + 1
+	}
+	return int64(v.d.errBase + off)
 }
 
 // str returns a string value's contents and whether it needed unescaping.
@@ -328,7 +385,7 @@ func (v Value) decodeInt(rv reflect.Value) error {
 	}
 	n, err := strconv.ParseInt(bstr(v.Raw()), 10, rv.Type().Bits())
 	if err != nil {
-		return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type()}
+		return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type(), Offset: v.errOff()}
 	}
 	rv.SetInt(n)
 	return nil
@@ -340,7 +397,7 @@ func (v Value) decodeUint(rv reflect.Value) error {
 	}
 	n, err := strconv.ParseUint(bstr(v.Raw()), 10, rv.Type().Bits())
 	if err != nil {
-		return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type()}
+		return &json.UnmarshalTypeError{Value: "number " + string(v.Raw()), Type: rv.Type(), Offset: v.errOff()}
 	}
 	rv.SetUint(n)
 	return nil
@@ -350,8 +407,7 @@ func (v Value) decodeSlice(rv reflect.Value) error {
 	// A []byte carried as a JSON string is base64. Carried as an array it is
 	// an ordinary slice of numbers — encoding/json accepts both, and only the
 	// string form is special.
-	if v.kind == String && rv.Type().Elem().Kind() == reflect.Uint8 &&
-		!implementsUnmarshaler(rv.Type().Elem()) {
+	if v.kind == String && rv.Type().Elem().Kind() == reflect.Uint8 {
 		s, _ := v.str()
 		b, err := base64.StdEncoding.DecodeString(s)
 		if err != nil {
@@ -379,7 +435,13 @@ func (v Value) decodeSlice(rv reflect.Value) error {
 		if k >= rv.Len() {
 			return nil
 		}
-		return e.decode(rv.Index(k))
+		if err := e.decode(rv.Index(k)); err != nil {
+			if !saveable(err) {
+				return err
+			}
+			v.d.saveErr(err)
+		}
+		return nil
 	})
 }
 
@@ -430,6 +492,7 @@ func (v Value) eachField(fn func(string, Value) error) error {
 		}
 		// Interned like every other decoded string; this was one allocation
 		// per key of every object decoded into an any or a map.
+		d.keyPos = i
 		key := d.decodeStr(i, kend)
 		i = d.skip(kend)
 		if i >= v.end || d.data[i] != ':' {
@@ -470,7 +533,13 @@ func (v Value) decodeArray(rv reflect.Value) error {
 		if k >= rv.Len() {
 			return nil
 		}
-		return e.decode(rv.Index(k))
+		if err := e.decode(rv.Index(k)); err != nil {
+			if !saveable(err) {
+				return err
+			}
+			v.d.saveErr(err)
+		}
+		return nil
 	}); err != nil {
 		return err
 	}
@@ -503,11 +572,25 @@ func (v Value) decodeMap(rv reflect.Value) error {
 	return v.eachField(func(k string, e Value) error {
 		kv := reflect.New(kt).Elem()
 		if err := setMapKey(kv, k); err != nil {
-			return err
+			if te, ok := err.(*json.UnmarshalTypeError); ok && te.Offset == 0 {
+				te.Offset = int64(v.d.errBase + v.d.keyPos + 1)
+			}
+			if !saveable(err) {
+				return err
+			}
+			// The pair is dropped and the map keeps decoding: stdlib saves
+			// bad keys and moves on.
+			v.d.saveErr(err)
+			return nil
 		}
 		ev := reflect.New(elemT).Elem()
 		if err := e.decode(ev); err != nil {
-			return err
+			if !saveable(err) {
+				return err
+			}
+			// The key still lands, holding whatever the element decode
+			// managed before it failed -- stdlib sets the entry regardless.
+			v.d.saveErr(err)
 		}
 		rv.SetMapIndex(kv, ev)
 		return nil
@@ -588,7 +671,9 @@ func (v Value) decodeStruct(rv reflect.Value) error {
 		}
 		i = d.skip(i + 1)
 		if !found && d.disallowUnknown {
-			return unknownFieldErr(d.data, i0, kend)
+			// Saved, not returned: stdlib notes the unknown field and keeps
+			// decoding the rest of the object.
+			d.saveErr(unknownFieldErr(d.data, i0, kend))
 		}
 		e, next, err := d.value(i)
 		if err != nil {
@@ -613,13 +698,22 @@ func (v Value) decodeStruct(rv reflect.Value) error {
 				// null reaches the ordinary path even on a `,string` field: the
 				// option says how a value is carried, and null is not carried
 				// that way.
+				before := d.savedErr
 				if f.asString && e.kind != Null {
 					err = decodeQuoted(e, fv)
 				} else {
 					err = e.decode(fv)
 				}
 				if err != nil {
-					return err
+					err = wrapFieldErr(err, f.name, rv.Type())
+					if !saveable(err) {
+						return err
+					}
+					d.saveErr(err)
+				} else if d.savedErr != before {
+					// A type error was saved below this field; its path grows
+					// this level's name on the way out.
+					d.savedErr = wrapFieldErr(d.savedErr, f.name, rv.Type())
 				}
 			}
 		}
@@ -642,12 +736,31 @@ func (v Value) decodeStruct(rv reflect.Value) error {
 // encoding/json rather than by reading its source.
 func decodeQuoted(v Value, rv reflect.Value) error {
 	if v.kind != String {
-		return v.typeErr(rv.Type())
+		return fmt.Errorf("json: invalid use of ,string struct tag, "+
+			"trying to unmarshal unquoted value into %v", rv.Type())
 	}
 	s, _ := v.str()
+	// A quoted null is a no-op, exactly like a bare one: stdlib's
+	// literalStore treats the carried value as JSON, and JSON null
+	// assigns nothing.
+	if s == "null" {
+		return nil
+	}
 	bad := func() error {
 		return fmt.Errorf("json: invalid use of ,string struct tag, "+
 			"trying to unmarshal %q into %s", s, rv.Type())
+	}
+	qNumErr := func() error {
+		return &json.UnmarshalTypeError{Value: "number " + s,
+			Type: rv.Type(), Offset: v.errOff()}
+	}
+	if rv.Type() == numberRType {
+		if !isValidNumber(s) {
+			return fmt.Errorf("json: invalid number literal, "+
+				"trying to unmarshal %q into Number", string(v.Raw()))
+		}
+		rv.SetString(v.d.intern([]byte(s)))
+		return nil
 	}
 	switch rv.Kind() {
 	case reflect.Bool:
@@ -672,7 +785,7 @@ func decodeQuoted(v Value, rv reflect.Value) error {
 		}
 		n, err := strconv.ParseInt(s, 10, rv.Type().Bits())
 		if err != nil {
-			return bad()
+			return qNumErr()
 		}
 		rv.SetInt(n)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -681,7 +794,7 @@ func decodeQuoted(v Value, rv reflect.Value) error {
 		}
 		n, err := strconv.ParseUint(s, 10, rv.Type().Bits())
 		if err != nil {
-			return bad()
+			return qNumErr()
 		}
 		rv.SetUint(n)
 	case reflect.Float32, reflect.Float64:
@@ -690,7 +803,7 @@ func decodeQuoted(v Value, rv reflect.Value) error {
 		}
 		f, err := strconv.ParseFloat(s, rv.Type().Bits())
 		if err != nil {
-			return bad()
+			return qNumErr()
 		}
 		rv.SetFloat(f)
 	default:
@@ -759,7 +872,11 @@ func (v Value) anyArray() (any, error) {
 	err := v.eachValue(func(_ int, e Value) error {
 		a, err := e.any()
 		if err != nil {
-			return err
+			if !saveable(err) {
+				return err
+			}
+			v.d.saveErr(err)
+			a = nil
 		}
 		out = append(out, a)
 		return nil
@@ -772,7 +889,11 @@ func (v Value) anyObject() (any, error) {
 	err := v.eachField(func(k string, e Value) error {
 		a, err := e.any()
 		if err != nil {
-			return err
+			if !saveable(err) {
+				return err
+			}
+			v.d.saveErr(err)
+			a = nil
 		}
 		out[k] = a
 		return nil
@@ -839,6 +960,7 @@ func isUintKind(k reflect.Kind) bool {
 
 // field is one decodable struct field: where it lives and what its tag said.
 type field struct {
+	name     string
 	index    []int
 	asString bool
 }
@@ -851,6 +973,10 @@ type field struct {
 type structPlan struct {
 	byName map[string]field
 	byFold map[string]field
+	// ordered holds the kept fields in declaration order; the compiled
+	// fold scan is a linear bucket walk, and first-declared must win the
+	// way stdlib's field list does.
+	ordered []planCand
 }
 
 var planCache sync.Map // reflect.Type -> *structPlan
@@ -868,8 +994,8 @@ func buildPlan(t reflect.Type) *structPlan {
 	p := &structPlan{byName: map[string]field{}, byFold: map[string]field{}}
 	var dom []domField
 	var cands []planCand
-	var walk func(t reflect.Type, prefix []int, depth int)
-	walk = func(t reflect.Type, prefix []int, depth int) {
+	var walk func(t reflect.Type, prefix []int, depth int, hops string)
+	walk = func(t reflect.Type, prefix []int, depth int, hops string) {
 		if depth > 10 {
 			return // cycle guard; encoding/json has its own
 		}
@@ -880,6 +1006,9 @@ func buildPlan(t reflect.Type) *structPlan {
 				continue
 			}
 			name, opts, _ := strings.Cut(tag, ",")
+			// Tagged means the tag NAMED the field -- `json:"X"` on a field
+			// already called X still outranks an untagged X at equal depth.
+			tagged := name != ""
 
 			// An embedded struct with no name of its own contributes its
 			// fields to the outer type.
@@ -891,7 +1020,8 @@ func buildPlan(t reflect.Type) *structPlan {
 				if !sf.IsExported() && ft.Kind() != reflect.Struct {
 					continue
 				}
-				walk(ft, append(append([]int{}, prefix...), i), depth+1)
+				walk(ft, append(append([]int{}, prefix...), i), depth+1,
+					hops+sf.Name+".")
 				continue
 			}
 			if !sf.IsExported() {
@@ -901,13 +1031,15 @@ func buildPlan(t reflect.Type) *structPlan {
 				name = sf.Name
 			}
 			idx := append(append([]int{}, prefix...), i)
-			f := field{index: idx, asString: strings.Contains(opts, "string")}
+			// name keys the lookup; the error label walks the embedded hops
+			// the way stdlib's FieldStack does ("Embed0a.Level1a").
+			f := field{name: hops + name, index: idx, asString: strings.Contains(opts, "string")}
 			dom = append(dom, domField{name: name, depth: depth,
-				tagged: tag != "" && name != sf.Name, ord: len(cands)})
+				tagged: tagged, ord: len(cands)})
 			cands = append(cands, planCand{name: name, f: f})
 		}
 	}
-	walk(t, nil, 0)
+	walk(t, nil, 0, "")
 	// Embedded-field dominance, the same filter the encoder runs; the old
 	// shallower-wins overwrite missed annihilation and tag precedence. See
 	// fielddominance.go and stdlib's TestMarshalEmbeds.
@@ -916,6 +1048,7 @@ func buildPlan(t reflect.Type) *structPlan {
 		if !keep[i] {
 			continue
 		}
+		p.ordered = append(p.ordered, c)
 		p.byName[c.name] = c.f
 		if _, exists := p.byFold[strings.ToLower(c.name)]; !exists {
 			p.byFold[strings.ToLower(c.name)] = c.f
