@@ -229,6 +229,32 @@ and validates strings. `sonic.Marshal` does none of the three; thirty calls on
 the same map produce five different outputs. Both are in the harness, the second
 marked not comparable.
 
+**Decoded into `any`** — `map[string]any` and `[]any` out of every corpus
+shape, MB/s, best of two passes, decodes cross-checked before timing. This
+family was sonic's on all twelve shapes until the any path was cured of
+per-string and per-key `unquote` and numbers stopped paying an allocation
+per box (the float payloads live in a document slab, like decoded strings):
+
+| into `any`, MB/s | ours | sonic | goccy | stdlib |
+|---|---|---|---|---|
+| twitter | **548** | 536 | 371 | 188 |
+| citm | **696** | 643 | 433 | 203 |
+| canada | 363 | 357 | 178 | 151 |
+| numbers | 477 | 480 | 190 | 159 |
+| github_events | 568 | **621** | 466 | 201 |
+| apache_builds | 526 | 549 | 433 | 197 |
+| gsoc-2018 | 1,371 | **1,514** | 892 | 273 |
+| instruments | 472 | 485 | 308 | 172 |
+| update-center | **373** | 347 | 281 | 165 |
+| mesh | 344 | **377** | 149 | 131 |
+| mesh.pretty | **744** | 681 | 299 | 186 |
+| marine_ik | 328 | 352 | 156 | 127 |
+
+Bold marks a lead past the 8.3% noise floor; unmarked cells are
+statistically level. sonic keeps three shapes by 9–10%; gsoc-2018's share
+is the index build, which is the stage-one kernel's problem to solve.
+goccy trails this entire family.
+
 **Text in, text out**, against `encoding/json`, MB/s:
 
 | | twitter | citm | canada | vs stdlib |
