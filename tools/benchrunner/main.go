@@ -100,6 +100,11 @@ func main() {
 	includeSlow := flag.Bool("include-slow", false,
 		"run discovery without the timeout and keep rows slower than -max-discover-sec")
 	benchFilter := flag.String("bench", ".*", "only run discovered benchmarks whose name matches this regex")
+	rowSec := flag.Int("max-row-sec", 300,
+		"wall-clock cap per measured row; a row that outlives it is recorded "+
+			"as an error and the run continues. 0 disables. The per-op slow-row "+
+			"threshold cannot catch a row whose ops are fast but whose harness "+
+			"interplay is not -- sonic's cold-start JIT ran one row 53 minutes.")
 	flag.Parse()
 
 	if *bin == "" || *outPath == "" {
@@ -218,13 +223,25 @@ func main() {
 	benches := make([]bench, 0, len(toRun))
 	for i, name := range toRun {
 		fmt.Printf("[%d/%d] %s\n", i+1, len(toRun), name)
-		out, rerr := binCmd(context.Background(),
+		rctx := context.Background()
+		rcancel := func() {}
+		if *rowSec > 0 {
+			rctx, rcancel = context.WithTimeout(rctx, time.Duration(*rowSec)*time.Second)
+		}
+		out, rerr := binCmd(rctx,
 			"-test.run", "^$",
 			"-test.bench", "^"+regexp.QuoteMeta(name)+"$",
 			"-test.count", strconv.Itoa(*count),
 			"-test.benchtime", *benchtime,
 			"-test.shuffle", "on").CombinedOutput()
-		if rerr != nil {
+		rowTimedOut := errors.Is(rctx.Err(), context.DeadlineExceeded)
+		rcancel()
+		if rowTimedOut {
+			// Partial samples that made it out before the cap still count:
+			// the minimum of what was measured is a real minimum. Only a row
+			// with no complete sample at all becomes an error below.
+			fmt.Fprintf(os.Stderr, "benchrunner: %s: row exceeded %ds, using what it printed\n", name, *rowSec)
+		} else if rerr != nil {
 			fmt.Fprintf(os.Stderr, "benchrunner: %s: %v\n", name, rerr)
 		}
 		ns, mbps, perr := minSample(resultLines(name, out))
