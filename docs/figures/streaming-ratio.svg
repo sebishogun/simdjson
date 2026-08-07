@@ -10,53 +10,73 @@
 <text x="305.79" y="-3.9023" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:12px">library</text>
 <g transform="rotate(22.91831180523293)">
-<text x="68.961" y="5.2979" transform="scale(1, -1)"
+<text x="69.948" y="2.9635" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">this</text>
 </g>
 <g transform="rotate(22.91831180523293)">
-<text x="158.19" y="44.818" transform="scale(1, -1)"
+<text x="120.87" y="27.664" transform="scale(1, -1)"
+	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">fastjson</text>
+</g>
+<g transform="rotate(22.91831180523293)">
+<text x="183.54" y="52.364" transform="scale(1, -1)"
+	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">gjson</text>
+</g>
+<g transform="rotate(22.91831180523293)">
+<text x="240.97" y="77.065" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">goccy</text>
 </g>
 <g transform="rotate(22.91831180523293)">
-<text x="253.17" y="84.339" transform="scale(1, -1)"
+<text x="299.64" y="101.76" transform="scale(1, -1)"
+	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">minio</text>
+</g>
+<g transform="rotate(22.91831180523293)">
+<text x="359.31" y="126.47" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">other</text>
 </g>
 <g transform="rotate(22.91831180523293)">
-<text x="346.39" y="123.86" transform="scale(1, -1)"
+<text x="417.48" y="151.17" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">sonic</text>
 </g>
 <g transform="rotate(22.91831180523293)">
-<text x="439.36" y="163.38" transform="scale(1, -1)"
+<text x="475.4" y="175.87" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:9px">stdlib</text>
 </g>
 <g transform="rotate(90)">
-<text x="34.316" y="9.3867" transform="scale(1, -1)"
+<text x="39.792" y="9.3867" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:12px">time ÷ this library&#39;s time (1.0 = level; lower is faster)</text>
 </g>
-<text x="35.963" y="-112.07" transform="scale(1, -1)"
+<text x="35.963" y="-130.59" transform="scale(1, -1)"
 	style="font-family:Liberation Serif;font-variant:normal;font-weight:normal;font-style:normal;font-size:10px">1</text>
-<path d="M43.463,114.35L51.463,114.35" style="fill:none;stroke:#000000;stroke-width:0.5" />
-<path d="M47.463,114.35L51.463,114.35" style="fill:none;stroke:#000000;stroke-width:0.5" />
-<path d="M47.463,192.86L51.463,192.86" style="fill:none;stroke:#000000;stroke-width:0.5" />
-<path d="M47.463,238.79L51.463,238.79" style="fill:none;stroke:#000000;stroke-width:0.5" />
-<path d="M47.463,271.38L51.463,271.38" style="fill:none;stroke:#000000;stroke-width:0.5" />
-<path d="M51.463,35.837L51.463,286.58" style="fill:none;stroke:#000000;stroke-width:0.5" />
-<path d="M58.715,114.35L58.715,114.35L64.951,114.35L64.951,114.35Z" style="fill:#1F77B4" />
-<path d="M160.2,114.35L160.2,143.71L166.44,143.71L166.44,114.35Z" style="fill:#1F77B4" />
-<path d="M261.69,114.35L261.69,42.802L267.92,42.802L267.92,114.35Z" style="fill:#1F77B4" />
-<path d="M363.17,114.35L363.17,162.23L369.41,162.23L369.41,114.35Z" style="fill:#1F77B4" />
-<path d="M464.66,114.35L464.66,270.75L470.9,270.75L470.9,114.35Z" style="fill:#1F77B4" />
-<path d="M64.951,114.35L64.951,114.35L71.187,114.35L71.187,114.35Z" style="fill:#FF7F0E" />
-<path d="M166.44,114.35L166.44,183.84L172.67,183.84L172.67,114.35Z" style="fill:#FF7F0E" />
-<path d="M267.92,114.35L267.92,114.35L274.16,114.35L274.16,114.35Z" style="fill:#FF7F0E" />
-<path d="M369.41,114.35L369.41,95.52L375.65,95.52L375.65,114.35Z" style="fill:#FF7F0E" />
-<path d="M470.9,114.35L470.9,209.71L477.13,209.71L477.13,114.35Z" style="fill:#FF7F0E" />
-<path d="M71.187,114.35L71.187,114.35L77.423,114.35L77.423,114.35Z" style="fill:#2CA02C" />
-<path d="M172.67,114.35L172.67,172.77L178.91,172.77L178.91,114.35Z" style="fill:#2CA02C" />
-<path d="M274.16,114.35L274.16,114.35L280.4,114.35L280.4,114.35Z" style="fill:#2CA02C" />
-<path d="M375.65,114.35L375.65,128.31L381.88,128.31L381.88,114.35Z" style="fill:#2CA02C" />
-<path d="M477.13,114.35L477.13,230.45L483.37,230.45L483.37,114.35Z" style="fill:#2CA02C" />
-<path d="M68.069,114.35L575.5,114.35" style="fill:none;stroke:#000000;stroke-dasharray:5.6693,5.6693" />
+<path d="M43.463,132.87L51.463,132.87" style="fill:none;stroke:#000000;stroke-width:0.5" />
+<path d="M47.463,132.87L51.463,132.87" style="fill:none;stroke:#000000;stroke-width:0.5" />
+<path d="M47.463,227.37L51.463,227.37" style="fill:none;stroke:#000000;stroke-width:0.5" />
+<path d="M47.463,282.65L51.463,282.65" style="fill:none;stroke:#000000;stroke-width:0.5" />
+<path d="M51.463,38.372L51.463,295" style="fill:none;stroke:#000000;stroke-width:0.5" />
+<path d="M58.715,132.87L58.715,132.87L64.951,132.87L64.951,132.87Z" style="fill:#1F77B4" />
+<path d="M122.14,132.87L122.14,132.87L128.38,132.87L128.38,132.87Z" style="fill:#1F77B4" />
+<path d="M185.57,132.87L185.57,132.87L191.81,132.87L191.81,132.87Z" style="fill:#1F77B4" />
+<path d="M249,132.87L249,166.58L255.24,166.58L255.24,132.87Z" style="fill:#1F77B4" />
+<path d="M312.43,132.87L312.43,132.87L318.67,132.87L318.67,132.87Z" style="fill:#1F77B4" />
+<path d="M375.86,132.87L375.86,49.437L382.1,49.437L382.1,132.87Z" style="fill:#1F77B4" />
+<path d="M439.29,132.87L439.29,132.73L445.52,132.73L445.52,132.87Z" style="fill:#1F77B4" />
+<path d="M502.72,132.87L502.72,135.8L508.95,135.8L508.95,132.87Z" style="fill:#1F77B4" />
+<path d="M64.951,132.87L64.951,132.87L71.187,132.87L71.187,132.87Z" style="fill:#FF7F0E" />
+<path d="M128.38,132.87L128.38,132.87L134.62,132.87L134.62,132.87Z" style="fill:#FF7F0E" />
+<path d="M191.81,132.87L191.81,132.87L198.04,132.87L198.04,132.87Z" style="fill:#FF7F0E" />
+<path d="M255.24,132.87L255.24,220.91L261.47,220.91L261.47,132.87Z" style="fill:#FF7F0E" />
+<path d="M318.67,132.87L318.67,132.87L324.9,132.87L324.9,132.87Z" style="fill:#FF7F0E" />
+<path d="M382.1,132.87L382.1,132.87L388.33,132.87L388.33,132.87Z" style="fill:#FF7F0E" />
+<path d="M445.52,132.87L445.52,107.39L451.76,107.39L451.76,132.87Z" style="fill:#FF7F0E" />
+<path d="M508.95,132.87L508.95,248.04L515.19,248.04L515.19,132.87Z" style="fill:#FF7F0E" />
+<path d="M71.187,132.87L71.187,132.87L77.423,132.87L77.423,132.87Z" style="fill:#2CA02C" />
+<path d="M134.62,132.87L134.62,132.87L140.85,132.87L140.85,132.87Z" style="fill:#2CA02C" />
+<path d="M198.04,132.87L198.04,132.87L204.28,132.87L204.28,132.87Z" style="fill:#2CA02C" />
+<path d="M261.47,132.87L261.47,200.16L267.71,200.16L267.71,132.87Z" style="fill:#2CA02C" />
+<path d="M324.9,132.87L324.9,132.87L331.14,132.87L331.14,132.87Z" style="fill:#2CA02C" />
+<path d="M388.33,132.87L388.33,132.87L394.57,132.87L394.57,132.87Z" style="fill:#2CA02C" />
+<path d="M451.76,132.87L451.76,137.46L458,137.46L458,132.87Z" style="fill:#2CA02C" />
+<path d="M515.19,132.87L515.19,275.94L521.43,275.94L521.43,132.87Z" style="fill:#2CA02C" />
+<path d="M68.069,132.87L575.5,132.87" style="fill:none;stroke:#000000;stroke-dasharray:5.6693,5.6693" />
 <path d="M58.715,333.93L58.715,344.12L78.715,344.12L78.715,333.93Z" style="fill:#1F77B4" />
 <path d="M58.715,323.75L58.715,333.93L78.715,333.93L78.715,323.75Z" style="fill:#FF7F0E" />
 <text x="81.715" y="-326.35" transform="scale(1, -1)"

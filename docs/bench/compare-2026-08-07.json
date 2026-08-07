@@ -5,2915 +5,3304 @@
   "date": "2026-08-07",
   "benches": [
     {
-      "name": "BenchmarkShapeValid/instruments/goccy",
-      "nsMin": 896097,
-      "mbps": 245.9
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/twitter/unsorted/sonic",
-      "nsMin": 568480,
-      "mbps": 1110.88
-    },
-    {
-      "name": "BenchmarkCorpus/citm/goccy",
-      "nsMin": 5192777,
-      "mbps": 332.62
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/sonic",
-      "nsMin": 2493135,
-      "mbps": 1334.8
-    },
-    {
-      "name": "BenchmarkMarshalStructGenerated/ours-generated-MarshalTo",
-      "nsMin": 46165,
-      "mbps": 2540.51
-    },
-    {
-      "name": "BenchmarkMarshalStructGenerated/ours-generated",
-      "nsMin": 56056,
-      "mbps": 2092.24
-    },
-    {
-      "name": "BenchmarkCorpus/canada/gjson-Valid",
-      "nsMin": 1133586,
-      "mbps": 1985.78
-    },
-    {
-      "name": "BenchmarkShapeValid/twitter/ours",
-      "nsMin": 96135,
-      "mbps": 6569.04
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours-opts=none",
-      "nsMin": 38515,
-      "mbps": 3045.12
-    },
-    {
-      "name": "BenchmarkCorpus/canada/ours-Parse",
-      "nsMin": 1096820,
-      "mbps": 2052.34
-    },
-    {
-      "name": "BenchmarkMarshalStruct/goccy",
-      "nsMin": 99168,
-      "mbps": 1182.67
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh/unsorted/ours",
-      "nsMin": 1381528,
-      "mbps": 523.77
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/ours",
-      "nsMin": 122261,
-      "mbps": 1041.01
-    },
-    {
-      "name": "BenchmarkUnmarshalCanadaStruct/ours",
-      "nsMin": 2678803,
-      "mbps": 840.32
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh/sorted/ours",
-      "nsMin": 1401472,
-      "mbps": 516.31
-    },
-    {
-      "name": "BenchmarkCorpus/canada/goccy",
-      "nsMin": 13252491,
-      "mbps": 169.86
-    },
-    {
-      "name": "BenchmarkUnmarshalFloatSlice/sonic",
-      "nsMin": 2189179,
-      "mbps": 957.98
-    },
-    {
-      "name": "BenchmarkCorpus/citm/ours-Scan",
-      "nsMin": 192163,
-      "mbps": 8988.21
-    },
-    {
-      "name": "BenchmarkShapeValid/github_events/goccy",
-      "nsMin": 200405,
-      "mbps": 325
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/instruments/sorted/stdlib",
-      "nsMin": 850276,
-      "mbps": 259.15
-    },
-    {
-      "name": "BenchmarkCorpus/twitter/stdlib",
-      "nsMin": 3529007,
-      "mbps": 178.95
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/goccy",
-      "nsMin": 12822835,
-      "mbps": 232.67
-    },
-    {
-      "name": "BenchmarkUnmarshalCanadaStruct/jsoniter",
-      "nsMin": 11900538,
-      "mbps": 189.16
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh/sorted/goccy",
-      "nsMin": 3066812,
-      "mbps": 235.94
-    },
-    {
-      "name": "BenchmarkUnmarshalStruct/ours",
-      "nsMin": 320010,
-      "mbps": 1973.42
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/sonic-std",
-      "nsMin": 159553,
-      "mbps": 797.7
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/canada/unsorted/sonic",
-      "nsMin": 4234180,
-      "mbps": 531.64
-    },
-    {
-      "name": "BenchmarkCorpus/citm/ours-Parse",
-      "nsMin": 563594,
-      "mbps": 3064.62
-    },
-    {
-      "name": "BenchmarkCorpus/citm/fastjson",
-      "nsMin": 703140,
-      "mbps": 2456.42
-    },
-    {
-      "name": "BenchmarkStreamShapes/tweet-2KB/goccy",
-      "nsMin": 22030635,
-      "mbps": 285.58
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/citm/unsorted/ours",
-      "nsMin": 485662,
-      "mbps": 3556.39
-    },
-    {
-      "name": "BenchmarkStreamEncode/goccy",
-      "nsMin": 6814392,
-      "mbps": 597.32
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh/sorted/stdlib",
-      "nsMin": 3715567,
-      "mbps": 194.75
-    },
-    {
-      "name": "BenchmarkShapeValid/citm/stdlib",
-      "nsMin": 3233830,
-      "mbps": 534.1
-    },
-    {
-      "name": "BenchmarkShapeValid/apache_builds/goccy",
-      "nsMin": 398041,
-      "mbps": 319.75
-    },
-    {
-      "name": "BenchmarkShapeValid/apache_builds/sonic",
-      "nsMin": 42042,
-      "mbps": 3027.34
-    },
-    {
-      "name": "BenchmarkStreamEncode/ours",
-      "nsMin": 6043505,
-      "mbps": 673.51
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/sonic",
-      "nsMin": 139281,
-      "mbps": 913.8
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/numbers/sorted/goccy",
-      "nsMin": 501802,
-      "mbps": 299.17
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/github_events/sorted/sonic-std",
-      "nsMin": 63329,
-      "mbps": 1028.48
-    },
-    {
-      "name": "BenchmarkUnmarshalFloatSlice/goccy",
-      "nsMin": 5358482,
-      "mbps": 391.38
-    },
-    {
-      "name": "BenchmarkStreamDecodeLong/field=4096",
-      "nsMin": 2367883,
-      "mbps": 2695.15
-    },
-    {
-      "name": "BenchmarkCorpus/citm/stdlib",
-      "nsMin": 9116929,
-      "mbps": 189.45
-    },
-    {
-      "name": "BenchmarkUnmarshalStruct/goccy",
-      "nsMin": 358065,
-      "mbps": 1763.69
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours-opts=both",
-      "nsMin": 52090,
-      "mbps": 2251.55
-    },
-    {
-      "name": "BenchmarkShapeValid/mesh.pretty/stdlib",
-      "nsMin": 2892888,
-      "mbps": 545.25
-    },
-    {
-      "name": "BenchmarkShapeValid/numbers/goccy",
-      "nsMin": 863509,
-      "mbps": 173.85
-    },
-    {
-      "name": "BenchmarkShapeValid/gsoc-2018/goccy",
-      "nsMin": 305272192,
-      "mbps": 10.9
-    },
-    {
-      "name": "BenchmarkCorpus/twitter/minio",
-      "nsMin": 318908,
-      "mbps": 1980.24
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/goccy",
-      "nsMin": 226189,
-      "mbps": 562.69
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/citm/sorted/ours",
-      "nsMin": 509786,
-      "mbps": 3388.1
-    },
-    {
-      "name": "BenchmarkCorpus/canada/fastjson",
-      "nsMin": 1975755,
-      "mbps": 1139.34
-    },
-    {
-      "name": "BenchmarkShapeValid/apache_builds/ours",
-      "nsMin": 18853,
-      "mbps": 6750.81
-    },
-    {
-      "name": "BenchmarkShapeValid/update-center/stdlib",
-      "nsMin": 1062379,
-      "mbps": 501.87
-    },
-    {
-      "name": "BenchmarkShapeValid/mesh/sonic",
-      "nsMin": 526267,
-      "mbps": 1374.96
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/sonic-std",
-      "nsMin": 2158341,
-      "mbps": 1541.85
-    },
-    {
-      "name": "BenchmarkShapeValid/marine_ik/ours",
-      "nsMin": 1844666,
-      "mbps": 1617.35
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/ours",
-      "nsMin": 5611922,
-      "mbps": 531.63
-    },
-    {
-      "name": "BenchmarkStreamShapes/tweet-2KB/sonic",
-      "nsMin": 14878237,
-      "mbps": 422.86
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/stdlib",
-      "nsMin": 3617885,
-      "mbps": 435.99
-    },
-    {
-      "name": "BenchmarkShapeValid/numbers/sonic",
-      "nsMin": 73118,
-      "mbps": 2053.17
-    },
-    {
-      "name": "BenchmarkShapeValid/numbers/ours",
-      "nsMin": 54701,
-      "mbps": 2744.47
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/update-center/unsorted/ours",
-      "nsMin": 734704,
-      "mbps": 725.7
-    },
-    {
       "name": "BenchmarkUnmarshalCanadaStruct/segmentio",
-      "nsMin": 5728121,
-      "mbps": 392.98
+      "nsMin": 5559512,
+      "mbps": 404.9
     },
     {
-      "name": "BenchmarkShapeValid/github_events/ours",
-      "nsMin": 8198,
-      "mbps": 7944.59
+      "name": "BenchmarkValidUTF8/n=1024/unicode/stdlib",
+      "nsMin": 578.3
     },
     {
-      "name": "BenchmarkShapeValid/gsoc-2018/sonic",
-      "nsMin": 315353,
-      "mbps": 10552.72
+      "name": "BenchmarkTextOps/update-center/Indent/stdlib",
+      "nsMin": 1532694,
+      "mbps": 347.87
     },
     {
-      "name": "BenchmarkShapeValid/instruments/stdlib",
-      "nsMin": 418613,
-      "mbps": 526.37
-    },
-    {
-      "name": "BenchmarkUnmarshalCanadaStruct/stdlib",
-      "nsMin": 14426879,
-      "mbps": 156.03
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/twitter/sorted/ours",
-      "nsMin": 358038,
-      "mbps": 1763.82
-    },
-    {
-      "name": "BenchmarkStreamShapes/batch-50KB/stdlib",
-      "nsMin": 36081082,
-      "mbps": 174.99
-    },
-    {
-      "name": "BenchmarkUnmarshalFloatSlice/ours",
-      "nsMin": 2031427,
-      "mbps": 1032.37
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/update-center/sorted/ours",
-      "nsMin": 846523,
-      "mbps": 629.84
-    },
-    {
-      "name": "BenchmarkStreamDecodeLong/field=512",
-      "nsMin": 2706488,
-      "mbps": 2321.32
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/numbers/unsorted/ours",
-      "nsMin": 342428,
-      "mbps": 438.41
-    },
-    {
-      "name": "BenchmarkShapeValid/canada/sonic",
-      "nsMin": 1012295,
-      "mbps": 2223.71
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/citm/sorted/stdlib",
-      "nsMin": 3522733,
-      "mbps": 490.3
-    },
-    {
-      "name": "BenchmarkShapeValid/github_events/sonic",
-      "nsMin": 16266,
-      "mbps": 4004.26
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/twitter/unsorted/ours",
-      "nsMin": 281017,
-      "mbps": 2247.25
-    },
-    {
-      "name": "BenchmarkStreamEncode/sonic",
-      "nsMin": 10029815,
-      "mbps": 405.83
-    },
-    {
-      "name": "BenchmarkShapeValid/mesh/stdlib",
-      "nsMin": 1457332,
-      "mbps": 496.52
-    },
-    {
-      "name": "BenchmarkStreamEncode/stdlib",
-      "nsMin": 10069581,
-      "mbps": 404.22
-    },
-    {
-      "name": "BenchmarkUnmarshalCitmStruct/ours",
-      "nsMin": 1141519,
-      "mbps": 1513.07
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh/unsorted/sonic",
-      "nsMin": 1123755,
-      "mbps": 643.91
-    },
-    {
-      "name": "BenchmarkCorpus/twitter/ours-Parse",
-      "nsMin": 200651,
-      "mbps": 3147.33
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/citm/sorted/goccy",
-      "nsMin": 2681476,
-      "mbps": 644.12
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/update-center/unsorted/sonic",
-      "nsMin": 755945,
-      "mbps": 705.31
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/citm/unsorted/sonic",
-      "nsMin": 1336889,
-      "mbps": 1291.96
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours-opts=validate",
-      "nsMin": 51492,
-      "mbps": 2277.71
-    },
-    {
-      "name": "BenchmarkShapeValid/twitter/goccy",
-      "nsMin": 3487795,
-      "mbps": 181.06
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/numbers/unsorted/sonic",
-      "nsMin": 273092,
-      "mbps": 549.72
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/citm/sorted/sonic-std",
-      "nsMin": 1459399,
-      "mbps": 1183.5
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/ours",
-      "nsMin": 1379229,
-      "mbps": 1143.65
-    },
-    {
-      "name": "BenchmarkStreamShapes/batch-50KB/sonic",
-      "nsMin": 13165801,
-      "mbps": 479.57
-    },
-    {
-      "name": "BenchmarkShapeValid/update-center/ours",
-      "nsMin": 148817,
-      "mbps": 3582.76
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/goccy",
-      "nsMin": 3912946,
-      "mbps": 850.47
-    },
-    {
-      "name": "BenchmarkShapeValid/gsoc-2018/stdlib",
-      "nsMin": 5910849,
-      "mbps": 563
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/goccy",
-      "nsMin": 2952321,
-      "mbps": 534.28
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/canada/sorted/goccy",
-      "nsMin": 6904664,
-      "mbps": 326.02
-    },
-    {
-      "name": "BenchmarkShapeValid/github_events/stdlib",
-      "nsMin": 121164,
-      "mbps": 537.55
-    },
-    {
-      "name": "BenchmarkMarshalStruct/jsoniter",
-      "nsMin": 116890,
-      "mbps": 1003.36
-    },
-    {
-      "name": "BenchmarkShapeValid/marine_ik/sonic",
-      "nsMin": 2182701,
-      "mbps": 1366.87
-    },
-    {
-      "name": "BenchmarkMarshalStruct/segmentio",
-      "nsMin": 99109,
-      "mbps": 1183.37
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh/sorted/sonic-std",
-      "nsMin": 1159258,
-      "mbps": 624.19
-    },
-    {
-      "name": "BenchmarkShapeValid/update-center/sonic",
-      "nsMin": 154024,
-      "mbps": 3461.65
-    },
-    {
-      "name": "BenchmarkShapeValid/canada/ours",
-      "nsMin": 871778,
-      "mbps": 2582.14
-    },
-    {
-      "name": "BenchmarkStreamDecodeLong/field=64",
-      "nsMin": 5154320,
-      "mbps": 1123.1
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours-Std.Marshal",
-      "nsMin": 58834,
-      "mbps": 1993.47
-    },
-    {
-      "name": "BenchmarkShapeValid/twitter/sonic",
-      "nsMin": 173214,
-      "mbps": 3645.86
-    },
-    {
-      "name": "BenchmarkShapeValid/twitter/stdlib",
-      "nsMin": 1262395,
-      "mbps": 500.25
-    },
-    {
-      "name": "BenchmarkCorpus/twitter/goccy",
-      "nsMin": 1948089,
-      "mbps": 324.17
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/instruments/sorted/sonic-std",
-      "nsMin": 309149,
-      "mbps": 712.75
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/instruments/unsorted/ours",
-      "nsMin": 188651,
-      "mbps": 1168.01
-    },
-    {
-      "name": "BenchmarkShapeValid/mesh.pretty/goccy",
-      "nsMin": 5817938,
-      "mbps": 271.12
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/stdlib",
-      "nsMin": 344032,
-      "mbps": 369.95
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/github_events/sorted/stdlib",
-      "nsMin": 182436,
-      "mbps": 357.01
-    },
-    {
-      "name": "BenchmarkUnmarshalFloatSlice/stdlib",
-      "nsMin": 11452615,
-      "mbps": 183.12
-    },
-    {
-      "name": "BenchmarkShapeValid/marine_ik/stdlib",
-      "nsMin": 5947043,
-      "mbps": 501.67
+      "name": "BenchmarkTextOps/numbers/Compact/ours",
+      "nsMin": 60400,
+      "mbps": 2485.48
     },
     {
       "name": "BenchmarkMarshalDecoded/marine_ik/sorted/ours",
-      "nsMin": 5569837,
-      "mbps": 535.65
+      "nsMin": 5573501,
+      "mbps": 535.29
     },
     {
-      "name": "BenchmarkMarshalDecoded/update-center/sorted/sonic-std",
-      "nsMin": 896837,
-      "mbps": 594.51
+      "name": "BenchmarkUnmarshalFloatSlice/ours",
+      "nsMin": 1955360,
+      "mbps": 1072.53
     },
     {
-      "name": "BenchmarkMarshalStruct/sonic-std",
-      "nsMin": 35825,
-      "mbps": 3273.82
+      "name": "BenchmarkSMLMarshal/large/sonic",
+      "nsMin": 1391,
+      "mbps": 1880.29
     },
     {
-      "name": "BenchmarkUnmarshalCitmStruct/stdlib",
-      "nsMin": 7608699,
-      "mbps": 227
+      "name": "BenchmarkShapeDecodeMap/citm/goccy",
+      "nsMin": 4191121,
+      "mbps": 412.11
     },
     {
-      "name": "BenchmarkMarshalDecoded/update-center/sorted/stdlib",
-      "nsMin": 2189825,
-      "mbps": 243.48
+      "name": "BenchmarkWhy/ours.Parse_(index_+_grammar_walk)",
+      "nsMin": 796047,
+      "mbps": 1468.65
     },
     {
-      "name": "BenchmarkShapeValid/numbers/stdlib",
-      "nsMin": 270470,
-      "mbps": 555.05
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/ours",
+      "nsMin": 772304,
+      "mbps": 690.37
     },
     {
-      "name": "BenchmarkMarshalDecoded/canada/sorted/stdlib",
-      "nsMin": 7845214,
-      "mbps": 286.93
-    },
-    {
-      "name": "BenchmarkShapeValid/citm/ours",
-      "nsMin": 290569,
-      "mbps": 5944.21
-    },
-    {
-      "name": "BenchmarkStreamShapes/batch-50KB/ours",
-      "nsMin": 15546911,
-      "mbps": 406.12
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/instruments/sorted/ours",
-      "nsMin": 258983,
-      "mbps": 850.81
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/canada/sorted/sonic-std",
-      "nsMin": 4350954,
-      "mbps": 517.37
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/ours",
-      "nsMin": 1367176,
-      "mbps": 1153.73
-    },
-    {
-      "name": "BenchmarkShapeValid/apache_builds/stdlib",
-      "nsMin": 240610,
-      "mbps": 528.97
-    },
-    {
-      "name": "BenchmarkCorpus/canada/minio",
-      "nsMin": 5565612,
-      "mbps": 404.46
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/stdlib",
-      "nsMin": 15466869,
-      "mbps": 192.89
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/numbers/sorted/ours",
-      "nsMin": 341472,
-      "mbps": 439.64
+      "name": "BenchmarkTextOps/citm/Indent/ours",
+      "nsMin": 1412211,
+      "mbps": 1223.05
     },
     {
       "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/stdlib",
-      "nsMin": 4179558,
-      "mbps": 796.22
+      "nsMin": 3822021,
+      "mbps": 870.7
     },
     {
-      "name": "BenchmarkUnmarshalStruct/stdlib",
-      "nsMin": 2628100,
-      "mbps": 240.29
+      "name": "BenchmarkTextOps/mesh.pretty/Compact/stdlib",
+      "nsMin": 3626127,
+      "mbps": 435
     },
     {
-      "name": "BenchmarkShapeValid/canada/goccy",
-      "nsMin": 14910339,
-      "mbps": 150.97
+      "name": "BenchmarkMarshalMapAllocs",
+      "nsMin": 5682
     },
     {
-      "name": "BenchmarkMarshalDecoded/numbers/sorted/sonic-std",
-      "nsMin": 273628,
-      "mbps": 548.64
+      "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/ours",
+      "nsMin": 5468179,
+      "mbps": 545.61
     },
     {
-      "name": "BenchmarkUnmarshalCanadaStruct/goccy",
-      "nsMin": 6351935,
-      "mbps": 354.39
+      "name": "BenchmarkSMLMarshal/small/jsoniter",
+      "nsMin": 191.7,
+      "mbps": 698.87
     },
     {
-      "name": "BenchmarkShapeValid/marine_ik/goccy",
-      "nsMin": 21298772,
-      "mbps": 140.08
+      "name": "BenchmarkRepeatedLookups/q=10/gjson",
+      "nsMin": 1849912
     },
     {
-      "name": "BenchmarkStreamDecode/goccy",
-      "nsMin": 12561751,
-      "mbps": 324.03
+      "name": "BenchmarkGetField/n=1000/jsonparser",
+      "nsMin": 43.86,
+      "mbps": 2598026.52
     },
     {
-      "name": "BenchmarkShapeValid/citm/sonic",
-      "nsMin": 439633,
-      "mbps": 3928.74
+      "name": "BenchmarkMarshalMap/struct/n=64/ours",
+      "nsMin": 5596,
+      "mbps": 814.9
     },
     {
-      "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/sonic",
-      "nsMin": 1111390,
-      "mbps": 1419.26
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/sonic-std",
-      "nsMin": 6499554,
-      "mbps": 459.03
-    },
-    {
-      "name": "BenchmarkUnmarshalStruct/sonic",
-      "nsMin": 403381,
-      "mbps": 1565.56
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/instruments/unsorted/sonic",
-      "nsMin": 237771,
-      "mbps": 926.72
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/ours",
-      "nsMin": 113178,
-      "mbps": 1124.56
-    },
-    {
-      "name": "BenchmarkUnmarshalCanadaStruct/sonic",
-      "nsMin": 2684909,
-      "mbps": 838.41
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours-opts=html",
-      "nsMin": 43262,
-      "mbps": 2710.99
-    },
-    {
-      "name": "BenchmarkShapeValid/mesh/ours",
-      "nsMin": 464537,
-      "mbps": 1557.67
-    },
-    {
-      "name": "BenchmarkStreamShapes/batch-50KB/goccy",
-      "nsMin": 28714225,
-      "mbps": 219.89
-    },
-    {
-      "name": "BenchmarkShapeValid/instruments/sonic",
-      "nsMin": 90218,
-      "mbps": 2442.37
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/canada/unsorted/ours",
-      "nsMin": 2095763,
-      "mbps": 1074.1
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/twitter/sorted/sonic-std",
-      "nsMin": 815865,
-      "mbps": 774.04
-    },
-    {
-      "name": "BenchmarkCorpus/canada/ours-Scan",
-      "nsMin": 329279,
-      "mbps": 6836.3
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/sonic",
-      "nsMin": 6094114,
-      "mbps": 489.57
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/ours",
-      "nsMin": 1871501,
-      "mbps": 1778.16
-    },
-    {
-      "name": "BenchmarkUnmarshalCitmStruct/jsoniter",
-      "nsMin": 1984374,
-      "mbps": 870.4
-    },
-    {
-      "name": "BenchmarkCorpus/citm/minio",
-      "nsMin": 652357,
-      "mbps": 2647.64
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours-MarshalTo",
-      "nsMin": 50772,
-      "mbps": 2309.98
-    },
-    {
-      "name": "BenchmarkUnmarshalCitmStruct/segmentio",
-      "nsMin": 1254839,
-      "mbps": 1376.43
-    },
-    {
-      "name": "BenchmarkShapeValid/gsoc-2018/ours",
-      "nsMin": 415788,
-      "mbps": 8003.68
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/ours",
-      "nsMin": 1856226,
-      "mbps": 1792.79
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/github_events/unsorted/ours",
-      "nsMin": 50318,
-      "mbps": 1294.41
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/update-center/sorted/goccy",
-      "nsMin": 1829638,
-      "mbps": 291.41
-    },
-    {
-      "name": "BenchmarkShapeValid/mesh.pretty/ours",
-      "nsMin": 537534,
-      "mbps": 2934.43
-    },
-    {
-      "name": "BenchmarkCorpus/citm/gjson-Valid",
-      "nsMin": 650777,
-      "mbps": 2654.06
-    },
-    {
-      "name": "BenchmarkUnmarshalFloatSlice/segmentio",
-      "nsMin": 4357274,
-      "mbps": 481.31
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/twitter/sorted/stdlib",
-      "nsMin": 2166545,
-      "mbps": 291.48
-    },
-    {
-      "name": "BenchmarkMarshalStruct/stdlib",
-      "nsMin": 113256,
-      "mbps": 1035.56
-    },
-    {
-      "name": "BenchmarkStreamDecode/sonic",
-      "nsMin": 14793705,
-      "mbps": 275.14
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/sonic-std",
-      "nsMin": 1121602,
-      "mbps": 1406.34
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/instruments/sorted/goccy",
-      "nsMin": 614157,
-      "mbps": 358.78
-    },
-    {
-      "name": "BenchmarkShapeValid/mesh.pretty/sonic",
-      "nsMin": 813688,
-      "mbps": 1938.52
-    },
-    {
-      "name": "BenchmarkMarshalStruct/sonic-default-NOT-comparable",
-      "nsMin": 26433,
-      "mbps": 4437
-    },
-    {
-      "name": "BenchmarkCorpus/canada/sonic",
-      "nsMin": 7151728,
-      "mbps": 314.76
-    },
-    {
-      "name": "BenchmarkCorpus/canada/stdlib",
-      "nsMin": 16188974,
-      "mbps": 139.05
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours",
-      "nsMin": 60816,
-      "mbps": 1928.49
-    },
-    {
-      "name": "BenchmarkCorpus/twitter/sonic",
-      "nsMin": 1257804,
-      "mbps": 502.08
-    },
-    {
-      "name": "BenchmarkMarshalStruct/ours-Fast",
-      "nsMin": 39111,
-      "mbps": 2998.74
+      "name": "BenchmarkUnmarshalAny/twitter/goccy",
+      "nsMin": 1735933,
+      "mbps": 363.79
     },
     {
       "name": "BenchmarkStreamDecode/stdlib",
-      "nsMin": 38561928,
-      "mbps": 105.55
+      "nsMin": 36631614,
+      "mbps": 111.12
     },
     {
-      "name": "BenchmarkStreamShapes/tweet-2KB/ours",
-      "nsMin": 13153613,
-      "mbps": 478.31
+      "name": "BenchmarkMarshalDecoded/update-center/unsorted/ours",
+      "nsMin": 679743,
+      "mbps": 784.38
     },
     {
-      "name": "BenchmarkMarshalDecoded/numbers/sorted/stdlib",
-      "nsMin": 573739,
-      "mbps": 261.66
+      "name": "BenchmarkStreamEncode/ours",
+      "nsMin": 5728216,
+      "mbps": 710.58
     },
     {
-      "name": "BenchmarkShapeValid/update-center/goccy",
-      "nsMin": 2810212,
-      "mbps": 189.73
+      "name": "BenchmarkUnmarshalAny/instruments/stdlib",
+      "nsMin": 1237844,
+      "mbps": 178.01
     },
     {
-      "name": "BenchmarkMarshalDecoded/github_events/sorted/goccy",
-      "nsMin": 128017,
-      "mbps": 508.77
+      "name": "BenchmarkUnmarshalAny/update-center/goccy",
+      "nsMin": 1909132,
+      "mbps": 279.28
     },
     {
-      "name": "BenchmarkMarshalDecoded/twitter/sorted/goccy",
-      "nsMin": 1824380,
-      "mbps": 346.15
-    },
-    {
-      "name": "BenchmarkStreamShapes/tweet-2KB/stdlib",
-      "nsMin": 36658662,
-      "mbps": 171.62
-    },
-    {
-      "name": "BenchmarkMarshalDecoded/github_events/sorted/ours",
-      "nsMin": 64113,
-      "mbps": 1015.9
+      "name": "BenchmarkMarshalDecoded/canada/sorted/stdlib",
+      "nsMin": 7570840,
+      "mbps": 297.33
     },
     {
       "name": "BenchmarkUnmarshalCitmStruct/goccy",
-      "nsMin": 1091854,
-      "mbps": 1581.9
+      "nsMin": 950700,
+      "mbps": 1816.77
     },
     {
-      "name": "BenchmarkShapeValid/citm/goccy",
-      "nsMin": 5237145,
-      "mbps": 329.8
+      "name": "BenchmarkStreamDecodeLong/field=4096",
+      "nsMin": 2036164,
+      "mbps": 3134.22
     },
     {
-      "name": "BenchmarkShapeValid/canada/stdlib",
-      "nsMin": 4243755,
-      "mbps": 530.44
+      "name": "BenchmarkShapeDecodeMap/citm/sonic",
+      "nsMin": 2541347,
+      "mbps": 679.64
     },
     {
-      "name": "BenchmarkUnmarshalFloatSlice/jsoniter",
-      "nsMin": 10218763,
-      "mbps": 205.23
+      "name": "BenchmarkMarshalMap/string/n=64/unsorted-ours",
+      "nsMin": 3239,
+      "mbps": 1245.28
     },
     {
-      "name": "BenchmarkShapeValid/instruments/ours",
-      "nsMin": 44162,
-      "mbps": 4989.51
+      "name": "BenchmarkMarshalMap/int/n=64/ours",
+      "nsMin": 3146,
+      "mbps": 442.48
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/goccy",
+      "nsMin": 5055864,
+      "mbps": 143.12
     },
     {
       "name": "BenchmarkCorpus/twitter/ours-Scan",
-      "nsMin": 51941,
-      "mbps": 12158.25
+      "nsMin": 49934,
+      "mbps": 12646.94
     },
     {
-      "name": "BenchmarkUnmarshalCitmStruct/sonic",
-      "nsMin": 1521739,
-      "mbps": 1135.02
+      "name": "BenchmarkMarshalMap/string/n=16/unsorted-sonic",
+      "nsMin": 526.9,
+      "mbps": 1915.13
     },
     {
-      "name": "BenchmarkCorpus/twitter/gjson-Valid",
-      "nsMin": 282172,
-      "mbps": 2238.05
+      "name": "BenchmarkShapeValid/gsoc-2018/ours",
+      "nsMin": 414829,
+      "mbps": 8022.18
     },
     {
-      "name": "BenchmarkMarshalDecoded/github_events/unsorted/sonic",
-      "nsMin": 47642,
-      "mbps": 1367.13
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/ours",
+      "nsMin": 248088,
+      "mbps": 888.18
     },
     {
-      "name": "BenchmarkStreamDecode/ours",
-      "nsMin": 9693894,
-      "mbps": 419.89
+      "name": "BenchmarkSmall/tiny-64B/fastjson",
+      "nsMin": 38.45,
+      "mbps": 858.15
     },
     {
-      "name": "BenchmarkMarshalDecoded/canada/sorted/ours",
-      "nsMin": 2065453,
-      "mbps": 1089.86
+      "name": "BenchmarkSMLUnmarshal/large/jsoniter",
+      "nsMin": 54602,
+      "mbps": 515.06
     },
     {
-      "name": "BenchmarkShapeValid/mesh/goccy",
-      "nsMin": 5358437,
-      "mbps": 135.04
+      "name": "BenchmarkMarshalMap/struct/n=16/goccy",
+      "nsMin": 1819,
+      "mbps": 620.1
     },
     {
-      "name": "BenchmarkCorpus/twitter/fastjson",
-      "nsMin": 235257,
-      "mbps": 2684.37
+      "name": "BenchmarkMarshalStruct/segmentio",
+      "nsMin": 94782,
+      "mbps": 1237.4
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/unsorted-sonic",
+      "nsMin": 1827,
+      "mbps": 2207.38
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/goccy",
+      "nsMin": 1711336,
+      "mbps": 369.02
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-Std.Marshal",
+      "nsMin": 55155,
+      "mbps": 2126.42
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/ours",
+      "nsMin": 3185
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/ours",
+      "nsMin": 1413,
+      "mbps": 798.54
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/unsorted-sonic",
+      "nsMin": 169.8,
+      "mbps": 488.9
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/ours",
+      "nsMin": 533230,
+      "mbps": 2958.11
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/segmentio",
+      "nsMin": 358.7,
+      "mbps": 526.83
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/ours",
+      "nsMin": 108943,
+      "mbps": 1168.27
     },
     {
       "name": "BenchmarkCorpus/citm/sonic",
-      "nsMin": 2985146,
-      "mbps": 578.6
+      "nsMin": 2356065,
+      "mbps": 733.09
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Compact/ours",
+      "nsMin": 1056828,
+      "mbps": 3148.89
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/minio",
+      "nsMin": 23660,
+      "mbps": 505.63
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/sonic",
+      "nsMin": 2536,
+      "mbps": 918.29
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/sorted/ours",
+      "nsMin": 1975846,
+      "mbps": 1139.28
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/stdlib",
+      "nsMin": 1033363,
+      "mbps": 515.96
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/goccy",
+      "nsMin": 191.2,
+      "mbps": 988.48
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/sonic",
+      "nsMin": 71685,
+      "mbps": 2094.23
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/stdlib",
+      "nsMin": 2820563,
+      "mbps": 559.23
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/goccy",
+      "nsMin": 3481306,
+      "mbps": 955.91
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/sonic",
+      "nsMin": 173335,
+      "mbps": 3643.32
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/stdlib",
+      "nsMin": 13678,
+      "mbps": 333.38
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/stdlib",
+      "nsMin": 3347
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/stdlib",
+      "nsMin": 5611404,
+      "mbps": 128.95
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Compact/stdlib",
+      "nsMin": 305144,
+      "mbps": 491.98
+    },
+    {
+      "name": "BenchmarkStreamDecode/sonic",
+      "nsMin": 13673036,
+      "mbps": 297.69
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/goccy",
+      "nsMin": 3295845,
+      "mbps": 191.61
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/sonic-std",
+      "nsMin": 5636,
+      "mbps": 809.07
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/ours",
+      "nsMin": 1813319,
+      "mbps": 1645.31
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Compact/stdlib",
+      "nsMin": 7781234,
+      "mbps": 383.42
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/gjson-Valid+Get",
+      "nsMin": 67683,
+      "mbps": 1683.59
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/fastjson",
+      "nsMin": 128737,
+      "mbps": 885.14
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=none",
+      "nsMin": 37342,
+      "mbps": 3140.78
+    },
+    {
+      "name": "BenchmarkWidgetGet/jsonparser",
+      "nsMin": 141.7
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/ours",
+      "nsMin": 281615,
+      "mbps": 533.08
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/unsorted/sonic",
+      "nsMin": 45054,
+      "mbps": 1445.65
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Compact/stdlib",
+      "nsMin": 579508,
+      "mbps": 380.23
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/ascii/simd",
+      "nsMin": 4.835
+    },
+    {
+      "name": "BenchmarkWhy/q=1/gjson-rescans",
+      "nsMin": 117.2
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/sonic",
+      "nsMin": 1023319,
+      "mbps": 617.12
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/sonic",
+      "nsMin": 435335,
+      "mbps": 3967.53
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/ascii/stdlib",
+      "nsMin": 6.54
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/unsorted-sonic",
+      "nsMin": 11952,
+      "mbps": 1558.94
+    },
+    {
+      "name": "BenchmarkWidgetGet/ours-GetMany3",
+      "nsMin": 931.7
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/goccy",
+      "nsMin": 4537318,
+      "mbps": 380.67
+    },
+    {
+      "name": "BenchmarkHandwritten/ours-MarshalTo",
+      "nsMin": 47477
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Indent/ours",
+      "nsMin": 1256507,
+      "mbps": 2648.48
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/ours-Parse",
+      "nsMin": 797100,
+      "mbps": 1466.71
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/ascii/stdlib",
+      "nsMin": 6.597
+    },
+    {
+      "name": "BenchmarkCorpus/citm/fastjson",
+      "nsMin": 683376,
+      "mbps": 2527.46
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/ours",
+      "nsMin": 19591,
+      "mbps": 1435.5
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/goccy",
+      "nsMin": 820010,
+      "mbps": 268.71
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/goccy",
+      "nsMin": 5165960,
+      "mbps": 305.34
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/goccy",
+      "nsMin": 440,
+      "mbps": 634.08
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/sonic-std",
+      "nsMin": 1133,
+      "mbps": 890.9
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/fastjson",
+      "nsMin": 10581,
+      "mbps": 1130.58
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=100/gjson-parsed",
+      "nsMin": 19585881
+    },
+    {
+      "name": "BenchmarkShapeValid/instruments/sonic",
+      "nsMin": 88926,
+      "mbps": 2477.85
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/goccy",
+      "nsMin": 227.7,
+      "mbps": 364.45
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/stdlib",
+      "nsMin": 971399,
+      "mbps": 117.31
+    },
+    {
+      "name": "BenchmarkStreamEncode/sonic",
+      "nsMin": 9243132,
+      "mbps": 440.37
+    },
+    {
+      "name": "BenchmarkWhy/q=100/ours-index-once",
+      "nsMin": 200798
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/instruments/goccy",
+      "nsMin": 718631,
+      "mbps": 306.62
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/stdlib",
+      "nsMin": 2813728,
+      "mbps": 560.59
+    },
+    {
+      "name": "BenchmarkStreamDecodeLong/field=512",
+      "nsMin": 2391783,
+      "mbps": 2626.76
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/unsorted/ours",
+      "nsMin": 181063,
+      "mbps": 1216.96
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/segmentio",
+      "nsMin": 1489,
+      "mbps": 1757.43
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/goccy",
+      "nsMin": 2919342,
+      "mbps": 540.31
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/ours",
+      "nsMin": 893669,
+      "mbps": 2518.89
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/sonic",
+      "nsMin": 71223,
+      "mbps": 2107.79
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/goccy",
+      "nsMin": 901447,
+      "mbps": 126.41
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/ours-Scan",
+      "nsMin": 167400,
+      "mbps": 6983.99
+    },
+    {
+      "name": "BenchmarkEasyjson/marshal-twitter-ours",
+      "nsMin": 54187,
+      "mbps": 2164.43
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/goccy",
+      "nsMin": 19857473,
+      "mbps": 150.24
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/sonic-std",
+      "nsMin": 399.6,
+      "mbps": 698.12
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/ours",
+      "nsMin": 1355216,
+      "mbps": 533.93
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/stdlib",
+      "nsMin": 237053,
+      "mbps": 536.9
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=1024/word",
+      "nsMin": 574.4
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/goccy",
+      "nsMin": 8667656,
+      "mbps": 134.88
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/twitter/ours",
+      "nsMin": 1113933,
+      "mbps": 566.92
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/goccy",
+      "nsMin": 28155,
+      "mbps": 22430.3
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/ours",
+      "nsMin": 242046,
+      "mbps": 525.83
+    },
+    {
+      "name": "BenchmarkHandwritten/floor",
+      "nsMin": 60626
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/unicode/stdlib",
+      "nsMin": 83.58
+    },
+    {
+      "name": "BenchmarkWhy/ours.Scan_(vector,_builds_an_index)",
+      "nsMin": 167994,
+      "mbps": 6959.26
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/sonic",
+      "nsMin": 5703005,
+      "mbps": 523.14
+    },
+    {
+      "name": "BenchmarkAccessShape/late/jsonparser",
+      "nsMin": 769360
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/jsoniter",
+      "nsMin": 225.6,
+      "mbps": 824.4
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=100/ours",
+      "nsMin": 3078640
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/sonic",
+      "nsMin": 1154037,
+      "mbps": 547.22
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/stdlib",
+      "nsMin": 9421346,
+      "mbps": 124.09
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/ascii/stdlib",
+      "nsMin": 7.145
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/ours",
+      "nsMin": 418724,
+      "mbps": 7947.55
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/ours-Scan",
+      "nsMin": 16227,
+      "mbps": 7022.23
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/ours",
+      "nsMin": 230.3,
+      "mbps": 360.46
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/gjson",
+      "nsMin": 53.36,
+      "mbps": 21910186.44
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/sonic",
+      "nsMin": 1522161,
+      "mbps": 2186.25
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/stdlib",
+      "nsMin": 7439722,
+      "mbps": 232.16
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/sonic",
+      "nsMin": 6168836,
+      "mbps": 364.91
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/unsorted-sonic",
+      "nsMin": 4943,
+      "mbps": 1159.12
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/sonic-std",
+      "nsMin": 17646,
+      "mbps": 914.01
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/unsorted-sonic",
+      "nsMin": 3025,
+      "mbps": 1507.36
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/stdlib",
+      "nsMin": 60662,
+      "mbps": 307.16
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Compact/ours",
+      "nsMin": 809958,
+      "mbps": 893.38
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/sonic",
+      "nsMin": 44401,
+      "mbps": 14223.15
+    },
+    {
+      "name": "BenchmarkMarshalStruct/stdlib",
+      "nsMin": 114110,
+      "mbps": 1027.81
+    },
+    {
+      "name": "BenchmarkReadme/n=100/goccy",
+      "nsMin": 87973,
+      "mbps": 126.55
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/ours-Parse",
+      "nsMin": 7826,
+      "mbps": 1528.57
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/sonic",
+      "nsMin": 8429129,
+      "mbps": 353.95
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/goccy",
+      "nsMin": 1150,
+      "mbps": 877.4
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/ours",
+      "nsMin": 7313400,
+      "mbps": 407.95
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/sonic",
+      "nsMin": 402675,
+      "mbps": 1568.3
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/unsorted/sonic",
+      "nsMin": 210163,
+      "mbps": 1048.45
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=256/word",
+      "nsMin": 147.5
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/stdlib",
+      "nsMin": 8267827,
+      "mbps": 208.91
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/goccy",
+      "nsMin": 1711045,
+      "mbps": 369.08
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/unicode/stdlib",
+      "nsMin": 37.53
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Indent/ours",
+      "nsMin": 452080,
+      "mbps": 1179.39
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/sonic",
+      "nsMin": 1489951,
+      "mbps": 357.85
+    },
+    {
+      "name": "BenchmarkSetPathRow/shallow/ours",
+      "nsMin": 321596,
+      "mbps": 1963.69
+    },
+    {
+      "name": "BenchmarkMarshalStructGenerated/ours-generated",
+      "nsMin": 48365,
+      "mbps": 2424.96
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/goccy",
+      "nsMin": 4762897,
+      "mbps": 151.92
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/goccy",
+      "nsMin": 2382457,
+      "mbps": 724.97
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/sonic-std",
+      "nsMin": 4610,
+      "mbps": 874.75
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/goccy",
+      "nsMin": 377676,
+      "mbps": 337
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/stdlib",
+      "nsMin": 11201559,
+      "mbps": 187.22
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/stdlib",
+      "nsMin": 4170520,
+      "mbps": 539.75
+    },
+    {
+      "name": "BenchmarkStreamEncode/goccy",
+      "nsMin": 6898984,
+      "mbps": 590
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/unsorted-ours",
+      "nsMin": 232.3,
+      "mbps": 357.3
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/gjson-Valid",
+      "nsMin": 298460,
+      "mbps": 2115.91
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/ascii/stdlib",
+      "nsMin": 107.8
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/sonic",
+      "nsMin": 385660,
+      "mbps": 364.64
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/jsoniter",
+      "nsMin": 11271694,
+      "mbps": 199.71
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/unicode/simd",
+      "nsMin": 14.91
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=1024/ascii/simd",
+      "nsMin": 11.16
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/ours",
+      "nsMin": 1993450,
+      "mbps": 362.99
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/ours",
+      "nsMin": 16344,
+      "mbps": 6971.86
+    },
+    {
+      "name": "BenchmarkWidgetGet/gjson",
+      "nsMin": 145.3
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/sonic",
+      "nsMin": 75686,
+      "mbps": 860.55
+    },
+    {
+      "name": "BenchmarkCorpus/citm/goccy",
+      "nsMin": 4301897,
+      "mbps": 401.5
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/sonic",
+      "nsMin": 438869,
+      "mbps": 3935.58
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/stdlib",
+      "nsMin": 3132831,
+      "mbps": 170.19
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/unsorted/sonic",
+      "nsMin": 532309,
+      "mbps": 1186.37
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/unicode/stdlib",
+      "nsMin": 10.21
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/ours",
+      "nsMin": 379.8,
+      "mbps": 734.61
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/gjson-Valid+Get",
+      "nsMin": 688261,
+      "mbps": 1698.65
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/ours",
+      "nsMin": 4104,
+      "mbps": 982.66
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Compact/stdlib",
+      "nsMin": 7115326,
+      "mbps": 467.7
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/sonic-std",
+      "nsMin": 271705,
+      "mbps": 552.53
+    },
+    {
+      "name": "BenchmarkReadme/n=100/sonic",
+      "nsMin": 50373,
+      "mbps": 221.01
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/stdlib",
+      "nsMin": 8606645,
+      "mbps": 183.27
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/ours",
+      "nsMin": 2155525,
+      "mbps": 801.29
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/goccy",
+      "nsMin": 20186264,
+      "mbps": 147.8
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/goccy",
+      "nsMin": 493848,
+      "mbps": 303.99
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/sonic-std",
+      "nsMin": 1096643,
+      "mbps": 1438.35
+    },
+    {
+      "name": "BenchmarkMarshalStruct/jsoniter",
+      "nsMin": 125130,
+      "mbps": 937.29
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/stdlib",
+      "nsMin": 554262,
+      "mbps": 270.85
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Indent/stdlib",
+      "nsMin": 11158831,
+      "mbps": 267.36
+    },
+    {
+      "name": "BenchmarkStreamDecodeLong/field=64",
+      "nsMin": 5017637,
+      "mbps": 1153.7
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/sonic",
+      "nsMin": 2314103,
+      "mbps": 681.63
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/ours",
+      "nsMin": 7297912,
+      "mbps": 408.81
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/unicode/simd",
+      "nsMin": 24.58
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Indent/stdlib",
+      "nsMin": 165590,
+      "mbps": 393.33
+    },
+    {
+      "name": "BenchmarkWidgetGet/ours",
+      "nsMin": 546.3
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/sonic",
+      "nsMin": 2099909,
+      "mbps": 1584.75
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/ours",
+      "nsMin": 106038,
+      "mbps": 614.23
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/unicode/simd",
+      "nsMin": 672.5
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/stdlib",
+      "nsMin": 7604,
+      "mbps": 183.06
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Compact/ours",
+      "nsMin": 1033701,
+      "mbps": 2177.66
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=16/kernel",
+      "nsMin": 14.18
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/stdlib",
+      "nsMin": 954192,
+      "mbps": 157.33
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/ours",
+      "nsMin": 1064,
+      "mbps": 2458.58
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/goccy",
+      "nsMin": 15812,
+      "mbps": 1778.64
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/stdlib",
+      "nsMin": 117390,
+      "mbps": 239.57
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/sonic",
+      "nsMin": 7837780,
+      "mbps": 380.65
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-twitter",
+      "nsMin": 1301405,
+      "mbps": 485.26
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/ascii/stdlib",
+      "nsMin": 6.003
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/unsorted/ours",
+      "nsMin": 1997821,
+      "mbps": 1126.75
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/instruments/ours",
+      "nsMin": 445852,
+      "mbps": 494.21
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/goccy",
+      "nsMin": 25216,
+      "mbps": 227.2
+    },
+    {
+      "name": "BenchmarkAccessShape/late/gjson",
+      "nsMin": 395205
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/sonic",
+      "nsMin": 807873,
+      "mbps": 1952.48
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/stdlib-Valid",
+      "nsMin": 22529,
+      "mbps": 531
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/unsorted-ours",
+      "nsMin": 1312,
+      "mbps": 859.57
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/unsorted-ours",
+      "nsMin": 887.5,
+      "mbps": 1136.84
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/fastjson",
+      "nsMin": 123475,
+      "mbps": 922.86
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/goccy",
+      "nsMin": 3306303,
+      "mbps": 191
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/ascii/simd",
+      "nsMin": 74.26
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/ours",
+      "nsMin": 1908492,
+      "mbps": 379.15
+    },
+    {
+      "name": "BenchmarkCorpus/citm/minio",
+      "nsMin": 647603,
+      "mbps": 2667.07
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Indent/stdlib",
+      "nsMin": 318711,
+      "mbps": 399.34
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/goccy",
+      "nsMin": 3980887,
+      "mbps": 433.87
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Indent/ours",
+      "nsMin": 1379476,
+      "mbps": 524.54
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Indent/stdlib",
+      "nsMin": 2119887,
+      "mbps": 341.34
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/goccy",
+      "nsMin": 300.5,
+      "mbps": 841.81
+    },
+    {
+      "name": "BenchmarkCorpus/citm/stdlib",
+      "nsMin": 8524440,
+      "mbps": 202.62
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/citm/ours",
+      "nsMin": 2141379,
+      "mbps": 806.58
+    },
+    {
+      "name": "BenchmarkCorpus/citm/ours-Scan",
+      "nsMin": 188606,
+      "mbps": 9157.75
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/ours-Parse",
+      "nsMin": 194914,
+      "mbps": 3239.97
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/ours",
+      "nsMin": 22669,
+      "mbps": 27858.09
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/goccy",
+      "nsMin": 730579,
+      "mbps": 301.6
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/goccy",
+      "nsMin": 901102,
+      "mbps": 126.46
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/stdlib",
+      "nsMin": 822604,
+      "mbps": 267.86
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/sonic",
+      "nsMin": 133586,
+      "mbps": 952.76
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/segmentio",
+      "nsMin": 450789,
+      "mbps": 311.96
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/sonic",
+      "nsMin": 1895448,
+      "mbps": 381.76
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Compact/stdlib",
+      "nsMin": 304279,
+      "mbps": 418.28
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/goccy",
+      "nsMin": 13816094,
+      "mbps": 162.93
+    },
+    {
+      "name": "BenchmarkAccessShape/many/jsonparser",
+      "nsMin": 1410334
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/sonic-std",
+      "nsMin": 1117751,
+      "mbps": 647.37
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/stdlib",
+      "nsMin": 43744,
+      "mbps": 368.71
+    },
+    {
+      "name": "BenchmarkSetPathRow/shallow/sjson",
+      "nsMin": 147728,
+      "mbps": 4274.86
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Indent/ours",
+      "nsMin": 3706923,
+      "mbps": 607.26
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/jsonparser",
+      "nsMin": 44.35,
+      "mbps": 2569284.8
+    },
+    {
+      "name": "BenchmarkCorpus/canada/ours-Scan",
+      "nsMin": 324103,
+      "mbps": 6945.48
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/sonic-std",
+      "nsMin": 856946,
+      "mbps": 622.18
+    },
+    {
+      "name": "BenchmarkShapeValid/instruments/ours",
+      "nsMin": 42963,
+      "mbps": 5128.7
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/minio",
+      "nsMin": 1977489,
+      "mbps": 591.21
+    },
+    {
+      "name": "BenchmarkMarshalStruct/sonic-std",
+      "nsMin": 31084,
+      "mbps": 3773.06
+    },
+    {
+      "name": "BenchmarkAccessShape/late/ours",
+      "nsMin": 227302
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/sonic",
+      "nsMin": 2139461,
+      "mbps": 1394.49
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/stdlib",
+      "nsMin": 3164650,
+      "mbps": 199.55
+    },
+    {
+      "name": "BenchmarkReadme/n=100/stdlib",
+      "nsMin": 95120,
+      "mbps": 117.04
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/unsorted-sonic",
+      "nsMin": 846.6,
+      "mbps": 1332.34
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/sorted/goccy",
+      "nsMin": 6748584,
+      "mbps": 333.56
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/goccy",
+      "nsMin": 192721,
+      "mbps": 337.96
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/unicode/stdlib",
+      "nsMin": 20.04
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/unsorted/ours",
+      "nsMin": 335835,
+      "mbps": 447.02
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/sonic-std",
+      "nsMin": 292540,
+      "mbps": 753.22
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/unicode/stdlib",
+      "nsMin": 154.3
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/ours",
+      "nsMin": 1962930,
+      "mbps": 803.57
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/stdlib",
+      "nsMin": 2097107,
+      "mbps": 254.24
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/goccy",
+      "nsMin": 1365,
+      "mbps": 1706.22
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Indent/stdlib",
+      "nsMin": 1730417,
+      "mbps": 364.95
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/stdlib",
+      "nsMin": 1227070,
+      "mbps": 179.57
+    },
+    {
+      "name": "BenchmarkCorpus/canada/sonic",
+      "nsMin": 6156319,
+      "mbps": 365.65
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Indent/stdlib",
+      "nsMin": 574860,
+      "mbps": 383.3
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/jsoniter",
+      "nsMin": 2166671,
+      "mbps": 797.17
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/ours",
+      "nsMin": 52816,
+      "mbps": 2842.39
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/stdlib",
+      "nsMin": 2505242,
+      "mbps": 252.08
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/segmentio",
+      "nsMin": 1934,
+      "mbps": 1204.14
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/sonic",
+      "nsMin": 165287,
+      "mbps": 770.03
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/goccy",
+      "nsMin": 5568728,
+      "mbps": 283.25
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/unsorted-ours",
+      "nsMin": 5039,
+      "mbps": 904.87
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/goccy",
+      "nsMin": 120675,
+      "mbps": 539.73
+    },
+    {
+      "name": "BenchmarkCorpus/canada/gjson-Valid",
+      "nsMin": 1016476,
+      "mbps": 2214.56
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/stdlib",
+      "nsMin": 252142,
+      "mbps": 2504.6
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/stdlib",
+      "nsMin": 664475,
+      "mbps": 191.54
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/sonic",
+      "nsMin": 139.6,
+      "mbps": 959.98
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/stdlib",
+      "nsMin": 213.6,
+      "mbps": 627.26
+    },
+    {
+      "name": "BenchmarkShapeValid/instruments/stdlib",
+      "nsMin": 411022,
+      "mbps": 536.09
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=256/kernel",
+      "nsMin": 15.77
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/stdlib",
+      "nsMin": 14757812,
+      "mbps": 202.16
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/unicode/stdlib",
+      "nsMin": 5024
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-twitter-ours",
+      "nsMin": 299603,
+      "mbps": 2107.84
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/ours",
+      "nsMin": 18548,
+      "mbps": 6862.04
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/stdlib",
+      "nsMin": 1228287,
+      "mbps": 514.14
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Compact/stdlib",
+      "nsMin": 158275,
+      "mbps": 411.51
+    },
+    {
+      "name": "BenchmarkEquivalentWork/unvalidated/gjson-Get",
+      "nsMin": 53.48
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/ours",
+      "nsMin": 56503,
+      "mbps": 1152.71
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Indent/ours",
+      "nsMin": 530605,
+      "mbps": 1190.18
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/goccy",
+      "nsMin": 18843658,
+      "mbps": 158.33
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/unsorted-ours",
+      "nsMin": 292.8,
+      "mbps": 863.93
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/unicode/simd",
+      "nsMin": 22.67
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/update-center/ours",
+      "nsMin": 1404528,
+      "mbps": 379.61
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/stdlib",
+      "nsMin": 3455189,
+      "mbps": 456.52
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/sonic",
+      "nsMin": 2034580,
+      "mbps": 1635.64
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/stdlib",
+      "nsMin": 15024426,
+      "mbps": 149.83
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/ours",
+      "nsMin": 285015,
+      "mbps": 6060.05
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/stdlib",
+      "nsMin": 240405,
+      "mbps": 529.42
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/sonic",
+      "nsMin": 41379,
+      "mbps": 3075.81
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/fastjson",
+      "nsMin": 232807,
+      "mbps": 2712.62
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/goccy",
+      "nsMin": 7690,
+      "mbps": 592.96
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/unsorted/sonic",
+      "nsMin": 266818,
+      "mbps": 562.65
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Compact/ours",
+      "nsMin": 167171,
+      "mbps": 1318.08
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/stdlib",
+      "nsMin": 1235405,
+      "mbps": 511.18
+    },
+    {
+      "name": "BenchmarkEquivalentWork/validating/gjson-Valid+Get",
+      "nsMin": 681881
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/ours",
+      "nsMin": 2038348,
+      "mbps": 773.84
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours",
+      "nsMin": 55277,
+      "mbps": 2121.74
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/ours",
+      "nsMin": 2348166,
+      "mbps": 1417.2
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/segmentio",
+      "nsMin": 28675,
+      "mbps": 980.74
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/stdlib",
+      "nsMin": 1669,
+      "mbps": 201.31
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/goccy",
+      "nsMin": 1779874,
+      "mbps": 354.81
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/stdlib",
+      "nsMin": 121648,
+      "mbps": 535.41
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/sonic-std",
+      "nsMin": 3821,
+      "mbps": 364.31
+    },
+    {
+      "name": "BenchmarkSetPathRow/deep/ours",
+      "nsMin": 315712,
+      "mbps": 2000.29
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/segmentio",
+      "nsMin": 110.1,
+      "mbps": 1216.66
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/sonic",
+      "nsMin": 512757,
+      "mbps": 1411.19
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Indent/ours",
+      "nsMin": 6059041,
+      "mbps": 492.4
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/goccy",
+      "nsMin": 297103,
+      "mbps": 428.39
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/unsorted/sonic",
+      "nsMin": 1083109,
+      "mbps": 668.07
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/goccy",
+      "nsMin": 2467020,
+      "mbps": 216.12
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/sonic-std",
+      "nsMin": 146719,
+      "mbps": 867.47
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/ours",
+      "nsMin": 1755554,
+      "mbps": 1895.6
+    },
+    {
+      "name": "BenchmarkWhy/gjson.Valid_(scalar,_keeps_nothing)",
+      "nsMin": 686809,
+      "mbps": 1702.24
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/stdlib",
+      "nsMin": 8485376,
+      "mbps": 185.89
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/goccy",
+      "nsMin": 147951,
+      "mbps": 440.23
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/segmentio",
+      "nsMin": 4375413,
+      "mbps": 479.31
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/fastjson",
+      "nsMin": 1322279,
+      "mbps": 884.17
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/goccy",
+      "nsMin": 11881656,
+      "mbps": 251.1
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/unsorted-ours",
+      "nsMin": 19882,
+      "mbps": 937.18
+    },
+    {
+      "name": "BenchmarkWhy/gjson.Get_alone_(stops_at_first_match)",
+      "nsMin": 53.68,
+      "mbps": 21779043.41
+    },
+    {
+      "name": "BenchmarkWhy/q=10/gjson-rescans",
+      "nsMin": 2938
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Indent/stdlib",
+      "nsMin": 7366300,
+      "mbps": 451.76
+    },
+    {
+      "name": "BenchmarkAccessShape/early/gjson",
+      "nsMin": 53.39
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/goccy",
+      "nsMin": 213929,
+      "mbps": 594.94
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/goccy",
+      "nsMin": 8766172,
+      "mbps": 133.37
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/stdlib",
+      "nsMin": 3419174,
+      "mbps": 184.7
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/stdlib",
+      "nsMin": 337782,
+      "mbps": 376.8
+    },
+    {
+      "name": "BenchmarkReadme/n=100/ours-Parse",
+      "nsMin": 8172,
+      "mbps": 1362.41
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/sonic-std",
+      "nsMin": 6118414,
+      "mbps": 487.62
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/sonic",
+      "nsMin": 1081217,
+      "mbps": 1458.87
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=128/word",
+      "nsMin": 71.72
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/goccy",
+      "nsMin": 4661118,
+      "mbps": 155.24
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/ours",
+      "nsMin": 166378,
+      "mbps": 7026.88
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/sonic-std",
+      "nsMin": 2122754,
+      "mbps": 1567.7
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=html",
+      "nsMin": 43500,
+      "mbps": 2696.13
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/stdlib",
+      "nsMin": 5834260,
+      "mbps": 511.37
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=64/word",
+      "nsMin": 36.33
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/jsoniter",
+      "nsMin": 393.6,
+      "mbps": 480.13
+    },
+    {
+      "name": "BenchmarkReadme/n=100/gjson-Valid+Get",
+      "nsMin": 6857,
+      "mbps": 1623.65
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/stdlib",
+      "nsMin": 15008171,
+      "mbps": 149.99
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/update-center/sonic",
+      "nsMin": 1103333,
+      "mbps": 483.24
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/ours",
+      "nsMin": 896277,
+      "mbps": 2511.56
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Compact/stdlib",
+      "nsMin": 4755582,
+      "mbps": 473.35
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/fastjson",
+      "nsMin": 99,
+      "mbps": 1141.42
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/ours",
+      "nsMin": 1349516,
+      "mbps": 1168.83
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=16/word",
+      "nsMin": 9.951
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/unsorted/ours",
+      "nsMin": 1336389,
+      "mbps": 541.46
+    },
+    {
+      "name": "BenchmarkWhy/q=1000/gjson-rescans",
+      "nsMin": 19337045
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/goccy",
+      "nsMin": 12435101,
+      "mbps": 181.02
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Compact/ours",
+      "nsMin": 27231,
+      "mbps": 2391.79
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/goccy",
+      "nsMin": 4224325,
+      "mbps": 787.78
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/minio",
+      "nsMin": 216102,
+      "mbps": 527.3
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Indent/stdlib",
+      "nsMin": 4282720,
+      "mbps": 403.3
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/sonic",
+      "nsMin": 485426,
+      "mbps": 234.74
+    },
+    {
+      "name": "BenchmarkEasyjson/marshal-twitter",
+      "nsMin": 93854,
+      "mbps": 1249.63
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/twitter/stdlib",
+      "nsMin": 3158016,
+      "mbps": 199.97
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/sonic",
+      "nsMin": 2604805,
+      "mbps": 864.19
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=validate",
+      "nsMin": 49670,
+      "mbps": 2361.23
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/goccy",
+      "nsMin": 97.89,
+      "mbps": 1368.9
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/fastjson",
+      "nsMin": 1302000,
+      "mbps": 897.94
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/jsoniter",
+      "nsMin": 2612,
+      "mbps": 1001.51
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/ours-Parse",
+      "nsMin": 836.3,
+      "mbps": 2024.43
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/stdlib",
+      "nsMin": 9260,
+      "mbps": 435.53
+    },
+    {
+      "name": "BenchmarkWhy/q=10/ours-index-once",
+      "nsMin": 166970
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/goccy",
+      "nsMin": 1750866,
+      "mbps": 304.52
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/goccy",
+      "nsMin": 5578606,
+      "mbps": 282.75
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/ours",
+      "nsMin": 1817463,
+      "mbps": 1641.56
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1000/ours",
+      "nsMin": 29674942
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=10/ours",
+      "nsMin": 445779
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/ours",
+      "nsMin": 11920504,
+      "mbps": 527.79
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/sonic-std",
+      "nsMin": 1357088,
+      "mbps": 1272.73
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/unsorted-sonic",
+      "nsMin": 202.1,
+      "mbps": 1251.89
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/goccy",
+      "nsMin": 5059673,
+      "mbps": 143.01
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/ours",
+      "nsMin": 1861,
+      "mbps": 1251.34
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/minio",
+      "nsMin": 300145,
+      "mbps": 2104.03
+    },
+    {
+      "name": "BenchmarkCorpus/canada/stdlib",
+      "nsMin": 15305926,
+      "mbps": 147.07
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/stdlib",
+      "nsMin": 5816957,
+      "mbps": 572.09
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/stdlib",
+      "nsMin": 23415867,
+      "mbps": 127.41
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/ours",
+      "nsMin": 308293,
+      "mbps": 2048.43
+    },
+    {
+      "name": "BenchmarkCorpus/canada/minio",
+      "nsMin": 5433284,
+      "mbps": 414.31
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/sonic",
+      "nsMin": 308225,
+      "mbps": 10796.77
+    },
+    {
+      "name": "BenchmarkReadme/n=100/fastjson",
+      "nsMin": 12405,
+      "mbps": 897.49
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/minio",
+      "nsMin": 1998425,
+      "mbps": 585.02
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/goccy-Valid",
+      "nsMin": 83072,
+      "mbps": 144.01
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/goccy",
+      "nsMin": 3932
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/goccy",
+      "nsMin": 1297,
+      "mbps": 2016.46
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/jsoniter",
+      "nsMin": 3119,
+      "mbps": 746.62
+    },
+    {
+      "name": "BenchmarkCorpus/canada/ours-Parse",
+      "nsMin": 1116295,
+      "mbps": 2016.54
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/goccy",
+      "nsMin": 5261051,
+      "mbps": 299.82
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/gjson",
+      "nsMin": 52.41,
+      "mbps": 2174290.97
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/ours",
+      "nsMin": 283704,
+      "mbps": 529.16
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/goccy",
+      "nsMin": 192765,
+      "mbps": 337.88
+    },
+    {
+      "name": "BenchmarkShapeValid/gsoc-2018/sonic",
+      "nsMin": 307625,
+      "mbps": 10817.82
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/sonic",
+      "nsMin": 1972583,
+      "mbps": 366.83
+    },
+    {
+      "name": "BenchmarkWhy/q=1/ours-index-once",
+      "nsMin": 166649
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/sonic",
+      "nsMin": 173234,
+      "mbps": 3645.45
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/ours",
+      "nsMin": 83.06,
+      "mbps": 1613.34
+    },
+    {
+      "name": "BenchmarkAccessShape/early/ours",
+      "nsMin": 166070
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/sonic",
+      "nsMin": 269790,
+      "mbps": 556.45
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/ours",
+      "nsMin": 1070652,
+      "mbps": 1613.23
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/stdlib",
+      "nsMin": 413636,
+      "mbps": 532.7
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/goccy",
+      "nsMin": 817500,
+      "mbps": 183.64
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/stdlib",
+      "nsMin": 266292,
+      "mbps": 563.76
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/stdlib",
+      "nsMin": 36249,
+      "mbps": 158.04
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/ours",
+      "nsMin": 1150715,
+      "mbps": 548.8
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1/gjson",
+      "nsMin": 84.34
+    },
+    {
+      "name": "BenchmarkShapeValid/gsoc-2018/stdlib",
+      "nsMin": 5855567,
+      "mbps": 568.32
+    },
+    {
+      "name": "BenchmarkReadme/n=100/minio",
+      "nsMin": 24773,
+      "mbps": 449.41
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Compact/stdlib",
+      "nsMin": 1755959,
+      "mbps": 412.08
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/ours",
+      "nsMin": 18310,
+      "mbps": 6951.06
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/sonic",
+      "nsMin": 846643
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Compact/ours",
+      "nsMin": 397476,
+      "mbps": 1588.81
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/stdlib-Valid",
+      "nsMin": 214.4,
+      "mbps": 527.06
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/ours-Parse",
+      "nsMin": 145.6,
+      "mbps": 226.58
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/sonic",
+      "nsMin": 277176,
+      "mbps": 541.62
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/goccy",
+      "nsMin": 5142797,
+      "mbps": 407.79
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/ours",
+      "nsMin": 1425143,
+      "mbps": 374.12
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/ours",
+      "nsMin": 160.9,
+      "mbps": 1155.79
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/sonic-std",
+      "nsMin": 294.9,
+      "mbps": 857.84
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/stdlib",
+      "nsMin": 4212366,
+      "mbps": 534.39
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/minio",
+      "nsMin": 218580,
+      "mbps": 521.32
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/stdlib",
+      "nsMin": 179902,
+      "mbps": 362.04
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/sonic",
+      "nsMin": 179.8,
+      "mbps": 1034.38
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/goccy",
+      "nsMin": 354822,
+      "mbps": 1779.81
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/sonic-std",
+      "nsMin": 933.1,
+      "mbps": 360.09
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/stdlib",
+      "nsMin": 3218426,
+      "mbps": 536.66
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/ours",
+      "nsMin": 2588382,
+      "mbps": 869.68
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/unicode/simd",
+      "nsMin": 12.26
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/stdlib",
+      "nsMin": 11920303,
+      "mbps": 279.17
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/ours",
+      "nsMin": 464147,
+      "mbps": 1558.98
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=32/kernel",
+      "nsMin": 21.11
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=128/kernel",
+      "nsMin": 10.48
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/stdlib",
+      "nsMin": 1049619,
+      "mbps": 507.97
+    },
+    {
+      "name": "BenchmarkStreamDecode/ours",
+      "nsMin": 9252967,
+      "mbps": 439.9
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/goccy",
+      "nsMin": 2955784,
+      "mbps": 244.81
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/stdlib",
+      "nsMin": 2122261,
+      "mbps": 297.57
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/ours",
+      "nsMin": 14204,
+      "mbps": 403.33
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/stdlib",
+      "nsMin": 241.4,
+      "mbps": 770.41
+    },
+    {
+      "name": "BenchmarkStreamDecode/goccy",
+      "nsMin": 11848482,
+      "mbps": 343.54
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/ours",
+      "nsMin": 244060,
+      "mbps": 521.49
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/instruments/sonic",
+      "nsMin": 392174,
+      "mbps": 561.86
+    },
+    {
+      "name": "BenchmarkWidgetGet/fastjson",
+      "nsMin": 294.2
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/goccy",
+      "nsMin": 13704378,
+      "mbps": 164.26
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/sonic",
+      "nsMin": 151964,
+      "mbps": 3508.57
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/goccy",
+      "nsMin": 826986,
+      "mbps": 181.53
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/gjson-Get",
+      "nsMin": 53.89,
+      "mbps": 21696144.09
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/ours",
+      "nsMin": 131257,
+      "mbps": 1071.39
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/ours",
+      "nsMin": 104673,
+      "mbps": 622.24
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/unsorted-ours",
+      "nsMin": 12350,
+      "mbps": 1306.03
+    },
+    {
+      "name": "BenchmarkUnmarshalScanned/ours-Scan+Unmarshal",
+      "nsMin": 220435,
+      "mbps": 2864.86
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/ours-Parse",
+      "nsMin": 80883,
+      "mbps": 1408.83
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/sonic",
+      "nsMin": 15960,
+      "mbps": 4080.99
+    },
+    {
+      "name": "BenchmarkAccessShape/many/gjson",
+      "nsMin": 1504807
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/unsorted-ours",
+      "nsMin": 698,
+      "mbps": 481.39
+    },
+    {
+      "name": "BenchmarkUnmarshalScanned/ours-Parse+Unmarshal",
+      "nsMin": 394696,
+      "mbps": 1600
+    },
+    {
+      "name": "BenchmarkAccessShape/early/jsonparser",
+      "nsMin": 45.87
+    },
+    {
+      "name": "BenchmarkMarshalStructGenerated/ours-generated-MarshalTo",
+      "nsMin": 42575,
+      "mbps": 2754.75
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/ascii/simd",
+      "nsMin": 8.471
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/goccy",
+      "nsMin": 582166,
+      "mbps": 378.49
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/stdlib",
+      "nsMin": 23440670,
+      "mbps": 127.28
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/ours",
+      "nsMin": 147829,
+      "mbps": 3606.71
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/ours",
+      "nsMin": 16930,
+      "mbps": 952.71
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/ascii/simd",
+      "nsMin": 5.799
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/stdlib",
+      "nsMin": 3206112,
+      "mbps": 538.72
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/ours",
+      "nsMin": 4509749,
+      "mbps": 499.15
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/sonic",
+      "nsMin": 515550,
+      "mbps": 1403.54
+    },
+    {
+      "name": "BenchmarkWidgetGet/ours-second-query",
+      "nsMin": 140.6
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Indent/ours",
+      "nsMin": 120636,
+      "mbps": 1055.03
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/sonic-std",
+      "nsMin": 1463,
+      "mbps": 771.12
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/sonic",
+      "nsMin": 12328305,
+      "mbps": 510.33
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/ascii/simd",
+      "nsMin": 7.984
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1000/gjson-parsed",
+      "nsMin": 199511770
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/goccy",
+      "nsMin": 887.7,
+      "mbps": 378.49
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/sonic",
+      "nsMin": 41498,
+      "mbps": 3067.02
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=32/word",
+      "nsMin": 18.56
+    },
+    {
+      "name": "BenchmarkReadme/n=100/jsonparser",
+      "nsMin": 42.75,
+      "mbps": 260406.34
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/unsorted/ours",
+      "nsMin": 344678,
+      "mbps": 5011.07
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/sonic",
+      "nsMin": 11849654,
+      "mbps": 532.83
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1/ours",
+      "nsMin": 166087
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Indent/ours",
+      "nsMin": 43332,
+      "mbps": 1503.09
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/ours",
+      "nsMin": 4538260,
+      "mbps": 496.02
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/sonic-std",
+      "nsMin": 59855,
+      "mbps": 1088.17
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Indent/ours",
+      "nsMin": 195613,
+      "mbps": 767.45
+    },
+    {
+      "name": "BenchmarkEquivalentWork/validating/ours-Parse+Get",
+      "nsMin": 797483
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Indent/stdlib",
+      "nsMin": 7442988,
+      "mbps": 302.44
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-canada",
+      "nsMin": 6361512,
+      "mbps": 353.85
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/stdlib",
+      "nsMin": 963201,
+      "mbps": 155.86
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=10/gjson-parsed",
+      "nsMin": 1829225
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Indent/stdlib",
+      "nsMin": 366774,
+      "mbps": 409.31
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/gjson-Get",
+      "nsMin": 52.45,
+      "mbps": 2172406.86
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/stdlib",
+      "nsMin": 3503224,
+      "mbps": 206.55
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/goccy",
+      "nsMin": 5383,
+      "mbps": 749.21
+    },
+    {
+      "name": "BenchmarkCorpus/canada/goccy",
+      "nsMin": 12724401,
+      "mbps": 176.91
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/unsorted/sonic",
+      "nsMin": 1237577,
+      "mbps": 1395.63
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=64/kernel",
+      "nsMin": 7.523
+    },
+    {
+      "name": "BenchmarkAccessShape/many/ours",
+      "nsMin": 586017
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/sonic",
+      "nsMin": 103204,
+      "mbps": 631.1
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/fastjson",
+      "nsMin": 1059,
+      "mbps": 1598.75
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/ours",
+      "nsMin": 14284762,
+      "mbps": 442
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/unsorted/sonic",
+      "nsMin": 3966458,
+      "mbps": 567.52
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/stdlib",
+      "nsMin": 639094,
+      "mbps": 199.15
+    },
+    {
+      "name": "BenchmarkCorpus/citm/gjson-Valid",
+      "nsMin": 715433,
+      "mbps": 2414.21
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/goccy",
+      "nsMin": 1866551,
+      "mbps": 285.65
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/goccy",
+      "nsMin": 296228791,
+      "mbps": 11.23
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/stdlib",
+      "nsMin": 1429524,
+      "mbps": 506.18
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-Fast",
+      "nsMin": 37385,
+      "mbps": 3137.2
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/stdlib",
+      "nsMin": 472946,
+      "mbps": 297.34
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/stdlib",
+      "nsMin": 319640,
+      "mbps": 203.77
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/ours",
+      "nsMin": 1347853,
+      "mbps": 1170.27
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Compact/stdlib",
+      "nsMin": 1628435,
+      "mbps": 387.8
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Indent/ours",
+      "nsMin": 242061,
+      "mbps": 910.29
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/stdlib",
+      "nsMin": 9710,
+      "mbps": 239.86
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/stdlib",
+      "nsMin": 357.9,
+      "mbps": 231.92
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/goccy",
+      "nsMin": 746688,
+      "mbps": 201.05
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/ours",
+      "nsMin": 299,
+      "mbps": 846.11
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/goccy",
+      "nsMin": 4340,
+      "mbps": 320.73
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/ours",
+      "nsMin": 448676,
+      "mbps": 491.1
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/stdlib",
+      "nsMin": 1348,
+      "mbps": 140.17
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/stdlib",
+      "nsMin": 267801,
+      "mbps": 560.58
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/sonic-std",
+      "nsMin": 799033,
+      "mbps": 790.35
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/ours",
+      "nsMin": 103255,
+      "mbps": 1232.63
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/update-center/stdlib",
+      "nsMin": 3126893,
+      "mbps": 170.51
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/ours",
+      "nsMin": 792,
+      "mbps": 424.24
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/goccy",
+      "nsMin": 40290,
+      "mbps": 462.48
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/sonic",
+      "nsMin": 435.1,
+      "mbps": 434.41
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-canada-ours",
+      "nsMin": 2525351,
+      "mbps": 891.38
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1000/gjson",
+      "nsMin": 196650854
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/sonic",
+      "nsMin": 33628,
+      "mbps": 836.29
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/stdlib",
+      "nsMin": 3252619,
+      "mbps": 531.02
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=1024/unicode/simd",
+      "nsMin": 88.58
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/sonic",
+      "nsMin": 2160171,
+      "mbps": 1381.13
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Compact/stdlib",
+      "nsMin": 1295701,
+      "mbps": 411.5
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/goccy",
+      "nsMin": 148744,
+      "mbps": 437.88
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/ours",
+      "nsMin": 1717519,
+      "mbps": 1937.58
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/ascii/simd",
+      "nsMin": 4.531
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/stdlib",
+      "nsMin": 318620,
+      "mbps": 204.42
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Compact/stdlib",
+      "nsMin": 4317961,
+      "mbps": 400
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/sonic",
+      "nsMin": 450259,
+      "mbps": 489.38
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/ours",
+      "nsMin": 7943,
+      "mbps": 8200.37
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/sonic",
+      "nsMin": 2382434,
+      "mbps": 662.08
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/goccy",
+      "nsMin": 105.8,
+      "mbps": 1757.71
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/jsonparser",
+      "nsMin": 45.43,
+      "mbps": 25731871.93
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Indent/ours",
+      "nsMin": 1829973,
+      "mbps": 861.95
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/ours",
+      "nsMin": 461263,
+      "mbps": 1568.73
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/ours",
+      "nsMin": 241856,
+      "mbps": 2611.12
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/citm/stdlib",
+      "nsMin": 8216542,
+      "mbps": 210.21
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/goccy",
+      "nsMin": 748594,
+      "mbps": 200.54
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/sonic",
+      "nsMin": 6084177,
+      "mbps": 369.98
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/sonic",
+      "nsMin": 2257059,
+      "mbps": 765.25
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/sonic",
+      "nsMin": 5113061,
+      "mbps": 228.65
+    },
+    {
+      "name": "BenchmarkStreamEncode/stdlib",
+      "nsMin": 9454001,
+      "mbps": 430.54
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/stdlib",
+      "nsMin": 33245710,
+      "mbps": 189.91
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/goccy",
+      "nsMin": 27247009,
+      "mbps": 231.73
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/goccy",
+      "nsMin": 121430,
+      "mbps": 1158.1
+    },
+    {
+      "name": "BenchmarkEquivalentWork/unvalidated/ours-Scan+Get",
+      "nsMin": 168042
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/ours",
+      "nsMin": 91540,
+      "mbps": 6898.79
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/goccy",
+      "nsMin": 304114,
+      "mbps": 418.51
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/sonic",
+      "nsMin": 984306,
+      "mbps": 2286.94
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/stdlib",
+      "nsMin": 495.3,
+      "mbps": 510.85
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/ours",
+      "nsMin": 403.2,
+      "mbps": 468.71
+    },
+    {
+      "name": "BenchmarkSetPathRow/deep/sjson",
+      "nsMin": 287202,
+      "mbps": 2198.86
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/sonic",
+      "nsMin": 1482382,
+      "mbps": 1165.15
+    },
+    {
+      "name": "BenchmarkReadme/n=100/gjson-Get",
+      "nsMin": 51.12,
+      "mbps": 217772.46
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/goccy-Valid",
+      "nsMin": 10217,
+      "mbps": 165.71
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/stdlib-Valid",
+      "nsMin": 71.04,
+      "mbps": 464.54
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/minio",
+      "nsMin": 2036,
+      "mbps": 831.4
+    },
+    {
+      "name": "BenchmarkWhy/q=100/gjson-rescans",
+      "nsMin": 203190
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/ours",
+      "nsMin": 43341,
+      "mbps": 5083.97
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/stdlib",
+      "nsMin": 758,
+      "mbps": 368.09
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/goccy",
+      "nsMin": 4507583,
+      "mbps": 383.18
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/ours-Parse",
+      "nsMin": 218.3,
+      "mbps": 517.74
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/sonic-std",
+      "nsMin": 250.1,
+      "mbps": 331.92
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/segmentio",
+      "nsMin": 126.2,
+      "mbps": 1474.02
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/unsorted-sonic",
+      "nsMin": 402.7,
+      "mbps": 834.32
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/sonic",
+      "nsMin": 5091330,
+      "mbps": 229.63
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/ours",
+      "nsMin": 2328281,
+      "mbps": 1429.31
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/goccy",
+      "nsMin": 12396101,
+      "mbps": 181.59
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/jsoniter",
+      "nsMin": 9792886,
+      "mbps": 214.15
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Compact/ours",
+      "nsMin": 792721,
+      "mbps": 2178.83
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/unsorted/ours",
+      "nsMin": 45928,
+      "mbps": 1418.13
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/stdlib",
+      "nsMin": 5573413,
+      "mbps": 129.83
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/stdlib",
+      "nsMin": 11735798,
+      "mbps": 283.56
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/ascii/stdlib",
+      "nsMin": 7.937
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/unsorted-ours",
+      "nsMin": 371.8,
+      "mbps": 750.45
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=1024/kernel",
+      "nsMin": 53.14
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/goccy",
+      "nsMin": 28327,
+      "mbps": 569.38
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/sonic",
+      "nsMin": 497974,
+      "mbps": 228.83
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/goccy-Valid",
+      "nsMin": 947.4,
+      "mbps": 119.28
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Compact/ours",
+      "nsMin": 176043,
+      "mbps": 3028.68
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/ours",
+      "nsMin": 287302,
+      "mbps": 6011.81
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Compact/ours",
+      "nsMin": 2114324,
+      "mbps": 1411.07
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/goccy",
+      "nsMin": 2450905,
+      "mbps": 217.54
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Compact/ours",
+      "nsMin": 85946,
+      "mbps": 1480.87
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/twitter/sonic",
+      "nsMin": 887163,
+      "mbps": 711.84
+    },
+    {
+      "name": "BenchmarkMarshalStruct/sonic-default-NOT-comparable",
+      "nsMin": 27463,
+      "mbps": 4270.51
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/goccy",
+      "nsMin": 18745492,
+      "mbps": 159.16
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/ours",
+      "nsMin": 343313,
+      "mbps": 437.28
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/sonic",
+      "nsMin": 151923,
+      "mbps": 3509.53
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/ours",
+      "nsMin": 528844,
+      "mbps": 2982.64
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/goccy",
+      "nsMin": 19527069,
+      "mbps": 322.19
+    },
+    {
+      "name": "BenchmarkReadme/n=100/ours-Scan",
+      "nsMin": 1894,
+      "mbps": 5877.24
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=both",
+      "nsMin": 47689,
+      "mbps": 2459.32
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/segmentio",
+      "nsMin": 1248963,
+      "mbps": 1382.91
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/sorted/sonic-std",
+      "nsMin": 4250126,
+      "mbps": 529.64
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/stdlib",
+      "nsMin": 3342,
+      "mbps": 337.51
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/goccy-Valid",
+      "nsMin": 448.4,
+      "mbps": 73.59
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/stdlib",
+      "nsMin": 120683,
+      "mbps": 539.69
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/unsorted-ours",
+      "nsMin": 2485,
+      "mbps": 560.14
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/unsorted/ours",
+      "nsMin": 179594,
+      "mbps": 3516.36
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/unsorted-sonic",
+      "nsMin": 1302,
+      "mbps": 1069.12
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1/gjson-parsed",
+      "nsMin": 108.9
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/stdlib",
+      "nsMin": 1424767,
+      "mbps": 507.87
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/stdlib",
+      "nsMin": 2169,
+      "mbps": 465.09
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/unicode/simd",
+      "nsMin": 8.157
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/ours",
+      "nsMin": 1047,
+      "mbps": 963.66
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/sonic",
+      "nsMin": 2253340,
+      "mbps": 930.7
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/ours",
+      "nsMin": 358406,
+      "mbps": 4819.13
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/ours",
+      "nsMin": 7997,
+      "mbps": 8144.38
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/goccy",
+      "nsMin": 5940760,
+      "mbps": 378.92
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/stdlib",
+      "nsMin": 5866625,
+      "mbps": 508.55
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=100/gjson",
+      "nsMin": 19232918
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/ours",
+      "nsMin": 147625,
+      "mbps": 3611.71
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/sonic-std",
+      "nsMin": 14649,
+      "mbps": 391.09
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/unsorted/sonic",
+      "nsMin": 721941,
+      "mbps": 738.53
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-MarshalTo",
+      "nsMin": 47684,
+      "mbps": 2459.61
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/ours",
+      "nsMin": 23247,
+      "mbps": 801.52
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/unsorted-sonic",
+      "nsMin": 6553,
+      "mbps": 2461.23
+    },
+    {
+      "name": "BenchmarkShapeValid/gsoc-2018/goccy",
+      "nsMin": 296608137,
+      "mbps": 11.22
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/goccy",
+      "nsMin": 376251,
+      "mbps": 338.27
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/ours",
+      "nsMin": 93348,
+      "mbps": 6765.15
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/sonic-std",
+      "nsMin": 21758,
+      "mbps": 856.38
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/ours",
+      "nsMin": 52624,
+      "mbps": 2852.75
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/jsonparser",
+      "nsMin": 46.05,
+      "mbps": 25390341.15
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/stdlib",
+      "nsMin": 34044351,
+      "mbps": 184.8
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/sonic",
+      "nsMin": 15889,
+      "mbps": 4099.18
+    },
+    {
+      "name": "BenchmarkMarshalStruct/goccy",
+      "nsMin": 95418,
+      "mbps": 1229.15
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/sonic",
+      "nsMin": 806455,
+      "mbps": 1955.91
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/sonic",
+      "nsMin": 235645,
+      "mbps": 540.11
+    },
+    {
+      "name": "BenchmarkShapeValid/instruments/goccy",
+      "nsMin": 807303,
+      "mbps": 272.94
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Compact/ours",
+      "nsMin": 1039789,
+      "mbps": 1516.99
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/goccy",
+      "nsMin": 4239306,
+      "mbps": 784.99
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/sonic",
+      "nsMin": 89873,
+      "mbps": 2451.74
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/unsorted-ours",
+      "nsMin": 10094,
+      "mbps": 567.55
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=1024/ascii/stdlib",
+      "nsMin": 15.99
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/stdlib-Valid",
+      "nsMin": 3119,
+      "mbps": 542.82
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/stdlib",
+      "nsMin": 13990624,
+      "mbps": 160.9
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/minio",
+      "nsMin": 189.5,
+      "mbps": 174.18
+    },
+    {
+      "name": "BenchmarkCorpus/canada/fastjson",
+      "nsMin": 1758378,
+      "mbps": 1280.19
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/minio",
+      "nsMin": 332.9,
+      "mbps": 339.41
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/sonic",
+      "nsMin": 969015,
+      "mbps": 2323.03
+    },
+    {
+      "name": "BenchmarkCorpus/citm/ours-Parse",
+      "nsMin": 546773,
+      "mbps": 3158.91
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Indent/stdlib",
+      "nsMin": 3810622,
+      "mbps": 413.94
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/stdlib",
+      "nsMin": 3338,
+      "mbps": 783.66
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/unsorted-sonic",
+      "nsMin": 278.9,
+      "mbps": 1000.25
+    },
+    {
+      "name": "BenchmarkWhy/q=1000/ours-index-once",
+      "nsMin": 3120644
     }
   ],
   "skipped": [
     {
-      "name": "BenchmarkAccessShape/early/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/early/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/early/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/late/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/late/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/late/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/many/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/many/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkAccessShape/many/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkColdStartUnmarshal/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkColdStartUnmarshal/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkColdStartUnmarshal/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkColdStartUnmarshal/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEasyjson/marshal-twitter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEasyjson/marshal-twitter-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEasyjson/unmarshal-canada",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEasyjson/unmarshal-canada-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEasyjson/unmarshal-twitter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEasyjson/unmarshal-twitter-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEquivalentWork/unvalidated/gjson-Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEquivalentWork/unvalidated/ours-Scan+Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEquivalentWork/validating/gjson-Valid+Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEquivalentWork/validating/ours-Parse+Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=1024/kernel",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=1024/word",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=128/kernel",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=128/word",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=16/kernel",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=16/word",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=256/kernel",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=256/word",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=32/kernel",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=32/word",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=64/kernel",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkEscapeScan/n=64/word",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=1000/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=1000/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=1000/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=1000/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=1000/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=1000/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=1000/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=10000/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=10000/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=10000/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=10000/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=10000/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=10000/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkGetField/n=10000/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkHandwritten/floor",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkHandwritten/ours-MarshalTo",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalIndentRow/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalIndentRow/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalIndentRow/segmentio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalIndentRow/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalIndentRow/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=16/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=16/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=16/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=16/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=16/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=16/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=256/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=256/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=256/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=256/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=256/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=256/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=4/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=4/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=4/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=4/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=4/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=4/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=64/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=64/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=64/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=64/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=64/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/int/n=64/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=16/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=16/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=16/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=16/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=16/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=16/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=256/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=256/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=256/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=256/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=256/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=256/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=4/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=4/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=4/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=4/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=4/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=4/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=64/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=64/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=64/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=64/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=64/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/string/n=64/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=16/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=16/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=16/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=16/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=16/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=16/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=256/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=256/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=256/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=256/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=256/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=256/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=4/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=4/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=4/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=4/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=4/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=4/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=64/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=64/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=64/sonic-std",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=64/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=64/unsorted-ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMap/struct/n=64/unsorted-sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkMarshalMapAllocs",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkParallelTwitterStruct/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkParallelTwitterStruct/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkParallelTwitterStruct/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkParallelTwitterStruct/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/gjson-Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/gjson-Valid+Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/ours-Parse",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/ours-Scan",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=100/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/gjson-Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/gjson-Valid+Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/ours-Parse",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/ours-Scan",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=1000/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/gjson-Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/gjson-Valid+Get",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/ours-Parse",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/ours-Scan",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkReadme/n=10000/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=1/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=1/gjson-parsed",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=1/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=10/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=10/gjson-parsed",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=10/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=100/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=100/gjson-parsed",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=100/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=1000/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=1000/gjson-parsed",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkRepeatedLookups/q=1000/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/large/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/large/jsoniter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/large/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/large/segmentio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/large/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/large/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/medium/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/medium/jsoniter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/medium/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/medium/segmentio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/medium/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/medium/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/small/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/small/jsoniter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/small/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/small/segmentio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/small/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLMarshal/small/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/large/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/large/jsoniter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/large/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/large/segmentio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/large/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/large/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/medium/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/medium/jsoniter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/medium/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/medium/segmentio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/medium/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/medium/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/small/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/small/jsoniter",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/small/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/small/segmentio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/small/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSMLUnmarshal/small/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
       "name": "BenchmarkScale",
       "reason": "exceeds -max-discover-sec at 1x"
-    },
-    {
-      "name": "BenchmarkSetPathRow/deep/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSetPathRow/deep/sjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSetPathRow/shallow/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSetPathRow/shallow/sjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/apache_builds/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/apache_builds/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/apache_builds/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/apache_builds/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/canada/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/canada/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/canada/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/canada/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/citm/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/citm/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/citm/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/citm/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/github_events/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/github_events/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/github_events/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/github_events/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/gsoc-2018/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/gsoc-2018/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/gsoc-2018/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/gsoc-2018/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/instruments/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/instruments/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/instruments/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/instruments/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/marine_ik/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/marine_ik/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/marine_ik/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/marine_ik/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh.pretty/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh.pretty/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh.pretty/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh.pretty/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/mesh/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/numbers/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/numbers/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/numbers/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/numbers/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/twitter/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/twitter/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/twitter/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/twitter/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/update-center/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/update-center/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/update-center/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkShapeDecodeMap/update-center/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/config-2KB/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/config-2KB/goccy-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/config-2KB/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/config-2KB/ours-Parse",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/config-2KB/stdlib-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/list-20KB/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/list-20KB/goccy-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/list-20KB/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/list-20KB/ours-Parse",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/list-20KB/stdlib-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/small-200B/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/small-200B/goccy-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/small-200B/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/small-200B/ours-Parse",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/small-200B/stdlib-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/tiny-64B/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/tiny-64B/goccy-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/tiny-64B/minio",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/tiny-64B/ours-Parse",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkSmall/tiny-64B/stdlib-Valid",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/apache_builds/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/canada/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/citm/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/github_events/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/gsoc-2018/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/instruments/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/marine_ik/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh.pretty/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/mesh/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/numbers/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/twitter/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Compact/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Compact/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Indent/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Indent/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Valid/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Valid/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Valid/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkTextOps/update-center/Valid/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/apache_builds/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/apache_builds/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/apache_builds/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/apache_builds/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/canada/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/canada/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/canada/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/canada/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/citm/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/citm/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/citm/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/citm/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/github_events/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/github_events/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/github_events/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/github_events/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/gsoc-2018/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/gsoc-2018/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/gsoc-2018/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/gsoc-2018/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/instruments/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/instruments/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/instruments/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/instruments/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/marine_ik/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/marine_ik/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/marine_ik/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/marine_ik/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh.pretty/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh.pretty/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh.pretty/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh.pretty/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/mesh/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/numbers/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/numbers/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/numbers/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/numbers/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/twitter/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/twitter/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/twitter/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/twitter/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/update-center/goccy",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/update-center/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/update-center/sonic",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalAny/update-center/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalScanned/ours-Parse+Unmarshal",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkUnmarshalScanned/ours-Scan+Unmarshal",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=1024/ascii/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=1024/ascii/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=1024/unicode/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=1024/unicode/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=128/ascii/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=128/ascii/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=128/unicode/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=128/unicode/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=16/ascii/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=16/ascii/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=16/unicode/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=16/unicode/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=256/ascii/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=256/ascii/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=256/unicode/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=256/unicode/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=32/ascii/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=32/ascii/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=32/unicode/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=32/unicode/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=64/ascii/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=64/ascii/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=64/unicode/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=64/unicode/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=8192/ascii/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=8192/ascii/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=8192/unicode/simd",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkValidUTF8/n=8192/unicode/stdlib",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/gjson.Get_alone_(stops_at_first_match)",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/gjson.Valid_(scalar,_keeps_nothing)",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/ours.Parse_(index_+_grammar_walk)",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/ours.Scan_(vector,_builds_an_index)",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=1/gjson-rescans",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=1/ours-index-once",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=10/gjson-rescans",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=10/ours-index-once",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=100/gjson-rescans",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=100/ours-index-once",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=1000/gjson-rescans",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWhy/q=1000/ours-index-once",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWidgetGet/fastjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWidgetGet/gjson",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWidgetGet/jsonparser",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWidgetGet/ours",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWidgetGet/ours-GetMany3",
-      "reason": "filtered by -bench"
-    },
-    {
-      "name": "BenchmarkWidgetGet/ours-second-query",
-      "reason": "filtered by -bench"
     }
   ]
 }
