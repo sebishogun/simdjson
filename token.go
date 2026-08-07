@@ -48,10 +48,14 @@ func (d *Decoder) Token() (Token, error) {
 	d.doc, d.data = nil, nil
 	d.valStreak, d.stElems = 0, d.stElems[:0]
 
-	c, err := d.peek()
+	// A clean end of stream must not move the cursor: the hunt happens
+	// without committing, and only a found token advances. stdlib's
+	// InputOffset stays where the last token ended otherwise.
+	c, pos, err := d.peekKeep()
 	if err != nil {
 		return nil, err
 	}
+	d.off = pos
 
 	// A colon belongs to the key before it and is consumed here rather than
 	// with the key, so that a key followed by something other than a colon
@@ -173,6 +177,13 @@ func (d *Decoder) scalarSpan() (int, int, error) {
 			// At end of stream a bare number or literal that reaches the end of
 			// the buffer is complete; a string or container is truncated.
 			if d.err == io.EOF && end > start && d.buf[start] != '"' {
+				// A strict prefix of a literal, or a number cut where more
+				// digits could follow, is stdlib's unexpected EOF: the
+				// stream ended mid-token and only more input could decide.
+				// Only a token no continuation could save is handed on.
+				if tokenTruncated(d.buf[start:end]) {
+					return 0, 0, io.ErrUnexpectedEOF
+				}
 				d.off = end
 				return start, end, nil
 			}
@@ -185,6 +196,25 @@ func (d *Decoder) scalarSpan() (int, int, error) {
 			return 0, 0, err
 		}
 	}
+}
+
+// tokenTruncated reports whether raw, cut at end of stream, is a strict
+// prefix of a token more input could complete: "n" of null, "0." awaiting
+// digits, "1e+" awaiting an exponent.
+func tokenTruncated(raw []byte) bool {
+	switch raw[0] {
+	case 't':
+		return len(raw) < 4 && string(raw) == "true"[:len(raw)]
+	case 'f':
+		return len(raw) < 5 && string(raw) == "false"[:len(raw)]
+	case 'n':
+		return len(raw) < 4 && string(raw) == "null"[:len(raw)]
+	}
+	switch raw[len(raw)-1] {
+	case '.', 'e', 'E', '+', '-':
+		return true
+	}
+	return false
 }
 
 // tokenOf turns one scalar's bytes into the value encoding/json would produce.

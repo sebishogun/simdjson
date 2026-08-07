@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -133,4 +134,36 @@ const startDetectingCyclesAfter = 1000
 // the semantics under test are the escaper's.
 func HTMLEscape(dst *bytes.Buffer, src []byte) {
 	json.HTMLEscape(dst, src)
+}
+
+// NewEncoder binds the streaming encoder for the vendored stream tests.
+func NewEncoder(w io.Writer) *simdjson.Encoder { return simdjson.NewEncoder(w) }
+
+// sameSyntaxClass reports whether got is this library's rendering of the
+// syntax-error class the vendored expectation names. Wording differs by
+// documented design; the class and the input that provokes it are what the
+// vendored tests actually hold.
+func sameSyntaxClass(got, want error) bool {
+	if reflect.DeepEqual(got, want) {
+		return true
+	}
+	g, w := got.Error(), want.Error()
+	classes := [][2]string{
+		{"after array element", "expected ','"},
+		{"after object key", "expected ':'"},
+		{"in string escape code", "invalid escape"},
+		{"looking for beginning of value", "unexpected character"},
+		{"in literal", "invalid literal"},
+		{"unexpected end of JSON input", "unexpected EOF"},
+		{"after decimal point", "invalid number"},
+		{"in numeric literal", "invalid number"},
+		{"in exponent of numeric literal", "invalid number"},
+		{"after top-level value", "trailing data"},
+	}
+	for _, c := range classes {
+		if strings.Contains(w, c[0]) && strings.Contains(g, c[1]) {
+			return true
+		}
+	}
+	return false
 }

@@ -1017,6 +1017,12 @@ func buildPlan(t reflect.Type) *structPlan {
 				continue
 			}
 			name, opts, _ := strings.Cut(tag, ",")
+			if !validTagName(name) {
+				// A name stdlib would not honor -- a backslash, a quote --
+				// falls back to the Go field name, exactly as its
+				// isValidTag does.
+				name = ""
+			}
 			// Tagged means the tag NAMED the field -- `json:"X"` on a field
 			// already called X still outranks an untagged X at equal depth.
 			tagged := name != ""

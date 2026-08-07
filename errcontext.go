@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 )
 
 // numberRType is json.Number's reflect.Type: string-kinded, but it accepts
@@ -237,3 +238,23 @@ var (
 	stringMapType = reflect.TypeOf(map[string]any(nil))
 	anySliceType  = reflect.TypeOf([]any(nil))
 )
+
+// validTagName reports whether a json tag's name is one encoding/json will
+// honor; anything else falls back to the Go field name. Ported from
+// stdlib's isValidTag.
+func validTagName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		switch {
+		case strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c):
+		// Unicode letters and digits, not just ASCII: stdlib's isValidTag
+		// takes 色は匂へど, and its own tagkey tests hold it to that.
+		case unicode.IsLetter(c), unicode.IsDigit(c):
+		default:
+			return false
+		}
+	}
+	return true
+}

@@ -422,15 +422,7 @@ func encodeViaStdlib(t reflect.Type) encodeFn {
 				if err != nil {
 					return &json.MarshalerError{Type: t, Err: err}
 				}
-				// Compacted and validated like stdlib's appendCompact; the
-				// marshaler's output is untrusted bytes. Cold path -- the
-				// marshaler itself already allocated.
-				var cb bytes.Buffer
-				if err := json.Compact(&cb, b); err != nil {
-					return &json.MarshalerError{Type: t, Err: err}
-				}
-				e.buf = append(e.buf, cb.Bytes()...)
-				return nil
+				return e.writeRawCompact(b, t)
 			}
 			b, err := rv.Interface().(encoding.TextMarshaler).MarshalText()
 			if err != nil {
@@ -444,23 +436,69 @@ func encodeViaStdlib(t reflect.Type) encodeFn {
 	// marshalling the value copy would silently fall back to the plain
 	// representation, which is what stdlib does only when no address exists.
 	ptrOnly := !t.Implements(marshalerType) && !t.Implements(textMarshalerType)
+	asJSON := t.Implements(marshalerType) || reflect.PointerTo(t).Implements(marshalerType)
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-		var b []byte
-		var err error
+		var iv any
 		if ptrOnly && p != nil {
-			b, err = json.Marshal(reflect.NewAt(t, p).Interface())
+			iv = reflect.NewAt(t, p).Interface()
 		} else {
 			if !rv.IsValid() {
 				rv = reflect.NewAt(t, p).Elem()
 			}
-			b, err = json.Marshal(rv.Interface())
+			iv = rv.Interface()
 		}
+		// The marshaler is called directly and its raw bytes compacted with
+		// this encoder's own escape setting. Routing through json.Marshal
+		// re-escaped HTML unconditionally, so SetEscapeHTML(false) never
+		// reached anything a MarshalJSON produced.
+		if asJSON {
+			if m, ok := iv.(json.Marshaler); ok {
+				if mv := reflect.ValueOf(iv); mv.Kind() == reflect.Pointer && mv.IsNil() {
+					e.buf = append(e.buf, "null"...)
+					return nil
+				}
+				b, err := m.MarshalJSON()
+				if err != nil {
+					return &json.MarshalerError{Type: t, Err: err}
+				}
+				return e.writeRawCompact(b, t)
+			}
+		}
+		if tm, ok := iv.(encoding.TextMarshaler); ok {
+			if mv := reflect.ValueOf(iv); mv.Kind() == reflect.Pointer && mv.IsNil() {
+				e.buf = append(e.buf, "null"...)
+				return nil
+			}
+			b, err := tm.MarshalText()
+			if err != nil {
+				return &json.MarshalerError{Type: t, Err: err}
+			}
+			e.writeString(string(b))
+			return nil
+		}
+		b, err := json.Marshal(iv)
 		if err != nil {
 			return err
 		}
 		e.buf = append(e.buf, b...)
 		return nil
 	}
+}
+
+// writeRawCompact appends a marshaler's output compacted, escaping HTML only
+// when this encoder's options say to -- stdlib's appendCompact contract.
+func (e *encodeState) writeRawCompact(b []byte, t reflect.Type) error {
+	var cb bytes.Buffer
+	if e.opts.EscapeHTML {
+		json.HTMLEscape(&cb, b)
+		b = cb.Bytes()
+		cb = bytes.Buffer{}
+	}
+	if err := json.Compact(&cb, b); err != nil {
+		return &json.MarshalerError{Type: t, Err: err}
+	}
+	e.buf = append(e.buf, cb.Bytes()...)
+	return nil
 }
 
 func encodeIntFn(t reflect.Type) encodeFn {
@@ -1116,9 +1154,13 @@ type encField struct {
 	// leaf names the kinds the field loop writes itself. The compiled encoder
 	// for a string or an int is three instructions behind an indirect call, and
 	// the call is the larger half; a struct of scalars pays one per field.
-	leaf    encLeaf
-	quoted  bool
-	ptrPath bool
+	leaf   encLeaf
+	quoted bool
+	// keyPlain and keyPlainComma are the key with HTML escaping off, for an
+	// Encoder that asked; the default pair above is baked with it on.
+	keyPlain      []byte
+	keyPlainComma []byte
+	ptrPath       bool
 	// simple marks a field the loop can write with no questions asked: a fixed
 	// offset, a leaf kind, and none of omitempty, omitzero or ,string. Almost
 	// every field of almost every struct is one, and testing the four flags
@@ -1177,11 +1219,15 @@ func encodeGeneralField(e *encodeState, f *encField, t reflect.Type, p unsafe.Po
 	if (f.omitZero || omitAll) && isZeroPtr(f, fp) {
 		return rv, first, nil
 	}
+	key, keyComma := f.key, f.keyComma
+	if !e.opts.EscapeHTML {
+		key, keyComma = f.keyPlain, f.keyPlainComma
+	}
 	if first {
-		e.buf = append(e.buf, f.key...)
+		e.buf = append(e.buf, key...)
 		first = false
 	} else {
-		e.buf = append(e.buf, f.keyComma...)
+		e.buf = append(e.buf, keyComma...)
 	}
 	if f.quoted {
 		return rv, first, e.writeQuotedValue(f, fp, frv)
@@ -1226,6 +1272,12 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				continue
 			}
 			name, opts, _ := cutComma(tag)
+			if !validTagName(name) {
+				// A name stdlib would not honor -- a backslash, a quote --
+				// falls back to the Go field name, exactly as its
+				// isValidTag does.
+				name = ""
+			}
 			// Tagged means the tag NAMED the field; a bare `json:",omitempty"`
 			// does not outrank an untagged sibling, and `json:"X"` on a field
 			// already called X still does.
@@ -1264,8 +1316,12 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 			key = append(key, ':')
 			dom = append(dom, domField{name: name, depth: depth,
 				tagged: tagged, ord: len(fields)})
+			keyPlain := append([]byte(nil), '{')
+			keyPlain = appendQuotedOpts(keyPlain[:0], name, Options{EscapeHTML: false})
+			keyPlain = append(keyPlain, ':')
 			fields = append(fields, encField{
 				key:       key,
+				keyPlain:  keyPlain,
 				offset:    off + sf.Offset,
 				fn:        encoderFor(sf.Type),
 				typ:       sf.Type,
@@ -1295,6 +1351,7 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		f := &fields[i]
 		f.simple = !f.ptrPath && !f.omitEmpty && !f.omitZero && !f.quoted && f.leaf != leafNone
 		f.keyComma = append(append(make([]byte, 0, len(f.key)+1), ','), f.key...)
+		f.keyPlainComma = append(append(make([]byte, 0, len(f.keyPlain)+1), ','), f.keyPlain...)
 	}
 
 	// The compact table the field loop actually walks. The keys go in one blob
@@ -1363,11 +1420,18 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		// scalars is one iteration. The second has no flag to keep live and
 		// writes the comma unconditionally, which is correct precisely because
 		// it cannot start until the first field is behind it.
+		// The packed blob is baked with HTML escaping on; the plain pair
+		// lives per field for the encoder that turned it off.
+		plainKeys := !opts.EscapeHTML
 		i := 0
 		for ; i < len(fast) && first; i++ {
 			ff := &fast[i]
 			if ff.leaf != leafNone && !omitAll {
-				b = append(b, keyBlob[ff.keyOff+1:ff.keyOff+ff.keyLen]...)
+				if plainKeys {
+					b = append(b, fields[i].keyPlain...)
+				} else {
+					b = append(b, keyBlob[ff.keyOff+1:ff.keyOff+ff.keyLen]...)
+				}
 				first = false
 				fp := unsafe.Add(p, uintptr(ff.offset))
 				switch ff.leaf {
@@ -1407,6 +1471,9 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 				// One append for the separator and the key together: they were
 				// two, and the comma is one byte.
 				k := keyBlob[ff.keyOff : ff.keyOff+ff.keyLen]
+				if plainKeys {
+					k = fields[i].keyPlainComma
+				}
 				b = append(b, k...)
 				fp := unsafe.Add(p, uintptr(ff.offset))
 				switch ff.leaf {
@@ -1463,7 +1530,9 @@ func compileStructEncoder(t reflect.Type) encodeFn {
 		return general
 	}
 	return func(e *encodeState, p unsafe.Pointer, rv reflect.Value) error {
-		if e.opts.OmitZeroStructFields {
+		// The packed keys are baked with HTML escaping on; an encoder that
+		// turned it off takes the general loop, which selects the plain pair.
+		if e.opts.OmitZeroStructFields || !e.opts.EscapeHTML {
 			return general(e, p, rv)
 		}
 		opts := e.opts

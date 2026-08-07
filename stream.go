@@ -140,8 +140,17 @@ func (d *Decoder) decodeAt(i int, out any) (int, error) {
 // More reports whether there is another element in the array or object being
 // read, or another value in the stream.
 func (d *Decoder) More() bool {
-	c, err := d.peek()
-	return err == nil && c != ']' && c != '}'
+	// The cursor must not move when the answer is "nothing there":
+	// stdlib's InputOffset stays at the last token when the hunt reaches a
+	// clean end, and its stream tests hold the difference.
+	c, pos, err := d.peekKeep()
+	if err != nil {
+		return false
+	}
+	// Found something: the whitespace walked over is consumed, exactly as
+	// stdlib's More advances its scan -- its offset tests count both ways.
+	d.off = pos
+	return c != ']' && c != '}'
 }
 
 // Token is not implemented. The rest of the Decoder is; Token is a different
@@ -150,6 +159,28 @@ func (d *Decoder) More() bool {
 //
 // Decoding into a [encoding/json.RawMessage], or [Parse] and a walk over the
 // [Value], covers what it is usually reached for.
+
+// peekKeep is peek without moving the cursor: the whitespace walk happens in
+// a local, so a hunt that finds only end-of-stream leaves InputOffset where
+// the last token put it -- stdlib's contract, held by its stream tests. fill
+// may compact the buffer, which shifts d.off; the local tracks its distance
+// from d.off and survives the shift. On success the found byte's position
+// comes back for the caller to commit.
+func (d *Decoder) peekKeep() (byte, int, error) {
+	rel := 0
+	for {
+		i := d.off + rel
+		for ; i < len(d.buf); i++ {
+			if !isJSONSpace[d.buf[i]] {
+				return d.buf[i], i, nil
+			}
+		}
+		rel = i - d.off
+		if err := d.fill(); err != nil {
+			return 0, 0, err
+		}
+	}
+}
 
 // peek returns the next non-whitespace byte without consuming it, refilling as
 // it has to.
