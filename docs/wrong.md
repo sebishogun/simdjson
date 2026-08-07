@@ -2437,3 +2437,24 @@ whole with the reason "exceeds -max-discover-sec at 1x"; a completed
 parent skips only the rows that measured over the threshold. Rows are
 re-includable explicitly with `-include-slow`, at the price of discovery
 and measurement taking as long as they take.
+
+## One whole-document UTF-8 pass for the any family: a wash the shapes split
+
+decodeStr scans each decoded string -- plainASCII, then validUTF8 -- and
+its own comment says a whole-document pass lost 17% on struct decodes,
+where few strings are touched. Decoding into any touches every string,
+so the premise inverts: one kernel pass at the any walk's entry, a
+utf8OK flag, and the per-string scans collapse to an escape probe.
+
+Measured, min of three interleaved rounds:
+
+    twitter  -3.6%      gsoc  -2.5%      citm  +3.4%
+
+Nothing clears the 8.3% floor. The scans being replaced were 3-8% of
+the operation and the whole-document pass costs what it costs: twitter
+and gsoc trade near-even, and citm -- thousands of short ASCII seat
+names, each a trivially cheap plainASCII hit -- pays the 1.7 MB pass
+for scans that were nearly free. Two flags and a branch for
+shape-dependent jitter is not a trade; reverted. The any family's
+residual remains what the record already says it is: the walk itself,
+against an assembled one.
