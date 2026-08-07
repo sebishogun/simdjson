@@ -99,7 +99,7 @@ func main() {
 
 	if *bin == "" || *outPath == "" {
 		fmt.Fprintln(os.Stderr, "usage: benchrunner -bench-bin BIN -out JSON "+
-			"[-count N] [-shuffle-seed S] [-max-discover-sec SEC] [-include-slow] [-bench RE]")
+			"[-cwd DIR] [-count N] [-shuffle-seed S] [-max-discover-sec SEC] [-include-slow] [-bench RE]")
 		os.Exit(2)
 	}
 	if *count < 1 {
