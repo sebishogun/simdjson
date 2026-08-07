@@ -63,7 +63,7 @@ BENCH_BASELINE = testdata/bench/$(shell $(GO) env GOARCH).txt
 BENCH_COUNT   ?= 8
 BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
 
-.PHONY: bench-run bench-check bench-update bench-agree bench-vs bench-vs-test vet-vs
+.PHONY: bench-run bench-check bench-update bench-agree bench-vs bench-vs-test bench-suite vet-vs
 
 bench-run: ## Run the gate benchmarks and write the raw output
 	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) -shuffle=on . > $(BENCH_OUT)
@@ -140,9 +140,19 @@ bench: ## Every benchmark once
 # machine that produced it once the files aged out.
 VS_COUNT ?= 8
 VS_BENCH ?= .
+BENCH_BIN  ?= /tmp/simdjson-bench.test
+BENCH_SNAP ?= docs/bench/compare-$(shell date +%F).json
 
 bench-vs: ## Measure against sonic, goccy, gjson, fastjson, minio and the stdlib
 	cd bench && $(GO) test -run '^$$' -bench '$(VS_BENCH)' -count $(VS_COUNT) .
+
+# The runner behind bench-suite: one process per benchmark, shuffled order,
+# minima of $(VS_COUNT) samples, slow rows skipped past the discovery
+# threshold. This is the beyond-reproach measurement; bench-vs is its quick,
+# in-process ancestor.
+bench-suite: ## Build the comparison harness, run one process per benchmark
+	cd bench && $(GO) test -c -o $(BENCH_BIN) .
+	cd tools && $(GO) run ./benchrunner -bench-bin $(BENCH_BIN) -count $(VS_COUNT) -out ../$(BENCH_SNAP)
 
 bench-vs-test: ## The agreement checks: do the libraries produce the same bytes
 	cd bench && $(GO) test ./...
