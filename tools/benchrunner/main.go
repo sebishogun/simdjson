@@ -86,6 +86,10 @@ func main() {
 	count := flag.Int("count", 8, "samples per benchmark (passed as -test.count)")
 	seedFlag := flag.Uint64("shuffle-seed", 0, "seed for the execution order; 0 = time-based")
 	outPath := flag.String("out", "", "JSON output path")
+	cwd := flag.String("cwd", "", "working directory the bench binary runs in; "+
+		"the harness reads its corpora relative to it (bench/ for this repo). "+
+		"Defaults to the runner's own directory, which is a footgun: launch "+
+		"through the Makefile or pass -cwd explicitly")
 	maxSec := flag.Int("max-discover-sec", 10,
 		"per-parent discovery timeout in seconds; 0 = no timeout and nothing is skipped")
 	includeSlow := flag.Bool("include-slow", false,
@@ -108,8 +112,17 @@ func main() {
 	}
 
 	// Phase 1: top-level benchmark names, no execution.
+	// Every child process runs in -cwd: the harness reads its corpora via
+	// relative paths, and a runner launched from the wrong directory quietly
+	// discovers nothing. The make target passes -cwd ../bench.
+	binCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		c := exec.CommandContext(ctx, *bin, args...)
+		c.Dir = *cwd
+		return c
+	}
+
 	fmt.Printf("listing benchmarks in %s\n", *bin)
-	lout, lerr := exec.Command(*bin, "-test.list", "^Benchmark").CombinedOutput()
+	lout, lerr := binCmd(context.Background(), "-test.list", "^Benchmark").CombinedOutput()
 	if lerr != nil {
 		fmt.Fprintf(os.Stderr, "benchrunner: -test.list: %v\n", lerr)
 	}
@@ -124,7 +137,7 @@ func main() {
 		// resort and says so.
 		fmt.Fprintln(os.Stderr, "benchrunner: -test.list found no benchmarks; "+
 			"falling back to one global 1x discovery run")
-		dout, derr := exec.Command(*bin,
+		dout, derr := binCmd(context.Background(),
 			"-test.run", "^$", "-test.bench", ".", "-test.benchtime", "1x").CombinedOutput()
 		if derr != nil {
 			fmt.Fprintf(os.Stderr, "benchrunner: discovery: %v\n", derr)
@@ -155,7 +168,7 @@ func main() {
 				ctx, cancel = context.WithTimeout(ctx, time.Duration(*maxSec)*time.Second)
 			}
 		}
-		out, rerr := exec.CommandContext(ctx, *bin, args...).CombinedOutput()
+		out, rerr := binCmd(ctx, args...).CombinedOutput()
 		cancel()
 		// The deadline is detected via ctx.Err, not errors.Is on rerr: when
 		// the context kills the process, exec's Wait reports "signal:
@@ -200,7 +213,7 @@ func main() {
 	benches := make([]bench, 0, len(toRun))
 	for i, name := range toRun {
 		fmt.Printf("[%d/%d] %s\n", i+1, len(toRun), name)
-		out, rerr := exec.Command(*bin,
+		out, rerr := binCmd(context.Background(),
 			"-test.run", "^$",
 			"-test.bench", "^"+regexp.QuoteMeta(name)+"$",
 			"-test.count", strconv.Itoa(*count),
