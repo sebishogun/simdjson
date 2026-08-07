@@ -50,6 +50,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -235,6 +236,11 @@ func main() {
 		fatal(err)
 	}
 	data = append(data, '\n')
+	if dir := filepath.Dir(*outPath); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fatal(err)
+		}
+	}
 	if err := os.WriteFile(*outPath, data, 0o644); err != nil {
 		fatal(err)
 	}
