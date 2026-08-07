@@ -160,30 +160,48 @@ func renderRatio(fam string, fm map[string]map[string]cell, footnote, out string
 	p.X.Tick.Label.Font.Size = 9
 	p.Legend.Top = true
 	p.Legend.Left = true
+	// Log scale, bars anchored at 1.0: the ratios here span 0.96x to 36x,
+	// and an anchored bar is the only honest way to draw that. From-zero
+	// bars would flatten everything but the slowest row; capping the axis
+	// would hide it.
+	p.Y.Scale = plot.LogScale{}
+	p.Y.Tick.Marker = plot.LogTicks{}
+	p.Y.Min = 0.5
 
 	width := 0.22 * vg.Centimeter
 	step := float64(len(corpora))
+	maxRatio := 1.0
 	for i, corpus := range corpora {
+		base := make(plotter.Values, len(libOrder))
 		var vals plotter.Values
-		for _, lib := range libOrder {
-			var v float64
+		for j, lib := range libOrder {
+			base[j] = 1.0 // the anchor: every bar starts at 1.0
 			if c, ok := fm[corpus][lib]; ok {
-				v = c.ns / thisNs[corpus]
+				v := c.ns / thisNs[corpus]
+				vals = append(vals, v-1.0)
+				if v > maxRatio {
+					maxRatio = v
+				}
 			} else {
-				v = 0 // absent: no bar
+				vals = append(vals, 0)
 			}
-			vals = append(vals, v)
+		}
+		baseline, err := plotter.NewBarChart(base, width)
+		if err != nil {
+			return err
 		}
 		bar, err := plotter.NewBarChart(vals, width)
 		if err != nil {
 			return err
 		}
+		bar.StackOn(baseline)
 		bar.Offset = width*vg.Length(i) - width*vg.Length(step)/2 + width/2
 		bar.Color = palette[i%len(palette)]
 		bar.LineStyle.Width = 0
 		p.Add(bar)
 		p.Legend.Add(corpus, bar)
 	}
+	p.Y.Max = maxRatio * 1.15
 
 	// The 1.0 reference line.
 	line, err := plotter.NewLine(plotter.XYs{{X: 0, Y: 1}, {X: float64(len(libOrder)), Y: 1}})
@@ -194,18 +212,6 @@ func renderRatio(fam string, fm map[string]map[string]cell, footnote, out string
 	p.Add(line)
 
 	p.NominalX(libOrder...)
-	maxRatio := 0.0
-	for _, cm := range fm {
-		for lib, c := range cm {
-			if lib == "this" {
-				continue
-			}
-			if base, ok := thisNs[corpusOf(fm, lib)]; ok && c.ns/base > maxRatio {
-				maxRatio = c.ns / base
-			}
-		}
-	}
-	p.Y.Max = maxRatio * 1.15
 	p.Title.Text += " (1.0 = this library; " + footnote + ")"
 
 	return p.Save(8*72, 5*72, filepath.Join(out, fam+"-ratio.svg"))

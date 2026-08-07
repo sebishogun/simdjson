@@ -1,0 +1,2919 @@
+{
+  "machine": "omarchy",
+  "goVersion": "go version go1.26.2 linux/amd64",
+  "tier": "avx512",
+  "date": "2026-08-07",
+  "benches": [
+    {
+      "name": "BenchmarkShapeValid/instruments/goccy",
+      "nsMin": 896097,
+      "mbps": 245.9
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/unsorted/sonic",
+      "nsMin": 568480,
+      "mbps": 1110.88
+    },
+    {
+      "name": "BenchmarkCorpus/citm/goccy",
+      "nsMin": 5192777,
+      "mbps": 332.62
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/sonic",
+      "nsMin": 2493135,
+      "mbps": 1334.8
+    },
+    {
+      "name": "BenchmarkMarshalStructGenerated/ours-generated-MarshalTo",
+      "nsMin": 46165,
+      "mbps": 2540.51
+    },
+    {
+      "name": "BenchmarkMarshalStructGenerated/ours-generated",
+      "nsMin": 56056,
+      "mbps": 2092.24
+    },
+    {
+      "name": "BenchmarkCorpus/canada/gjson-Valid",
+      "nsMin": 1133586,
+      "mbps": 1985.78
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/ours",
+      "nsMin": 96135,
+      "mbps": 6569.04
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=none",
+      "nsMin": 38515,
+      "mbps": 3045.12
+    },
+    {
+      "name": "BenchmarkCorpus/canada/ours-Parse",
+      "nsMin": 1096820,
+      "mbps": 2052.34
+    },
+    {
+      "name": "BenchmarkMarshalStruct/goccy",
+      "nsMin": 99168,
+      "mbps": 1182.67
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/unsorted/ours",
+      "nsMin": 1381528,
+      "mbps": 523.77
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/ours",
+      "nsMin": 122261,
+      "mbps": 1041.01
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/ours",
+      "nsMin": 2678803,
+      "mbps": 840.32
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/ours",
+      "nsMin": 1401472,
+      "mbps": 516.31
+    },
+    {
+      "name": "BenchmarkCorpus/canada/goccy",
+      "nsMin": 13252491,
+      "mbps": 169.86
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/sonic",
+      "nsMin": 2189179,
+      "mbps": 957.98
+    },
+    {
+      "name": "BenchmarkCorpus/citm/ours-Scan",
+      "nsMin": 192163,
+      "mbps": 8988.21
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/goccy",
+      "nsMin": 200405,
+      "mbps": 325
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/stdlib",
+      "nsMin": 850276,
+      "mbps": 259.15
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/stdlib",
+      "nsMin": 3529007,
+      "mbps": 178.95
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/goccy",
+      "nsMin": 12822835,
+      "mbps": 232.67
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/jsoniter",
+      "nsMin": 11900538,
+      "mbps": 189.16
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/goccy",
+      "nsMin": 3066812,
+      "mbps": 235.94
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/ours",
+      "nsMin": 320010,
+      "mbps": 1973.42
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/sonic-std",
+      "nsMin": 159553,
+      "mbps": 797.7
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/unsorted/sonic",
+      "nsMin": 4234180,
+      "mbps": 531.64
+    },
+    {
+      "name": "BenchmarkCorpus/citm/ours-Parse",
+      "nsMin": 563594,
+      "mbps": 3064.62
+    },
+    {
+      "name": "BenchmarkCorpus/citm/fastjson",
+      "nsMin": 703140,
+      "mbps": 2456.42
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/goccy",
+      "nsMin": 22030635,
+      "mbps": 285.58
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/unsorted/ours",
+      "nsMin": 485662,
+      "mbps": 3556.39
+    },
+    {
+      "name": "BenchmarkStreamEncode/goccy",
+      "nsMin": 6814392,
+      "mbps": 597.32
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/stdlib",
+      "nsMin": 3715567,
+      "mbps": 194.75
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/stdlib",
+      "nsMin": 3233830,
+      "mbps": 534.1
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/goccy",
+      "nsMin": 398041,
+      "mbps": 319.75
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/sonic",
+      "nsMin": 42042,
+      "mbps": 3027.34
+    },
+    {
+      "name": "BenchmarkStreamEncode/ours",
+      "nsMin": 6043505,
+      "mbps": 673.51
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/sonic",
+      "nsMin": 139281,
+      "mbps": 913.8
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/goccy",
+      "nsMin": 501802,
+      "mbps": 299.17
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/sonic-std",
+      "nsMin": 63329,
+      "mbps": 1028.48
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/goccy",
+      "nsMin": 5358482,
+      "mbps": 391.38
+    },
+    {
+      "name": "BenchmarkStreamDecodeLong/field=4096",
+      "nsMin": 2367883,
+      "mbps": 2695.15
+    },
+    {
+      "name": "BenchmarkCorpus/citm/stdlib",
+      "nsMin": 9116929,
+      "mbps": 189.45
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/goccy",
+      "nsMin": 358065,
+      "mbps": 1763.69
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=both",
+      "nsMin": 52090,
+      "mbps": 2251.55
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/stdlib",
+      "nsMin": 2892888,
+      "mbps": 545.25
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/goccy",
+      "nsMin": 863509,
+      "mbps": 173.85
+    },
+    {
+      "name": "BenchmarkShapeValid/gsoc-2018/goccy",
+      "nsMin": 305272192,
+      "mbps": 10.9
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/minio",
+      "nsMin": 318908,
+      "mbps": 1980.24
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/goccy",
+      "nsMin": 226189,
+      "mbps": 562.69
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/ours",
+      "nsMin": 509786,
+      "mbps": 3388.1
+    },
+    {
+      "name": "BenchmarkCorpus/canada/fastjson",
+      "nsMin": 1975755,
+      "mbps": 1139.34
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/ours",
+      "nsMin": 18853,
+      "mbps": 6750.81
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/stdlib",
+      "nsMin": 1062379,
+      "mbps": 501.87
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/sonic",
+      "nsMin": 526267,
+      "mbps": 1374.96
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/sonic-std",
+      "nsMin": 2158341,
+      "mbps": 1541.85
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/ours",
+      "nsMin": 1844666,
+      "mbps": 1617.35
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/ours",
+      "nsMin": 5611922,
+      "mbps": 531.63
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/sonic",
+      "nsMin": 14878237,
+      "mbps": 422.86
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/stdlib",
+      "nsMin": 3617885,
+      "mbps": 435.99
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/sonic",
+      "nsMin": 73118,
+      "mbps": 2053.17
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/ours",
+      "nsMin": 54701,
+      "mbps": 2744.47
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/unsorted/ours",
+      "nsMin": 734704,
+      "mbps": 725.7
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/segmentio",
+      "nsMin": 5728121,
+      "mbps": 392.98
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/ours",
+      "nsMin": 8198,
+      "mbps": 7944.59
+    },
+    {
+      "name": "BenchmarkShapeValid/gsoc-2018/sonic",
+      "nsMin": 315353,
+      "mbps": 10552.72
+    },
+    {
+      "name": "BenchmarkShapeValid/instruments/stdlib",
+      "nsMin": 418613,
+      "mbps": 526.37
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/stdlib",
+      "nsMin": 14426879,
+      "mbps": 156.03
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/ours",
+      "nsMin": 358038,
+      "mbps": 1763.82
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/stdlib",
+      "nsMin": 36081082,
+      "mbps": 174.99
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/ours",
+      "nsMin": 2031427,
+      "mbps": 1032.37
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/ours",
+      "nsMin": 846523,
+      "mbps": 629.84
+    },
+    {
+      "name": "BenchmarkStreamDecodeLong/field=512",
+      "nsMin": 2706488,
+      "mbps": 2321.32
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/unsorted/ours",
+      "nsMin": 342428,
+      "mbps": 438.41
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/sonic",
+      "nsMin": 1012295,
+      "mbps": 2223.71
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/stdlib",
+      "nsMin": 3522733,
+      "mbps": 490.3
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/sonic",
+      "nsMin": 16266,
+      "mbps": 4004.26
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/unsorted/ours",
+      "nsMin": 281017,
+      "mbps": 2247.25
+    },
+    {
+      "name": "BenchmarkStreamEncode/sonic",
+      "nsMin": 10029815,
+      "mbps": 405.83
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/stdlib",
+      "nsMin": 1457332,
+      "mbps": 496.52
+    },
+    {
+      "name": "BenchmarkStreamEncode/stdlib",
+      "nsMin": 10069581,
+      "mbps": 404.22
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/ours",
+      "nsMin": 1141519,
+      "mbps": 1513.07
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/unsorted/sonic",
+      "nsMin": 1123755,
+      "mbps": 643.91
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/ours-Parse",
+      "nsMin": 200651,
+      "mbps": 3147.33
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/goccy",
+      "nsMin": 2681476,
+      "mbps": 644.12
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/unsorted/sonic",
+      "nsMin": 755945,
+      "mbps": 705.31
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/unsorted/sonic",
+      "nsMin": 1336889,
+      "mbps": 1291.96
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=validate",
+      "nsMin": 51492,
+      "mbps": 2277.71
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/goccy",
+      "nsMin": 3487795,
+      "mbps": 181.06
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/unsorted/sonic",
+      "nsMin": 273092,
+      "mbps": 549.72
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/citm/sorted/sonic-std",
+      "nsMin": 1459399,
+      "mbps": 1183.5
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/ours",
+      "nsMin": 1379229,
+      "mbps": 1143.65
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/sonic",
+      "nsMin": 13165801,
+      "mbps": 479.57
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/ours",
+      "nsMin": 148817,
+      "mbps": 3582.76
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/goccy",
+      "nsMin": 3912946,
+      "mbps": 850.47
+    },
+    {
+      "name": "BenchmarkShapeValid/gsoc-2018/stdlib",
+      "nsMin": 5910849,
+      "mbps": 563
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/goccy",
+      "nsMin": 2952321,
+      "mbps": 534.28
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/sorted/goccy",
+      "nsMin": 6904664,
+      "mbps": 326.02
+    },
+    {
+      "name": "BenchmarkShapeValid/github_events/stdlib",
+      "nsMin": 121164,
+      "mbps": 537.55
+    },
+    {
+      "name": "BenchmarkMarshalStruct/jsoniter",
+      "nsMin": 116890,
+      "mbps": 1003.36
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/sonic",
+      "nsMin": 2182701,
+      "mbps": 1366.87
+    },
+    {
+      "name": "BenchmarkMarshalStruct/segmentio",
+      "nsMin": 99109,
+      "mbps": 1183.37
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh/sorted/sonic-std",
+      "nsMin": 1159258,
+      "mbps": 624.19
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/sonic",
+      "nsMin": 154024,
+      "mbps": 3461.65
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/ours",
+      "nsMin": 871778,
+      "mbps": 2582.14
+    },
+    {
+      "name": "BenchmarkStreamDecodeLong/field=64",
+      "nsMin": 5154320,
+      "mbps": 1123.1
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-Std.Marshal",
+      "nsMin": 58834,
+      "mbps": 1993.47
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/sonic",
+      "nsMin": 173214,
+      "mbps": 3645.86
+    },
+    {
+      "name": "BenchmarkShapeValid/twitter/stdlib",
+      "nsMin": 1262395,
+      "mbps": 500.25
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/goccy",
+      "nsMin": 1948089,
+      "mbps": 324.17
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/sonic-std",
+      "nsMin": 309149,
+      "mbps": 712.75
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/unsorted/ours",
+      "nsMin": 188651,
+      "mbps": 1168.01
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/goccy",
+      "nsMin": 5817938,
+      "mbps": 271.12
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/sorted/stdlib",
+      "nsMin": 344032,
+      "mbps": 369.95
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/stdlib",
+      "nsMin": 182436,
+      "mbps": 357.01
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/stdlib",
+      "nsMin": 11452615,
+      "mbps": 183.12
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/stdlib",
+      "nsMin": 5947043,
+      "mbps": 501.67
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/ours",
+      "nsMin": 5569837,
+      "mbps": 535.65
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/sonic-std",
+      "nsMin": 896837,
+      "mbps": 594.51
+    },
+    {
+      "name": "BenchmarkMarshalStruct/sonic-std",
+      "nsMin": 35825,
+      "mbps": 3273.82
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/stdlib",
+      "nsMin": 7608699,
+      "mbps": 227
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/stdlib",
+      "nsMin": 2189825,
+      "mbps": 243.48
+    },
+    {
+      "name": "BenchmarkShapeValid/numbers/stdlib",
+      "nsMin": 270470,
+      "mbps": 555.05
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/sorted/stdlib",
+      "nsMin": 7845214,
+      "mbps": 286.93
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/ours",
+      "nsMin": 290569,
+      "mbps": 5944.21
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/ours",
+      "nsMin": 15546911,
+      "mbps": 406.12
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/ours",
+      "nsMin": 258983,
+      "mbps": 850.81
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/sorted/sonic-std",
+      "nsMin": 4350954,
+      "mbps": 517.37
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/ours",
+      "nsMin": 1367176,
+      "mbps": 1153.73
+    },
+    {
+      "name": "BenchmarkShapeValid/apache_builds/stdlib",
+      "nsMin": 240610,
+      "mbps": 528.97
+    },
+    {
+      "name": "BenchmarkCorpus/canada/minio",
+      "nsMin": 5565612,
+      "mbps": 404.46
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/stdlib",
+      "nsMin": 15466869,
+      "mbps": 192.89
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/ours",
+      "nsMin": 341472,
+      "mbps": 439.64
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/stdlib",
+      "nsMin": 4179558,
+      "mbps": 796.22
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/stdlib",
+      "nsMin": 2628100,
+      "mbps": 240.29
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/goccy",
+      "nsMin": 14910339,
+      "mbps": 150.97
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/sonic-std",
+      "nsMin": 273628,
+      "mbps": 548.64
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/goccy",
+      "nsMin": 6351935,
+      "mbps": 354.39
+    },
+    {
+      "name": "BenchmarkShapeValid/marine_ik/goccy",
+      "nsMin": 21298772,
+      "mbps": 140.08
+    },
+    {
+      "name": "BenchmarkStreamDecode/goccy",
+      "nsMin": 12561751,
+      "mbps": 324.03
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/sonic",
+      "nsMin": 439633,
+      "mbps": 3928.74
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/sonic",
+      "nsMin": 1111390,
+      "mbps": 1419.26
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/sorted/sonic-std",
+      "nsMin": 6499554,
+      "mbps": 459.03
+    },
+    {
+      "name": "BenchmarkUnmarshalStruct/sonic",
+      "nsMin": 403381,
+      "mbps": 1565.56
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/unsorted/sonic",
+      "nsMin": 237771,
+      "mbps": 926.72
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/ours",
+      "nsMin": 113178,
+      "mbps": 1124.56
+    },
+    {
+      "name": "BenchmarkUnmarshalCanadaStruct/sonic",
+      "nsMin": 2684909,
+      "mbps": 838.41
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-opts=html",
+      "nsMin": 43262,
+      "mbps": 2710.99
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/ours",
+      "nsMin": 464537,
+      "mbps": 1557.67
+    },
+    {
+      "name": "BenchmarkStreamShapes/batch-50KB/goccy",
+      "nsMin": 28714225,
+      "mbps": 219.89
+    },
+    {
+      "name": "BenchmarkShapeValid/instruments/sonic",
+      "nsMin": 90218,
+      "mbps": 2442.37
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/unsorted/ours",
+      "nsMin": 2095763,
+      "mbps": 1074.1
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/sonic-std",
+      "nsMin": 815865,
+      "mbps": 774.04
+    },
+    {
+      "name": "BenchmarkCorpus/canada/ours-Scan",
+      "nsMin": 329279,
+      "mbps": 6836.3
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/sonic",
+      "nsMin": 6094114,
+      "mbps": 489.57
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/ours",
+      "nsMin": 1871501,
+      "mbps": 1778.16
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/jsoniter",
+      "nsMin": 1984374,
+      "mbps": 870.4
+    },
+    {
+      "name": "BenchmarkCorpus/citm/minio",
+      "nsMin": 652357,
+      "mbps": 2647.64
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-MarshalTo",
+      "nsMin": 50772,
+      "mbps": 2309.98
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/segmentio",
+      "nsMin": 1254839,
+      "mbps": 1376.43
+    },
+    {
+      "name": "BenchmarkShapeValid/gsoc-2018/ours",
+      "nsMin": 415788,
+      "mbps": 8003.68
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/ours",
+      "nsMin": 1856226,
+      "mbps": 1792.79
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/unsorted/ours",
+      "nsMin": 50318,
+      "mbps": 1294.41
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/update-center/sorted/goccy",
+      "nsMin": 1829638,
+      "mbps": 291.41
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/ours",
+      "nsMin": 537534,
+      "mbps": 2934.43
+    },
+    {
+      "name": "BenchmarkCorpus/citm/gjson-Valid",
+      "nsMin": 650777,
+      "mbps": 2654.06
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/segmentio",
+      "nsMin": 4357274,
+      "mbps": 481.31
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/stdlib",
+      "nsMin": 2166545,
+      "mbps": 291.48
+    },
+    {
+      "name": "BenchmarkMarshalStruct/stdlib",
+      "nsMin": 113256,
+      "mbps": 1035.56
+    },
+    {
+      "name": "BenchmarkStreamDecode/sonic",
+      "nsMin": 14793705,
+      "mbps": 275.14
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/sonic-std",
+      "nsMin": 1121602,
+      "mbps": 1406.34
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/instruments/sorted/goccy",
+      "nsMin": 614157,
+      "mbps": 358.78
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh.pretty/sonic",
+      "nsMin": 813688,
+      "mbps": 1938.52
+    },
+    {
+      "name": "BenchmarkMarshalStruct/sonic-default-NOT-comparable",
+      "nsMin": 26433,
+      "mbps": 4437
+    },
+    {
+      "name": "BenchmarkCorpus/canada/sonic",
+      "nsMin": 7151728,
+      "mbps": 314.76
+    },
+    {
+      "name": "BenchmarkCorpus/canada/stdlib",
+      "nsMin": 16188974,
+      "mbps": 139.05
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours",
+      "nsMin": 60816,
+      "mbps": 1928.49
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/sonic",
+      "nsMin": 1257804,
+      "mbps": 502.08
+    },
+    {
+      "name": "BenchmarkMarshalStruct/ours-Fast",
+      "nsMin": 39111,
+      "mbps": 2998.74
+    },
+    {
+      "name": "BenchmarkStreamDecode/stdlib",
+      "nsMin": 38561928,
+      "mbps": 105.55
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/ours",
+      "nsMin": 13153613,
+      "mbps": 478.31
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/numbers/sorted/stdlib",
+      "nsMin": 573739,
+      "mbps": 261.66
+    },
+    {
+      "name": "BenchmarkShapeValid/update-center/goccy",
+      "nsMin": 2810212,
+      "mbps": 189.73
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/goccy",
+      "nsMin": 128017,
+      "mbps": 508.77
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/twitter/sorted/goccy",
+      "nsMin": 1824380,
+      "mbps": 346.15
+    },
+    {
+      "name": "BenchmarkStreamShapes/tweet-2KB/stdlib",
+      "nsMin": 36658662,
+      "mbps": 171.62
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/sorted/ours",
+      "nsMin": 64113,
+      "mbps": 1015.9
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/goccy",
+      "nsMin": 1091854,
+      "mbps": 1581.9
+    },
+    {
+      "name": "BenchmarkShapeValid/citm/goccy",
+      "nsMin": 5237145,
+      "mbps": 329.8
+    },
+    {
+      "name": "BenchmarkShapeValid/canada/stdlib",
+      "nsMin": 4243755,
+      "mbps": 530.44
+    },
+    {
+      "name": "BenchmarkUnmarshalFloatSlice/jsoniter",
+      "nsMin": 10218763,
+      "mbps": 205.23
+    },
+    {
+      "name": "BenchmarkShapeValid/instruments/ours",
+      "nsMin": 44162,
+      "mbps": 4989.51
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/ours-Scan",
+      "nsMin": 51941,
+      "mbps": 12158.25
+    },
+    {
+      "name": "BenchmarkUnmarshalCitmStruct/sonic",
+      "nsMin": 1521739,
+      "mbps": 1135.02
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/gjson-Valid",
+      "nsMin": 282172,
+      "mbps": 2238.05
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/github_events/unsorted/sonic",
+      "nsMin": 47642,
+      "mbps": 1367.13
+    },
+    {
+      "name": "BenchmarkStreamDecode/ours",
+      "nsMin": 9693894,
+      "mbps": 419.89
+    },
+    {
+      "name": "BenchmarkMarshalDecoded/canada/sorted/ours",
+      "nsMin": 2065453,
+      "mbps": 1089.86
+    },
+    {
+      "name": "BenchmarkShapeValid/mesh/goccy",
+      "nsMin": 5358437,
+      "mbps": 135.04
+    },
+    {
+      "name": "BenchmarkCorpus/twitter/fastjson",
+      "nsMin": 235257,
+      "mbps": 2684.37
+    },
+    {
+      "name": "BenchmarkCorpus/citm/sonic",
+      "nsMin": 2985146,
+      "mbps": 578.6
+    }
+  ],
+  "skipped": [
+    {
+      "name": "BenchmarkAccessShape/early/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/early/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/early/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/late/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/late/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/late/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/many/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/many/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkAccessShape/many/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkColdStartUnmarshal/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEasyjson/marshal-twitter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEasyjson/marshal-twitter-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-canada",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-canada-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-twitter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEasyjson/unmarshal-twitter-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEquivalentWork/unvalidated/gjson-Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEquivalentWork/unvalidated/ours-Scan+Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEquivalentWork/validating/gjson-Valid+Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEquivalentWork/validating/ours-Parse+Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=1024/kernel",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=1024/word",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=128/kernel",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=128/word",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=16/kernel",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=16/word",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=256/kernel",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=256/word",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=32/kernel",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=32/word",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=64/kernel",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkEscapeScan/n=64/word",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=1000/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkGetField/n=10000/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkHandwritten/floor",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkHandwritten/ours-MarshalTo",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/segmentio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalIndentRow/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=16/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=256/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=4/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/int/n=64/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=16/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=256/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=4/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/string/n=64/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=16/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=256/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=4/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/sonic-std",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/unsorted-ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMap/struct/n=64/unsorted-sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkMarshalMapAllocs",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkParallelTwitterStruct/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/gjson-Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/gjson-Valid+Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/ours-Parse",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/ours-Scan",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=100/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/gjson-Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/gjson-Valid+Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/ours-Parse",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/ours-Scan",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=1000/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/gjson-Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/gjson-Valid+Get",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/ours-Parse",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/ours-Scan",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkReadme/n=10000/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1/gjson-parsed",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=10/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=10/gjson-parsed",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=10/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=100/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=100/gjson-parsed",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=100/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1000/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1000/gjson-parsed",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkRepeatedLookups/q=1000/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/jsoniter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/segmentio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/large/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/jsoniter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/segmentio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/medium/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/jsoniter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/segmentio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLMarshal/small/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/jsoniter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/segmentio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/large/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/jsoniter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/segmentio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/medium/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/jsoniter",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/segmentio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSMLUnmarshal/small/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkScale",
+      "reason": "exceeds -max-discover-sec at 1x"
+    },
+    {
+      "name": "BenchmarkSetPathRow/deep/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSetPathRow/deep/sjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSetPathRow/shallow/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSetPathRow/shallow/sjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/apache_builds/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/canada/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/citm/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/citm/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/citm/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/citm/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/github_events/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/gsoc-2018/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/instruments/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/marine_ik/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh.pretty/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/mesh/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/numbers/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/twitter/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkShapeDecodeMap/update-center/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/goccy-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/ours-Parse",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/config-2KB/stdlib-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/goccy-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/ours-Parse",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/list-20KB/stdlib-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/goccy-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/ours-Parse",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/small-200B/stdlib-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/goccy-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/minio",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/ours-Parse",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkSmall/tiny-64B/stdlib-Valid",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/apache_builds/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/canada/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/citm/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/github_events/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/gsoc-2018/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/instruments/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/marine_ik/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh.pretty/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/mesh/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/numbers/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/twitter/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Compact/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Compact/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Indent/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Indent/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkTextOps/update-center/Valid/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/apache_builds/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/canada/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/citm/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/github_events/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/gsoc-2018/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/instruments/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/instruments/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/instruments/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/instruments/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/marine_ik/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh.pretty/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/mesh/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/numbers/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/twitter/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/twitter/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/twitter/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/twitter/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/update-center/goccy",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/update-center/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/update-center/sonic",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalAny/update-center/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalScanned/ours-Parse+Unmarshal",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkUnmarshalScanned/ours-Scan+Unmarshal",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=1024/ascii/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=1024/ascii/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=1024/unicode/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=1024/unicode/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/ascii/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/ascii/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/unicode/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=128/unicode/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/ascii/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/ascii/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/unicode/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=16/unicode/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/ascii/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/ascii/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/unicode/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=256/unicode/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/ascii/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/ascii/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/unicode/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=32/unicode/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/ascii/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/ascii/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/unicode/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=64/unicode/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/ascii/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/ascii/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/unicode/simd",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkValidUTF8/n=8192/unicode/stdlib",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/gjson.Get_alone_(stops_at_first_match)",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/gjson.Valid_(scalar,_keeps_nothing)",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/ours.Parse_(index_+_grammar_walk)",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/ours.Scan_(vector,_builds_an_index)",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=1/gjson-rescans",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=1/ours-index-once",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=10/gjson-rescans",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=10/ours-index-once",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=100/gjson-rescans",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=100/ours-index-once",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=1000/gjson-rescans",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWhy/q=1000/ours-index-once",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWidgetGet/fastjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWidgetGet/gjson",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWidgetGet/jsonparser",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWidgetGet/ours",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWidgetGet/ours-GetMany3",
+      "reason": "filtered by -bench"
+    },
+    {
+      "name": "BenchmarkWidgetGet/ours-second-query",
+      "reason": "filtered by -bench"
+    }
+  ]
+}
