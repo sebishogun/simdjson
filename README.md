@@ -263,27 +263,28 @@ per box (the float payloads live in a document slab, like decoded strings):
 
 | into `any`, MB/s | ours | sonic | goccy | stdlib |
 |---|---|---|---|---|
-| twitter | 554 | **683** | 354 | 188 |
-| citm | 729 | 735 | 418 | 203 |
-| canada | 361 | 351 | 161 | 152 |
-| numbers | 508 | 516 | 198 | 153 |
-| github_events | 619 | **827** | 459 | 195 |
-| apache_builds | 525 | **749** | 428 | 186 |
-| gsoc-2018 | 1,399 | **2,080** | 880 | 271 |
-| instruments | 479 | **557** | 297 | 173 |
-| update-center | 348 | **410** | 274 | 159 |
-| mesh | 350 | 371 | 147 | 130 |
-| mesh.pretty | **743** | 652 | 299 | 186 |
-| marine_ik | 334 | 347 | 148 | 127 |
+| twitter | 541 | **669** | 361 | 197 |
+| citm | **783** | 710 | 434 | 207 |
+| canada | **488** | 366 | 180 | 149 |
+| numbers | 576 | 574 | 204 | 164 |
+| github_events | 649 | **901** | 455 | 202 |
+| apache_builds | 548 | **671** | 428 | 200 |
+| gsoc-2018 | 1,345 | **2,050** | 744 | 283 |
+| instruments | 439 | **539** | 294 | 175 |
+| update-center | 366 | **484** | 264 | 172 |
+| mesh | 360 | 387 | 152 | 129 |
+| mesh.pretty | **766** | 648 | 301 | 183 |
+| marine_ik | **381** | 344 | 157 | 128 |
 
 Bold marks a lead past the 8.3% noise floor; unmarked cells are
-statistically level. These numbers are against sonic v1.15.2, whose
-any-decode improved substantially over the v1.13 line the earlier revision
-of this table was measured against: it now holds six shapes — the string-
-and object-heavy ones — by 9% to 49%, this package holds mesh.pretty, and
-five are level. Decoding into `any` is the one family where sonic's
-arena-allocated tree pays off hardest; if it is your hot path, measure
-both. goccy and stdlib trail throughout.
+statistically level, measured against sonic v1.15.2. The split follows the
+data's shape: this package holds the array-heavy corpora — canada 1.33×,
+citm, mesh.pretty, marine_ik — where its []any values carve exact-size
+from a document-scoped slab; sonic holds five string- and object-heavy
+shapes by 9–52%, where its assembled walker feeds map assignment faster
+than a compiled Go loop can. Three are level. If decoding into `any` is
+your hot path, the shape of your documents decides; measure both. goccy
+and stdlib trail throughout.
 
 **Text in, text out**, against `encoding/json`, MB/s:
 
