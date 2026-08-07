@@ -2384,3 +2384,56 @@ the same verdict: a rewrite-scale replacement weighed against three
 shapes, while the structure-heavy marshals run 2-3x ahead the other way
 (citm 0.29, twitter 0.33 of sonic's time). Reverted; the sweep table is
 the deliverable.
+
+## Go 1.25.0 versus 1.26.2: the floor is not the ceiling
+
+The module requires Go 1.25 (the floor set by golang.org/x/sys; see simd
+99e65c7), but development runs on 1.26.2. The question was whether the two
+toolchains measure the same. They do not -- 1.26.2 wins every row of the
+gate, consistently, minima of sixteen (two interleaved passes per toolchain
+of eight samples, one session):
+
+    Valid twitter   94.2 us  vs  97.6 us   1.26.2 -3.7%
+    Valid citm     285.9 us  vs 291.1 us   -1.8%
+    Valid canada   853.9 us  vs 880.8 us   -3.2%
+    Parse twitter  200.5 us  vs 202.3 us   -0.9%
+    Parse citm     554.3 us  vs 558.4 us   -0.7%
+    Parse canada  1068.3 us  vs 1102.7 us  -3.2%
+    Unmarshal      342.6 us  vs 346.2 us   -1.1%
+    Marshal        148.4 us  vs 152.7 us   -3.0%
+    MarshalFloats 3823.1 us  vs 4009.4 us  -4.9%
+
+All ten rows move the same direction, so this is not per-build layout
+noise. Suspects, in order: Go 1.26's HashTrieMap (the sync.Map note in
+entry "The array-indexed type cache") and the dtoa/float pipeline, which
+fits MarshalFloats being the biggest row. Nothing here uses a 1.26
+language feature; the directive stays 1.25 for the compatibility floor,
+and the numbers in the README and the gate baseline were all recorded on
+1.26.2. A bench-gate run on 1.25 will look up to 5% slow by comparison.
+
+## BenchmarkScale's goccy-Valid rows are quadratic in document size
+
+One row of the scale sweep, `BenchmarkScale/*/goccy-Valid`, grows by a
+factor of four every time the document doubles: 7 ms at 1 MB, 0.70 s at
+8 MB, 2.8 s at 16 MB, 11.0 s at 32 MB, 44.3 s at 64 MB. Extrapolated that
+is a 512 MB row at ~56 minutes per iteration, which is what it measured
+when it finally ran (55.8 min, minimum of two). goccy's Valid is not a
+linear pass on this shape.
+
+The harness measures the whole sweep in one benchmark, so the old
+benchrunner discovery — one global run of the binary at -test.benchtime
+1x — paid the 55-minute row just to learn the sub-benchmark names, and a
+-count 8 run of the whole suite carried it eight times over. A single
+row held the entire measurement hostage, which is not a property of the
+row but of the harness, and the harness won't change: it exists to show
+the wall where rivals fall off, and this is exactly such a wall.
+
+The runner now discovers per parent benchmark with its own timeout —
+`-max-discover-sec`, default 10 — enforced by the runner itself, because
+go test's `-test.timeout` is disarmed before benchmarks run and will not
+interrupt them (verified: a 44.3 s row ran to completion under
+`-test.timeout 2s`). A parent that exceeds the budget is skipped as a
+whole with the reason "exceeds -max-discover-sec at 1x"; a completed
+parent skips only the rows that measured over the threshold. Rows are
+re-includable explicitly with `-include-slow`, at the price of discovery
+and measurement taking as long as they take.
