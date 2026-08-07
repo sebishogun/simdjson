@@ -25,20 +25,34 @@
 // maximum-likelihood estimate of the true cost, the same estimator the
 // benchcheck gate uses.
 //
-// Discovery runs the binary with -test.benchtime 1x and reads every
-// Benchmark...-N line. This is a run, not -test.list, because the meaningful
-// units are sub-benchmarks (BenchmarkFoo/bar), which only come into existence
-// when the parent benchmark runs; -test.list sees only the parent.
+// # Discovery
+//
+// Discovery is per parent benchmark, never one global run: one slow row
+// (BenchmarkScale/512MB/goccy-Valid takes ~56 minutes at 1x) used to hold the
+// whole binary hostage. First -test.list '^Benchmark' (instant, no
+// execution) names the top-level benchmarks; then each parent runs once with
+// -test.benchtime 1x and its own -test.timeout of -max-discover-sec seconds.
+// The runner enforces that timeout itself — go test's -test.timeout does not
+// interrupt benchmarks, it is disarmed before they run — by killing the
+// process with a context deadline. A parent killed by the deadline is skipped
+// as a whole; a parent that completes is checked sub-benchmark by
+// sub-benchmark, and any sub whose measured 1x time exceeds the threshold is
+// skipped individually. Every skip lands in the JSON's "skipped" array with a
+// reason, and -include-slow turns the skips off and discovery's timeout off —
+// slow rows then take as long as they take.
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -47,11 +61,12 @@ import (
 )
 
 type run struct {
-	Machine   string  `json:"machine"`
-	GoVersion string  `json:"goVersion"`
-	Tier      string  `json:"tier"`
-	Date      string  `json:"date"`
-	Benches   []bench `json:"benches"`
+	Machine   string         `json:"machine"`
+	GoVersion string         `json:"goVersion"`
+	Tier      string         `json:"tier"`
+	Date      string         `json:"date"`
+	Benches   []bench        `json:"benches"`
+	Skipped   []skippedEntry `json:"skipped"`
 }
 
 // bench is one benchmark's result. Mbps is the MB/s of the same line whose
@@ -70,39 +85,120 @@ func main() {
 	count := flag.Int("count", 8, "samples per benchmark (passed as -test.count)")
 	seedFlag := flag.Uint64("shuffle-seed", 0, "seed for the execution order; 0 = time-based")
 	outPath := flag.String("out", "", "JSON output path")
+	maxSec := flag.Int("max-discover-sec", 10,
+		"per-parent discovery timeout in seconds; 0 = no timeout and nothing is skipped")
+	includeSlow := flag.Bool("include-slow", false,
+		"run discovery without the timeout and keep rows slower than -max-discover-sec")
+	benchFilter := flag.String("bench", ".*", "only run discovered benchmarks whose name matches this regex")
 	flag.Parse()
 
 	if *bin == "" || *outPath == "" {
-		fmt.Fprintln(os.Stderr, "usage: benchrunner -bench-bin BIN -out JSON [-count N] [-shuffle-seed S]")
+		fmt.Fprintln(os.Stderr, "usage: benchrunner -bench-bin BIN -out JSON "+
+			"[-count N] [-shuffle-seed S] [-max-discover-sec SEC] [-include-slow] [-bench RE]")
 		os.Exit(2)
 	}
 	if *count < 1 {
 		fmt.Fprintln(os.Stderr, "benchrunner: -count must be at least 1")
 		os.Exit(2)
 	}
-
-	fmt.Printf("discovering benchmarks in %s\n", *bin)
-	dout, derr := exec.Command(*bin,
-		"-test.run", "^$", "-test.bench", ".", "-test.benchtime", "1x").CombinedOutput()
-	if derr != nil {
-		fmt.Fprintf(os.Stderr, "benchrunner: discovery: %v\n", derr)
+	benchRe, err := regexp.Compile(*benchFilter)
+	if err != nil {
+		fatal(fmt.Errorf("bad -bench regex: %v", err))
 	}
-	names, err := discoverNames(dout)
+
+	// Phase 1: top-level benchmark names, no execution.
+	fmt.Printf("listing benchmarks in %s\n", *bin)
+	lout, lerr := exec.Command(*bin, "-test.list", "^Benchmark").CombinedOutput()
+	if lerr != nil {
+		fmt.Fprintf(os.Stderr, "benchrunner: -test.list: %v\n", lerr)
+	}
+	parents, err := listBenchmarks(lout)
 	if err != nil {
 		fatal(err)
 	}
+	if len(parents) == 0 {
+		// Some binaries' -test.list cannot see benchmarks. Fall back to the
+		// old one-process global 1x run, which is exactly the thing per-parent
+		// discovery exists to avoid — slow rows included — so it is a last
+		// resort and says so.
+		fmt.Fprintln(os.Stderr, "benchrunner: -test.list found no benchmarks; "+
+			"falling back to one global 1x discovery run")
+		dout, derr := exec.Command(*bin,
+			"-test.run", "^$", "-test.bench", ".", "-test.benchtime", "1x").CombinedOutput()
+		if derr != nil {
+			fmt.Fprintf(os.Stderr, "benchrunner: discovery: %v\n", derr)
+		}
+		parents, err = discoverNames(dout)
+		if err != nil {
+			fatal(err)
+		}
+	}
+
+	// Phase 2: each parent at 1x, bounded by -max-discover-sec.
+	var skipped []skippedEntry
+	times := map[string]float64{}
+	for i, parent := range parents {
+		fmt.Printf("discover [%d/%d] %s\n", i+1, len(parents), parent)
+		args := []string{
+			"-test.run", "^$",
+			"-test.bench", "^" + regexp.QuoteMeta(parent) + "($|/)",
+			"-test.benchtime", "1x",
+		}
+		ctx := context.Background()
+		cancel := func() {}
+		if *includeSlow {
+			args = append(args, "-test.timeout", "0s")
+		} else {
+			args = append(args, "-test.timeout", strconv.Itoa(*maxSec)+"s")
+			if *maxSec > 0 {
+				ctx, cancel = context.WithTimeout(ctx, time.Duration(*maxSec)*time.Second)
+			}
+		}
+		out, rerr := exec.CommandContext(ctx, *bin, args...).CombinedOutput()
+		cancel()
+		// The deadline is detected via ctx.Err, not errors.Is on rerr: when
+		// the context kills the process, exec's Wait reports "signal:
+		// killed" and prefers that over the context error, so
+		// errors.Is(rerr, context.DeadlineExceeded) is false. Checking the
+		// context itself must also survive cancel() above, which turns an
+		// unfired context into context.Canceled.
+		timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded)
+		if timedOut {
+			fmt.Fprintf(os.Stderr, "benchrunner: %s: discovery exceeded %ds\n", parent, *maxSec)
+		}
+		if rerr != nil && len(out) == 0 && !timedOut {
+			skipped = append(skipped, skippedEntry{parent, "discovery process failed: " + rerr.Error()})
+			continue
+		}
+		pt, perr := parseTimes(out)
+		if perr != nil {
+			fatal(perr)
+		}
+		names, skip := planParent(parent, pt, timedOut, *maxSec, *includeSlow)
+		for _, n := range names {
+			times[n] = pt[n]
+		}
+		skipped = append(skipped, skip...)
+	}
+
+	// The -bench filter decides which discovered names actually run.
+	toRun, filtered := filterBench(sortedKeys(times), benchRe)
+	skipped = append(skipped, filtered...)
+	sort.Slice(skipped, func(i, j int) bool {
+		return skipped[i].Name < skipped[j].Name
+	})
 
 	seed := *seedFlag
 	if seed == 0 {
 		seed = uint64(time.Now().UnixNano())
 	}
-	shuffleNames(names, seed)
-	fmt.Printf("%d benchmarks; order seed %d (reproduce with -shuffle-seed %d)\n",
-		len(names), seed, seed)
+	shuffleNames(toRun, seed)
+	fmt.Printf("%d benchmarks in the run set; order seed %d (reproduce with -shuffle-seed %d); %d skipped\n",
+		len(toRun), seed, seed, len(skipped))
 
-	benches := make([]bench, 0, len(names))
-	for i, name := range names {
-		fmt.Printf("[%d/%d] %s\n", i+1, len(names), name)
+	benches := make([]bench, 0, len(toRun))
+	for i, name := range toRun {
+		fmt.Printf("[%d/%d] %s\n", i+1, len(toRun), name)
 		out, rerr := exec.Command(*bin,
 			"-test.run", "^$",
 			"-test.bench", "^"+regexp.QuoteMeta(name)+"$",
@@ -132,6 +228,7 @@ func main() {
 		Tier:      simd.Tier(),
 		Date:      time.Now().Format("2006-01-02"),
 		Benches:   benches,
+		Skipped:   skipped,
 	}
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
@@ -141,8 +238,8 @@ func main() {
 	if err := os.WriteFile(*outPath, data, 0o644); err != nil {
 		fatal(err)
 	}
-	fmt.Printf("wrote %s: %d benchmarks, %d without a result\n",
-		*outPath, len(benches), len(benches)-countResults(benches))
+	fmt.Printf("wrote %s: %d benchmarks, %d without a result, %d skipped\n",
+		*outPath, len(benches), len(benches)-countResults(benches), len(skipped))
 }
 
 func hostname() string {
