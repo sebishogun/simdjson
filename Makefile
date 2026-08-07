@@ -152,7 +152,7 @@ bench-vs: ## Measure against sonic, goccy, gjson, fastjson, minio and the stdlib
 # in-process ancestor.
 bench-suite: ## Build the comparison harness, run one process per benchmark
 	cd bench && $(GO) test -c -o $(BENCH_BIN) .
-	cd tools && $(GO) run ./benchrunner -bench-bin $(BENCH_BIN) -cwd ../bench -count $(VS_COUNT) -out ../$(BENCH_SNAP)
+	cd tools && $(GO) run ./benchrunner -bench-bin $(BENCH_BIN) -cwd ../bench -benchtime 250ms -count $(VS_COUNT) -out ../$(BENCH_SNAP)
 
 # The figures are derived data: committed so the README renders, regenerated
 # by bench-charts, and only meaningful together with the snapshot that made
