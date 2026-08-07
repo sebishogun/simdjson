@@ -879,19 +879,25 @@ func (v Value) any() (any, error) {
 }
 
 func (v Value) anyArray() (any, error) {
-	out := []any{}
+	d := v.d
+	// Elements land in the shared scratch, mark/rewind around the nested
+	// walk, and the close carves the exact-size result from the slab. See
+	// anySlab in simdjson.go for why.
+	mark := len(d.anyvals)
 	err := v.eachValue(func(_ int, e Value) error {
 		a, err := e.any()
 		if err != nil {
 			if !saveable(err) {
 				return err
 			}
-			v.d.saveErr(err)
+			d.saveErr(err)
 			a = nil
 		}
-		out = append(out, a)
+		d.anyvals = append(d.anyvals, a)
 		return nil
 	})
+	out := d.carveAny(d.anyvals[mark:])
+	d.anyvals = d.anyvals[:mark]
 	return out, err
 }
 

@@ -160,6 +160,16 @@ type Doc struct {
 	// strings.
 	strbuf []byte
 
+	// anySlab carries the []any backing arrays the any-decode produces,
+	// carved exact-size the way strbuf carves strings: one growing chunk,
+	// abandoned when full, kept alive by the results that point into it.
+	// anyvals is the build scratch -- elements accumulate there while an
+	// array is open, mark/rewind style, and the close carves and copies.
+	// Growth-by-append allocated log(n) backings per array and abandoned
+	// all but the last; the slab allocates once per chunk.
+	anySlab []any
+	anyvals []any
+
 	// f64buf carries the float64 payloads of numbers decoded into `any`, the
 	// way strbuf carries decoded strings. Boxing a float64 into an interface
 	// is a heap allocation per number (runtime.convT64); pointing the
@@ -848,6 +858,26 @@ func (d *Doc) decodeStr(start, end int) string {
 	}
 	d.scratch = unescapeInto(d.scratch[:0], in)
 	return d.intern(d.scratch)
+}
+
+// carveAny copies src into the any slab and returns the carved view. The
+// chunk grows like strbuf's: doubled, floored at the need, old chunks left
+// to the results that alias them.
+func (d *Doc) carveAny(src []any) []any {
+	n := len(src)
+	if n == 0 {
+		return []any{}
+	}
+	if len(d.anySlab)+n > cap(d.anySlab) {
+		c := 2 * cap(d.anySlab)
+		if c < n+64 {
+			c = n + 64
+		}
+		d.anySlab = make([]any, 0, c)
+	}
+	start := len(d.anySlab)
+	d.anySlab = append(d.anySlab, src...)
+	return d.anySlab[start : start+n : start+n]
 }
 
 // skipValue returns the offset just past the value at i without looking inside
