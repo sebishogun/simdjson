@@ -525,6 +525,51 @@ empty containers — each about a megabyte, each checked against `encoding/json`
 through every entry point before it is timed. `Scan` holds 12.3–12.5 GB/s on all
 of them except the two that are nothing but brackets.
 
+### The shape of it
+
+Every row in the tables above, drawn. Ratio is time ÷ this library's time on
+the same bytes; the dashed line is 1.0, so bars below it are rows another
+library wins — and they are all here, because a chart that only shows the
+winning side is a sales pitch. The throughput charts carry the same rows in
+MB/s. All figures are regenerable and honest by construction: the snapshot
+they are drawn from ([`docs/bench/`](docs/bench)) names the machine, the
+instruction-set tier, the Go version and the date, and `make bench-all`
+re-measures and re-renders.
+
+![Parse — time relative to this library](docs/figures/parse-ratio.svg)
+
+![Validate — time relative to this library](docs/figures/validate-ratio.svg)
+
+![Unmarshal into struct — time relative to this library](docs/figures/unmarshal-ratio.svg)
+
+![Marshal — time relative to this library](docs/figures/marshal-ratio.svg)
+
+![Streaming — time relative to this library](docs/figures/streaming-ratio.svg)
+
+Raw throughput, for the record:
+
+![Parse — throughput](docs/figures/parse-throughput.svg)
+
+![Validate — throughput](docs/figures/validate-throughput.svg)
+
+![Unmarshal — throughput](docs/figures/unmarshal-throughput.svg)
+
+![Marshal — throughput](docs/figures/marshal-throughput.svg)
+
+![Streaming — throughput](docs/figures/streaming-throughput.svg)
+
+**How these were measured.** Every benchmark runs in its own fresh process —
+no benchmark's warm cache, branch history or allocator state carries into the
+next — and the order is shuffled per run. Each number is the minimum of eight
+samples, the estimator this repository's gate uses (layout noise is one-sided;
+the minimum converges to the true code speed). The machine is quiet, the tier
+is the one named in the snapshot (`simd.Tier()`), and the rivals run in the
+same process family on the same bytes. Slow rows — a benchmark whose single
+iteration exceeds the discovery threshold — are skipped and listed in the
+snapshot rather than run for hours; `-include-slow` restores them. The full
+record is `make bench-all`; the raw gate numbers are in
+[`testdata/bench/`](testdata/bench).
+
 ## Limits
 
 **Document size.** `Parse` and `Scan` index a document in one piece and cap at

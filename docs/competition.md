@@ -7,6 +7,12 @@ The point of the exercise was not to admire them. It was to find the specific
 things they do that this does not, and decide which are reachable from portable
 Go with no cgo and no run-time code generation.
 
+The measurements behind this document are reproducible: `make bench-all` runs
+the comparison harness one process per benchmark in shuffled order, minima of
+eight, and renders the figures below plus the ratio charts in the README from
+the committed snapshot in `docs/bench/`, which names the machine, tier, Go
+version and date of its run.
+
 ## Where each one leads
 
 Re-measured after a day of work on it; the earlier table is kept below the line
