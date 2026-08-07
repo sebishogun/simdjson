@@ -63,7 +63,7 @@ BENCH_BASELINE = testdata/bench/$(shell $(GO) env GOARCH).txt
 BENCH_COUNT   ?= 8
 BENCH_OUT     ?= /tmp/simdjson-bench-$(shell $(GO) env GOARCH).txt
 
-.PHONY: bench-run bench-check bench-update bench-agree bench-vs bench-vs-test bench-suite vet-vs
+.PHONY: bench-run bench-check bench-update bench-agree bench-vs bench-vs-test bench-suite bench-charts bench-all vet-vs
 
 bench-run: ## Run the gate benchmarks and write the raw output
 	$(GO) test -run '^$$' -bench 'BenchmarkGate' -count $(BENCH_COUNT) -shuffle=on . > $(BENCH_OUT)
@@ -153,6 +153,14 @@ bench-vs: ## Measure against sonic, goccy, gjson, fastjson, minio and the stdlib
 bench-suite: ## Build the comparison harness, run one process per benchmark
 	cd bench && $(GO) test -c -o $(BENCH_BIN) .
 	cd tools && $(GO) run ./benchrunner -bench-bin $(BENCH_BIN) -count $(VS_COUNT) -out ../$(BENCH_SNAP)
+
+# The figures are derived data: committed so the README renders, regenerated
+# by bench-charts, and only meaningful together with the snapshot that made
+# them. The snapshot names its machine, tier and date in its own fields.
+bench-charts: ## Render the figures from the latest snapshot
+	cd tools && $(GO) run ./benchchart -in ../$(BENCH_SNAP) -out ../docs/figures
+
+bench-all: bench-suite bench-charts ## Full measurement plus render
 
 bench-vs-test: ## The agreement checks: do the libraries produce the same bytes
 	cd bench && $(GO) test ./...
