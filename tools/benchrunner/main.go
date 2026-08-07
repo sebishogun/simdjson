@@ -84,6 +84,11 @@ type bench struct {
 func main() {
 	bin := flag.String("bench-bin", "", "path to the compiled bench test binary")
 	count := flag.Int("count", 8, "samples per benchmark (passed as -test.count)")
+	benchtime := flag.String("benchtime", "1s", "wall-clock budget per sample "+
+		"(passed as -test.benchtime). The suite's wall time is roughly "+
+		"count × benchtime × benchmarks; the gate's own numbers use the "+
+		"default 1s, but 250ms keeps the same eight samples at a quarter of "+
+		"the wall time for the big harness")
 	seedFlag := flag.Uint64("shuffle-seed", 0, "seed for the execution order; 0 = time-based")
 	outPath := flag.String("out", "", "JSON output path")
 	cwd := flag.String("cwd", "", "working directory the bench binary runs in; "+
@@ -217,6 +222,7 @@ func main() {
 			"-test.run", "^$",
 			"-test.bench", "^"+regexp.QuoteMeta(name)+"$",
 			"-test.count", strconv.Itoa(*count),
+			"-test.benchtime", *benchtime,
 			"-test.shuffle", "on").CombinedOutput()
 		if rerr != nil {
 			fmt.Fprintf(os.Stderr, "benchrunner: %s: %v\n", name, rerr)
