@@ -2458,3 +2458,31 @@ for scans that were nearly free. Two flags and a branch for
 shape-dependent jitter is not a trade; reverted. The any family's
 residual remains what the record already says it is: the walk itself,
 against an assembled one.
+
+## The tape: entries instead of a re-walk, and the re-walk was never the cost
+
+The decomposed attack on the any-decode residual: a kernel flattening a
+validated document into two-u32 entries -- kind, start, length, escape
+flag from the stage-one targets -- so the builders iterate a tape
+instead of re-deriving skip, string-end and byte class per element.
+simdjson C++'s architecture, reached through the shipped grammar-walk
+skeleton; the kernel worked on first light, conformance held it against
+the reference on every tier, and the whole suite plus thirty seconds of
+differential fuzz stayed green with it wired.
+
+    twitter  +5.7%      citm  +4.2%      canada  +12.8%      gsoc  -1.4%
+
+Min of three interleaved rounds, tape versus walk. The tape pays a
+grammar-proof pass (the walk proves grammar as it goes; the tape must
+know first), an emission pass, and the tape's own memory traffic --
+canada is 2.2 million entries, 17 MB written and read back -- to remove
+a walk share the profile had already priced at under a tenth. The
+builders' real time is map assignment, allocation and float parsing,
+which no tape can touch. Removed whole, kernel and wiring.
+
+What this closes: the Go-side walk is NOT where the any family loses to
+sonic. What remains untried from their design is the allocation side --
+their optdec carves []interface{} values from pooled arenas
+(rt.SlicePool) where this package allocates per array. That is the next
+and last cheap experiment; after it, the residual is theirs by
+architecture or ours by an arena.
