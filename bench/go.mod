@@ -9,7 +9,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mailru/easyjson v0.9.2
 	github.com/minio/simdjson-go v0.4.5
-	github.com/sebishogun/simd v1.13.0
+	github.com/sebishogun/simd v1.14.0
 	github.com/sebishogun/simdjson v0.0.0
 	github.com/segmentio/encoding v0.5.4
 	github.com/tidwall/gjson v1.19.0
