@@ -1,0 +1,3308 @@
+{
+ "machine": "omarchy",
+ "goVersion": "go version go1.26.2 linux/amd64",
+ "tier": "avx512",
+ "date": "2026-08-08",
+ "benches": [
+  {
+   "name": "BenchmarkShapeValid/github_events/ours",
+   "nsMin": 7488,
+   "mbps": 8698.7
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/citm/sonic",
+   "nsMin": 2829791,
+   "mbps": 610.36
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh.pretty/goccy",
+   "nsMin": 5367171,
+   "mbps": 293.89
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/marine_ik/ours",
+   "nsMin": 7637628,
+   "mbps": 390.63
+  },
+  {
+   "name": "BenchmarkStreamShapes/batch-50KB/stdlib",
+   "nsMin": 34714736,
+   "mbps": 181.88
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=16/goccy",
+   "nsMin": 1198,
+   "mbps": 841.91
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/large/jsoniter",
+   "nsMin": 54117,
+   "mbps": 519.67
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Valid/sonic",
+   "nsMin": 826308,
+   "mbps": 1908.92
+  },
+  {
+   "name": "BenchmarkShapeValid/update-center/ours",
+   "nsMin": 79193,
+   "mbps": 6732.68
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=4/goccy",
+   "nsMin": 294.8,
+   "mbps": 858.17
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/update-center/ours",
+   "nsMin": 1395845,
+   "mbps": 381.98
+  },
+  {
+   "name": "BenchmarkUnmarshalScanned/ours-Scan+Unmarshal",
+   "nsMin": 238518,
+   "mbps": 2647.66
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/numbers/unsorted/ours",
+   "nsMin": 332743,
+   "mbps": 451.17
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Valid/stdlib",
+   "nsMin": 2870908,
+   "mbps": 549.43
+  },
+  {
+   "name": "BenchmarkSetPathRow/shallow/sjson",
+   "nsMin": 156375,
+   "mbps": 4038.47
+  },
+  {
+   "name": "BenchmarkSetPathRow/deep/ours",
+   "nsMin": 349832,
+   "mbps": 1805.19
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh/sorted/sonic-std",
+   "nsMin": 1133348,
+   "mbps": 638.46
+  },
+  {
+   "name": "BenchmarkStreamShapes/tweet-2KB/sonic",
+   "nsMin": 12458585,
+   "mbps": 504.99
+  },
+  {
+   "name": "BenchmarkStreamEncode/sonic",
+   "nsMin": 9137578,
+   "mbps": 445.45
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/gsoc-2018/ours",
+   "nsMin": 2434635,
+   "mbps": 1366.87
+  },
+  {
+   "name": "BenchmarkShapeValid/marine_ik/goccy",
+   "nsMin": 21108374,
+   "mbps": 141.34
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=64/sonic-std",
+   "nsMin": 4018,
+   "mbps": 346.44
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Compact/ours",
+   "nsMin": 826678,
+   "mbps": 875.31
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/update-center/sorted/sonic-std",
+   "nsMin": 871902,
+   "mbps": 611.51
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/goccy",
+   "nsMin": 2948258,
+   "mbps": 535.01
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours-opts=validate",
+   "nsMin": 50086,
+   "mbps": 2341.65
+  },
+  {
+   "name": "BenchmarkEasyjson/unmarshal-twitter-ours",
+   "nsMin": 310109,
+   "mbps": 2036.43
+  },
+  {
+   "name": "BenchmarkMarshalStruct/stdlib",
+   "nsMin": 112031,
+   "mbps": 1046.88
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Valid/ours",
+   "nsMin": 7555,
+   "mbps": 8620.72
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=4/ours",
+   "nsMin": 390.2,
+   "mbps": 715.07
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh.pretty/ours",
+   "nsMin": 1858649,
+   "mbps": 848.66
+  },
+  {
+   "name": "BenchmarkEquivalentWork/validating/ours-Parse+Get",
+   "nsMin": 804931
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/github_events/sorted/sonic-std",
+   "nsMin": 62739,
+   "mbps": 1038.14
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=256/ours",
+   "nsMin": 14279,
+   "mbps": 401.22
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/marine_ik/sorted/ours",
+   "nsMin": 5345893,
+   "mbps": 558.09
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Compact/stdlib",
+   "nsMin": 1311956,
+   "mbps": 406.4
+  },
+  {
+   "name": "BenchmarkAccessShape/late/jsonparser",
+   "nsMin": 778412
+  },
+  {
+   "name": "BenchmarkUnmarshalCitmStruct/ours",
+   "nsMin": 1123817,
+   "mbps": 1536.91
+  },
+  {
+   "name": "BenchmarkWhy/q=100/ours-index-once",
+   "nsMin": 204636
+  },
+  {
+   "name": "BenchmarkShapeValid/gsoc-2018/stdlib",
+   "nsMin": 5898040,
+   "mbps": 564.23
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Valid/goccy",
+   "nsMin": 5941143,
+   "mbps": 265.5
+  },
+  {
+   "name": "BenchmarkUnmarshalFloatSlice/ours",
+   "nsMin": 1998026,
+   "mbps": 1049.63
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=64/stdlib",
+   "nsMin": 13310,
+   "mbps": 342.59
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=64/unsorted-ours",
+   "nsMin": 5417,
+   "mbps": 841.78
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/goccy",
+   "nsMin": 3786430,
+   "mbps": 878.88
+  },
+  {
+   "name": "BenchmarkUnmarshalStruct/sonic",
+   "nsMin": 414301,
+   "mbps": 1524.29
+  },
+  {
+   "name": "BenchmarkReadme/n=100/gjson-Get",
+   "nsMin": 51.65,
+   "mbps": 215558.08
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/update-center/stdlib",
+   "nsMin": 3293635,
+   "mbps": 161.88
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/marine_ik/ours",
+   "nsMin": 7231259,
+   "mbps": 412.58
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/medium/goccy",
+   "nsMin": 1484,
+   "mbps": 1568.93
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Valid/ours",
+   "nsMin": 54228,
+   "mbps": 2768.4
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/github_events/goccy",
+   "nsMin": 147145,
+   "mbps": 442.64
+  },
+  {
+   "name": "BenchmarkShapeValid/gsoc-2018/ours",
+   "nsMin": 290682,
+   "mbps": 11448.36
+  },
+  {
+   "name": "BenchmarkShapeValid/gsoc-2018/sonic",
+   "nsMin": 312017,
+   "mbps": 10665.54
+  },
+  {
+   "name": "BenchmarkShapeValid/twitter/ours",
+   "nsMin": 82336,
+   "mbps": 7669.97
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours",
+   "nsMin": 59908,
+   "mbps": 1957.71
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/large/segmentio",
+   "nsMin": 29840,
+   "mbps": 942.46
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=128/ascii/simd",
+   "nsMin": 4.842
+  },
+  {
+   "name": "BenchmarkUnmarshalCanadaStruct/sonic",
+   "nsMin": 2640721,
+   "mbps": 852.44
+  },
+  {
+   "name": "BenchmarkCorpus/citm/minio",
+   "nsMin": 654826,
+   "mbps": 2637.65
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours-Fast",
+   "nsMin": 37820,
+   "mbps": 3101.11
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/marine_ik/sorted/stdlib",
+   "nsMin": 15237991,
+   "mbps": 195.79
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=4/unsorted-sonic",
+   "nsMin": 174.4,
+   "mbps": 475.98
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/instruments/sonic",
+   "nsMin": 474008,
+   "mbps": 464.86
+  },
+  {
+   "name": "BenchmarkMarshalStruct/segmentio",
+   "nsMin": 95285,
+   "mbps": 1230.86
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/marine_ik/sonic",
+   "nsMin": 9067869,
+   "mbps": 329.02
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Valid/ours",
+   "nsMin": 539502,
+   "mbps": 2923.72
+  },
+  {
+   "name": "BenchmarkUnmarshalFloatSlice/sonic",
+   "nsMin": 2215492,
+   "mbps": 946.6
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/canada/goccy",
+   "nsMin": 12748890,
+   "mbps": 176.57
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh/sonic",
+   "nsMin": 1893091,
+   "mbps": 382.23
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/canada/sorted/sonic-std",
+   "nsMin": 4185803,
+   "mbps": 537.78
+  },
+  {
+   "name": "BenchmarkUnmarshalFloatSlice/segmentio",
+   "nsMin": 4291926,
+   "mbps": 488.64
+  },
+  {
+   "name": "BenchmarkColdStartUnmarshal/ours",
+   "nsMin": 3205
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=256/unsorted-ours",
+   "nsMin": 14804,
+   "mbps": 1089.47
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/github_events/stdlib",
+   "nsMin": 318849,
+   "mbps": 204.27
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=32/ascii/stdlib",
+   "nsMin": 6.675
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/instruments/unsorted/ours",
+   "nsMin": 183565,
+   "mbps": 1200.37
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Valid/ours",
+   "nsMin": 82576,
+   "mbps": 7647.65
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/citm/stdlib",
+   "nsMin": 8304527,
+   "mbps": 207.98
+  },
+  {
+   "name": "BenchmarkGetField/n=1000/gjson",
+   "nsMin": 52.71,
+   "mbps": 2161886.06
+  },
+  {
+   "name": "BenchmarkUnmarshalStruct/stdlib",
+   "nsMin": 2561675,
+   "mbps": 246.52
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Indent/stdlib",
+   "nsMin": 1556228,
+   "mbps": 342.61
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/apache_builds/sonic",
+   "nsMin": 183251,
+   "mbps": 694.54
+  },
+  {
+   "name": "BenchmarkReadme/n=100/ours-Scan",
+   "nsMin": 1907,
+   "mbps": 5837.73
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Valid/sonic",
+   "nsMin": 89798,
+   "mbps": 2453.81
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=64/unsorted-sonic",
+   "nsMin": 1387,
+   "mbps": 1003.42
+  },
+  {
+   "name": "BenchmarkStreamDecode/goccy",
+   "nsMin": 11887370,
+   "mbps": 342.41
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=100/gjson-parsed",
+   "nsMin": 20164451
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=1/gjson-parsed",
+   "nsMin": 109.3
+  },
+  {
+   "name": "BenchmarkMarshalMapAllocs",
+   "nsMin": 5829
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/stdlib",
+   "nsMin": 3490238,
+   "mbps": 180.94
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/numbers/ours",
+   "nsMin": 288720,
+   "mbps": 519.96
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/numbers/sonic",
+   "nsMin": 272840,
+   "mbps": 550.23
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/instruments/sorted/goccy",
+   "nsMin": 579154,
+   "mbps": 380.46
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=16/kernel",
+   "nsMin": 14.4
+  },
+  {
+   "name": "BenchmarkSmall/config-2KB/fastjson",
+   "nsMin": 1062,
+   "mbps": 1594.68
+  },
+  {
+   "name": "BenchmarkParallelTwitterStruct/goccy",
+   "nsMin": 28991,
+   "mbps": 21783.39
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=4/unsorted-sonic",
+   "nsMin": 208.8,
+   "mbps": 1211.9
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Valid/stdlib",
+   "nsMin": 5874425,
+   "mbps": 566.49
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/twitter/unsorted/ours",
+   "nsMin": 188789,
+   "mbps": 3345.08
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/update-center/sorted/goccy",
+   "nsMin": 1748579,
+   "mbps": 304.92
+  },
+  {
+   "name": "BenchmarkSmall/list-20KB/goccy-Valid",
+   "nsMin": 83367,
+   "mbps": 143.5
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Compact/stdlib",
+   "nsMin": 1668853,
+   "mbps": 378.41
+  },
+  {
+   "name": "BenchmarkSmall/tiny-64B/minio",
+   "nsMin": 188.6,
+   "mbps": 174.99
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/goccy",
+   "nsMin": 8793933,
+   "mbps": 132.95
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=1024/unicode/simd",
+   "nsMin": 89.11
+  },
+  {
+   "name": "BenchmarkMarshalStruct/sonic-default-NOT-comparable",
+   "nsMin": 22900,
+   "mbps": 5121.57
+  },
+  {
+   "name": "BenchmarkUnmarshalCanadaStruct/ours",
+   "nsMin": 2576013,
+   "mbps": 873.85
+  },
+  {
+   "name": "BenchmarkCorpus/citm/stdlib",
+   "nsMin": 8685332,
+   "mbps": 198.86
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=16/unsorted-sonic",
+   "nsMin": 845.3,
+   "mbps": 1334.43
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/sonic",
+   "nsMin": 518797,
+   "mbps": 219.64
+  },
+  {
+   "name": "BenchmarkGetField/n=10000/ours",
+   "nsMin": 169329,
+   "mbps": 6904.42
+  },
+  {
+   "name": "BenchmarkSMLMarshal/medium/segmentio",
+   "nsMin": 126.4,
+   "mbps": 1471.93
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=64/ours",
+   "nsMin": 4574,
+   "mbps": 881.8
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/marine_ik/sorted/goccy",
+   "nsMin": 12359899,
+   "mbps": 241.38
+  },
+  {
+   "name": "BenchmarkUnmarshalCanadaStruct/segmentio",
+   "nsMin": 5497365,
+   "mbps": 409.48
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Compact/stdlib",
+   "nsMin": 3688935,
+   "mbps": 427.59
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Compact/stdlib",
+   "nsMin": 4421918,
+   "mbps": 390.6
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/twitter/unsorted/sonic",
+   "nsMin": 541800,
+   "mbps": 1165.59
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Indent/ours",
+   "nsMin": 522081,
+   "mbps": 1209.61
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Compact/stdlib",
+   "nsMin": 1765215,
+   "mbps": 409.92
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=256/unsorted-ours",
+   "nsMin": 10748,
+   "mbps": 533.04
+  },
+  {
+   "name": "BenchmarkReadme/n=100/minio",
+   "nsMin": 24899,
+   "mbps": 447.13
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=64/goccy",
+   "nsMin": 4363,
+   "mbps": 319.07
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=8192/unicode/simd",
+   "nsMin": 689.6
+  },
+  {
+   "name": "BenchmarkHandwritten/floor",
+   "nsMin": 61644
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=64/ours",
+   "nsMin": 5736,
+   "mbps": 794.99
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Valid/goccy",
+   "nsMin": 3389446,
+   "mbps": 186.32
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Valid/sonic",
+   "nsMin": 41991,
+   "mbps": 3030.98
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Indent/stdlib",
+   "nsMin": 165019,
+   "mbps": 394.69
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=64/goccy",
+   "nsMin": 5312,
+   "mbps": 759.22
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/small/stdlib",
+   "nsMin": 1330,
+   "mbps": 142.08
+  },
+  {
+   "name": "BenchmarkUnmarshalStruct/ours",
+   "nsMin": 311315,
+   "mbps": 2028.54
+  },
+  {
+   "name": "BenchmarkEasyjson/unmarshal-twitter",
+   "nsMin": 1230505,
+   "mbps": 513.22
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Valid/stdlib",
+   "nsMin": 3229440,
+   "mbps": 534.83
+  },
+  {
+   "name": "BenchmarkUnmarshalCitmStruct/stdlib",
+   "nsMin": 7488510,
+   "mbps": 230.65
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=256/unsorted-sonic",
+   "nsMin": 5068,
+   "mbps": 1130.44
+  },
+  {
+   "name": "BenchmarkEquivalentWork/unvalidated/ours-Scan+Get",
+   "nsMin": 170346
+  },
+  {
+   "name": "BenchmarkMarshalStructGenerated/ours-generated-MarshalTo",
+   "nsMin": 44447,
+   "mbps": 2638.71
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/gsoc-2018/stdlib",
+   "nsMin": 12518497,
+   "mbps": 265.83
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Valid/stdlib",
+   "nsMin": 238515,
+   "mbps": 533.61
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=4/ours",
+   "nsMin": 238.9,
+   "mbps": 347.38
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Indent/ours",
+   "nsMin": 1407887,
+   "mbps": 1226.81
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Valid/goccy",
+   "nsMin": 200879,
+   "mbps": 324.24
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Valid/goccy",
+   "nsMin": 870616,
+   "mbps": 172.43
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=8192/ascii/stdlib",
+   "nsMin": 109.8
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Valid/stdlib",
+   "nsMin": 415659,
+   "mbps": 530.11
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/jsonparser",
+   "nsMin": 45.09,
+   "mbps": 2527409.68
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/marine_ik/sonic",
+   "nsMin": 8733332,
+   "mbps": 341.62
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Indent/stdlib",
+   "nsMin": 1744677,
+   "mbps": 361.97
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh.pretty/goccy",
+   "nsMin": 5534493,
+   "mbps": 285
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Compact/ours",
+   "nsMin": 176077,
+   "mbps": 3028.1
+  },
+  {
+   "name": "BenchmarkShapeValid/instruments/sonic",
+   "nsMin": 89943,
+   "mbps": 2449.83
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=256/word",
+   "nsMin": 147.6
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh.pretty/sonic",
+   "nsMin": 2382438,
+   "mbps": 662.08
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/ours",
+   "nsMin": 1356755,
+   "mbps": 1162.59
+  },
+  {
+   "name": "BenchmarkSmall/config-2KB/goccy-Valid",
+   "nsMin": 10586,
+   "mbps": 159.93
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/apache_builds/stdlib",
+   "nsMin": 665899,
+   "mbps": 191.13
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=16/unsorted-ours",
+   "nsMin": 726.2,
+   "mbps": 462.66
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Valid/ours",
+   "nsMin": 44795,
+   "mbps": 4919.02
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh/goccy",
+   "nsMin": 4861308,
+   "mbps": 148.85
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=256/ascii/simd",
+   "nsMin": 5.733
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/instruments/ours",
+   "nsMin": 486303,
+   "mbps": 453.1
+  },
+  {
+   "name": "BenchmarkWhy/gjson.Valid_(scalar,_keeps_nothing)",
+   "nsMin": 732349,
+   "mbps": 1596.39
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=8192/unicode/stdlib",
+   "nsMin": 4934
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=1000/gjson",
+   "nsMin": 204951641
+  },
+  {
+   "name": "BenchmarkSMLMarshal/large/sonic",
+   "nsMin": 1391,
+   "mbps": 1881.25
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Valid/stdlib",
+   "nsMin": 1418412,
+   "mbps": 510.15
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Valid/goccy",
+   "nsMin": 2464125,
+   "mbps": 216.38
+  },
+  {
+   "name": "BenchmarkSmall/small-200B/minio",
+   "nsMin": 331.8,
+   "mbps": 340.57
+  },
+  {
+   "name": "BenchmarkStreamDecodeLong/field=4096",
+   "nsMin": 2014186,
+   "mbps": 3168.42
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=1/ours",
+   "nsMin": 168264
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=16/unicode/simd",
+   "nsMin": 12.06
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=64/stdlib",
+   "nsMin": 7299,
+   "mbps": 190.72
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/numbers/ours",
+   "nsMin": 283221,
+   "mbps": 530.06
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Compact/ours",
+   "nsMin": 397636,
+   "mbps": 1588.18
+  },
+  {
+   "name": "BenchmarkGetField/n=10000/sonic",
+   "nsMin": 5471395,
+   "mbps": 213.68
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh.pretty/ours",
+   "nsMin": 1967116,
+   "mbps": 801.86
+  },
+  {
+   "name": "BenchmarkCorpus/citm/ours-Parse",
+   "nsMin": 548377,
+   "mbps": 3149.66
+  },
+  {
+   "name": "BenchmarkStreamShapes/batch-50KB/goccy",
+   "nsMin": 27817765,
+   "mbps": 226.97
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/jsonparser",
+   "nsMin": 46.21,
+   "mbps": 25301896.78
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/update-center/unsorted/sonic",
+   "nsMin": 711286,
+   "mbps": 749.6
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/citm/sorted/goccy",
+   "nsMin": 2420984,
+   "mbps": 713.43
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Valid/stdlib",
+   "nsMin": 4146249,
+   "mbps": 542.91
+  },
+  {
+   "name": "BenchmarkUnmarshalCitmStruct/sonic",
+   "nsMin": 1466559,
+   "mbps": 1177.73
+  },
+  {
+   "name": "BenchmarkShapeValid/marine_ik/ours",
+   "nsMin": 1860479,
+   "mbps": 1603.6
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Valid/goccy",
+   "nsMin": 4841623,
+   "mbps": 356.74
+  },
+  {
+   "name": "BenchmarkUnmarshalFloatSlice/stdlib",
+   "nsMin": 11157592,
+   "mbps": 187.96
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=4/unsorted-sonic",
+   "nsMin": 283.6,
+   "mbps": 983.77
+  },
+  {
+   "name": "BenchmarkHandwritten/ours-MarshalTo",
+   "nsMin": 49220
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Valid/goccy",
+   "nsMin": 13986752,
+   "mbps": 160.94
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/gsoc-2018/ours",
+   "nsMin": 2337027,
+   "mbps": 1423.96
+  },
+  {
+   "name": "BenchmarkStreamDecodeLong/field=512",
+   "nsMin": 2340287,
+   "mbps": 2684.56
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/twitter/sorted/goccy",
+   "nsMin": 1711952,
+   "mbps": 368.89
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/canada/unsorted/ours",
+   "nsMin": 1983040,
+   "mbps": 1135.15
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/stdlib",
+   "nsMin": 949823,
+   "mbps": 119.97
+  },
+  {
+   "name": "BenchmarkCorpus/canada/ours-Parse",
+   "nsMin": 1135756,
+   "mbps": 1981.98
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/ours-Scan",
+   "nsMin": 168659,
+   "mbps": 6931.84
+  },
+  {
+   "name": "BenchmarkWhy/q=1/ours-index-once",
+   "nsMin": 168705
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Compact/ours",
+   "nsMin": 1066917,
+   "mbps": 3119.11
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh/sorted/stdlib",
+   "nsMin": 3479213,
+   "mbps": 207.98
+  },
+  {
+   "name": "BenchmarkStreamShapes/batch-50KB/ours",
+   "nsMin": 14179510,
+   "mbps": 445.28
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Valid/stdlib",
+   "nsMin": 120982,
+   "mbps": 538.36
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/citm/ours",
+   "nsMin": 2179681,
+   "mbps": 792.41
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/github_events/unsorted/ours",
+   "nsMin": 49293,
+   "mbps": 1321.33
+  },
+  {
+   "name": "BenchmarkGetField/n=10000/minio",
+   "nsMin": 2024551,
+   "mbps": 577.47
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/small/jsoniter",
+   "nsMin": 390.3,
+   "mbps": 484.3
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=4/unsorted-ours",
+   "nsMin": 226.4,
+   "mbps": 366.67
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours-MarshalTo",
+   "nsMin": 49224,
+   "mbps": 2382.65
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/apache_builds/sorted/goccy",
+   "nsMin": 215372,
+   "mbps": 590.95
+  },
+  {
+   "name": "BenchmarkWidgetGet/jsonparser",
+   "nsMin": 142.8
+  },
+  {
+   "name": "BenchmarkSmall/tiny-64B/goccy-Valid",
+   "nsMin": 433.8,
+   "mbps": 76.07
+  },
+  {
+   "name": "BenchmarkShapeValid/marine_ik/sonic",
+   "nsMin": 2160834,
+   "mbps": 1380.7
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Compact/stdlib",
+   "nsMin": 7829048,
+   "mbps": 381.08
+  },
+  {
+   "name": "BenchmarkAccessShape/late/gjson",
+   "nsMin": 411803
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/canada/sorted/ours",
+   "nsMin": 1973292,
+   "mbps": 1140.76
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh/goccy",
+   "nsMin": 5078557,
+   "mbps": 142.48
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/instruments/sorted/ours",
+   "nsMin": 253559,
+   "mbps": 869.01
+  },
+  {
+   "name": "BenchmarkSMLMarshal/medium/ours",
+   "nsMin": 168.4,
+   "mbps": 1104.23
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=16/ours",
+   "nsMin": 843.6,
+   "mbps": 398.28
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh/sorted/ours",
+   "nsMin": 1351095,
+   "mbps": 535.56
+  },
+  {
+   "name": "BenchmarkWhy/q=1000/ours-index-once",
+   "nsMin": 3142786
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=16/ascii/simd",
+   "nsMin": 7.918
+  },
+  {
+   "name": "BenchmarkStreamShapes/tweet-2KB/goccy",
+   "nsMin": 19976782,
+   "mbps": 314.94
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/instruments/sorted/stdlib",
+   "nsMin": 825878,
+   "mbps": 266.8
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/apache_builds/sorted/ours",
+   "nsMin": 115884,
+   "mbps": 1098.3
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/canada/ours",
+   "nsMin": 4507470,
+   "mbps": 499.4
+  },
+  {
+   "name": "BenchmarkSmall/config-2KB/stdlib-Valid",
+   "nsMin": 3191,
+   "mbps": 530.54
+  },
+  {
+   "name": "BenchmarkMarshalStruct/jsoniter",
+   "nsMin": 121396,
+   "mbps": 966.12
+  },
+  {
+   "name": "BenchmarkShapeValid/marine_ik/stdlib",
+   "nsMin": 5890547,
+   "mbps": 506.48
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/github_events/unsorted/sonic",
+   "nsMin": 45616,
+   "mbps": 1427.83
+  },
+  {
+   "name": "BenchmarkAccessShape/many/jsonparser",
+   "nsMin": 1434571
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Indent/stdlib",
+   "nsMin": 589016,
+   "mbps": 374.09
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Compact/stdlib",
+   "nsMin": 299214,
+   "mbps": 425.36
+  },
+  {
+   "name": "BenchmarkGetField/n=10000/fastjson",
+   "nsMin": 1344687,
+   "mbps": 869.43
+  },
+  {
+   "name": "BenchmarkShapeValid/instruments/stdlib",
+   "nsMin": 411292,
+   "mbps": 535.74
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/twitter/ours",
+   "nsMin": 1107697,
+   "mbps": 570.12
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=128/kernel",
+   "nsMin": 8.554
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=64/unsorted-sonic",
+   "nsMin": 1870,
+   "mbps": 2156.71
+  },
+  {
+   "name": "BenchmarkParallelTwitterStruct/ours",
+   "nsMin": 22697,
+   "mbps": 27824.25
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/instruments/stdlib",
+   "nsMin": 1235014,
+   "mbps": 178.42
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/instruments/stdlib",
+   "nsMin": 1232718,
+   "mbps": 178.75
+  },
+  {
+   "name": "BenchmarkSetPathRow/shallow/ours",
+   "nsMin": 313668,
+   "mbps": 2013.32
+  },
+  {
+   "name": "BenchmarkShapeValid/apache_builds/ours",
+   "nsMin": 16497,
+   "mbps": 7714.92
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=16/goccy",
+   "nsMin": 1764,
+   "mbps": 639.62
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=4/goccy",
+   "nsMin": 228.5,
+   "mbps": 363.19
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/citm/sorted/stdlib",
+   "nsMin": 3301392,
+   "mbps": 523.17
+  },
+  {
+   "name": "BenchmarkShapeValid/citm/goccy",
+   "nsMin": 4590137,
+   "mbps": 376.29
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/gjson-Get",
+   "nsMin": 52.44,
+   "mbps": 2173127.5
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=256/unicode/stdlib",
+   "nsMin": 159.3
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=16/unicode/stdlib",
+   "nsMin": 10.03
+  },
+  {
+   "name": "BenchmarkAccessShape/many/ours",
+   "nsMin": 592800
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Valid/sonic",
+   "nsMin": 2160348,
+   "mbps": 1381.01
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh/unsorted/ours",
+   "nsMin": 1365122,
+   "mbps": 530.06
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Compact/ours",
+   "nsMin": 27504,
+   "mbps": 2368.12
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/citm/goccy",
+   "nsMin": 4393928,
+   "mbps": 393.09
+  },
+  {
+   "name": "BenchmarkMarshalIndentRow/goccy",
+   "nsMin": 126459,
+   "mbps": 1112.04
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/apache_builds/stdlib",
+   "nsMin": 670903,
+   "mbps": 189.71
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/sonic",
+   "nsMin": 5343611,
+   "mbps": 218.79
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/update-center/sonic",
+   "nsMin": 1143410,
+   "mbps": 466.31
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=128/ascii/stdlib",
+   "nsMin": 7.235
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=64/word",
+   "nsMin": 36.69
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/instruments/sorted/sonic-std",
+   "nsMin": 301285,
+   "mbps": 731.35
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=16/unsorted-ours",
+   "nsMin": 1392,
+   "mbps": 810.29
+  },
+  {
+   "name": "BenchmarkReadme/n=100/sonic",
+   "nsMin": 52538,
+   "mbps": 211.9
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=256/kernel",
+   "nsMin": 12.93
+  },
+  {
+   "name": "BenchmarkEquivalentWork/validating/gjson-Valid+Get",
+   "nsMin": 740658
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/instruments/sonic",
+   "nsMin": 386756,
+   "mbps": 569.73
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/github_events/goccy",
+   "nsMin": 167230,
+   "mbps": 389.48
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=32/unicode/simd",
+   "nsMin": 23.11
+  },
+  {
+   "name": "BenchmarkUnmarshalScanned/ours-Parse+Unmarshal",
+   "nsMin": 419783,
+   "mbps": 1504.39
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Compact/stdlib",
+   "nsMin": 7252565,
+   "mbps": 458.85
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/citm/sorted/ours",
+   "nsMin": 396232,
+   "mbps": 4359.08
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/minio",
+   "nsMin": 2054301,
+   "mbps": 569.11
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=64/sonic-std",
+   "nsMin": 4860,
+   "mbps": 829.91
+  },
+  {
+   "name": "BenchmarkWhy/q=1/gjson-rescans",
+   "nsMin": 117.3
+  },
+  {
+   "name": "BenchmarkShapeValid/numbers/goccy",
+   "nsMin": 827806,
+   "mbps": 181.35
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/ours",
+   "nsMin": 1792260,
+   "mbps": 1856.78
+  },
+  {
+   "name": "BenchmarkSMLMarshal/small/sonic",
+   "nsMin": 144.4,
+   "mbps": 927.7
+  },
+  {
+   "name": "BenchmarkShapeValid/update-center/goccy",
+   "nsMin": 2581921,
+   "mbps": 206.5
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Valid/sonic",
+   "nsMin": 439306,
+   "mbps": 3931.67
+  },
+  {
+   "name": "BenchmarkCorpus/canada/sonic",
+   "nsMin": 6662279,
+   "mbps": 337.88
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=1024/kernel",
+   "nsMin": 43.43
+  },
+  {
+   "name": "BenchmarkSMLMarshal/large/jsoniter",
+   "nsMin": 2732,
+   "mbps": 957.4
+  },
+  {
+   "name": "BenchmarkSMLMarshal/medium/goccy",
+   "nsMin": 109.7,
+   "mbps": 1695.68
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/numbers/stdlib",
+   "nsMin": 971626,
+   "mbps": 154.51
+  },
+  {
+   "name": "BenchmarkCorpus/citm/goccy",
+   "nsMin": 4699414,
+   "mbps": 367.54
+  },
+  {
+   "name": "BenchmarkGetField/n=1000/jsonparser",
+   "nsMin": 44.17,
+   "mbps": 2579910.29
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=10/gjson",
+   "nsMin": 1934184
+  },
+  {
+   "name": "BenchmarkReadme/n=100/stdlib",
+   "nsMin": 98423,
+   "mbps": 113.11
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Indent/ours",
+   "nsMin": 248244,
+   "mbps": 887.62
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/ours",
+   "nsMin": 5481224,
+   "mbps": 544.31
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Valid/sonic",
+   "nsMin": 154332,
+   "mbps": 3454.74
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Indent/stdlib",
+   "nsMin": 7357675,
+   "mbps": 452.29
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/numbers/sorted/ours",
+   "nsMin": 333280,
+   "mbps": 450.44
+  },
+  {
+   "name": "BenchmarkStreamDecode/stdlib",
+   "nsMin": 37825981,
+   "mbps": 107.61
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/canada/stdlib",
+   "nsMin": 15548794,
+   "mbps": 144.77
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/marine_ik/goccy",
+   "nsMin": 19524520,
+   "mbps": 152.81
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Compact/ours",
+   "nsMin": 61178,
+   "mbps": 2453.87
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Valid/stdlib",
+   "nsMin": 1257164,
+   "mbps": 502.33
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Indent/ours",
+   "nsMin": 3759811,
+   "mbps": 598.71
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Compact/ours",
+   "nsMin": 166893,
+   "mbps": 1320.28
+  },
+  {
+   "name": "BenchmarkSmall/list-20KB/stdlib-Valid",
+   "nsMin": 22646,
+   "mbps": 528.26
+  },
+  {
+   "name": "BenchmarkUnmarshalStruct/goccy",
+   "nsMin": 360832,
+   "mbps": 1750.16
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/citm/goccy",
+   "nsMin": 4606382,
+   "mbps": 374.96
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Valid/ours",
+   "nsMin": 78816,
+   "mbps": 6764.81
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/fastjson",
+   "nsMin": 126924,
+   "mbps": 897.78
+  },
+  {
+   "name": "BenchmarkColdStartUnmarshal/stdlib",
+   "nsMin": 3546
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh/sorted/goccy",
+   "nsMin": 2969596,
+   "mbps": 243.67
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=64/unsorted-ours",
+   "nsMin": 2652,
+   "mbps": 524.86
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/update-center/sorted/stdlib",
+   "nsMin": 2172697,
+   "mbps": 245.4
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/twitter/sonic",
+   "nsMin": 924117,
+   "mbps": 683.37
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Indent/ours",
+   "nsMin": 123261,
+   "mbps": 1032.57
+  },
+  {
+   "name": "BenchmarkWidgetGet/ours-GetMany3",
+   "nsMin": 967.2
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh/ours",
+   "nsMin": 1939731,
+   "mbps": 373.04
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Indent/ours",
+   "nsMin": 452583,
+   "mbps": 1178.08
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/github_events/sorted/stdlib",
+   "nsMin": 181416,
+   "mbps": 359.02
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Indent/ours",
+   "nsMin": 6609726,
+   "mbps": 451.38
+  },
+  {
+   "name": "BenchmarkSMLMarshal/medium/jsoniter",
+   "nsMin": 229,
+   "mbps": 809.63
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/gjson-Valid+Get",
+   "nsMin": 73170,
+   "mbps": 1557.33
+  },
+  {
+   "name": "BenchmarkShapeValid/instruments/goccy",
+   "nsMin": 827215,
+   "mbps": 266.37
+  },
+  {
+   "name": "BenchmarkCorpus/canada/goccy",
+   "nsMin": 13144033,
+   "mbps": 171.26
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Valid/ours",
+   "nsMin": 1889645,
+   "mbps": 1578.85
+  },
+  {
+   "name": "BenchmarkCorpus/citm/ours-Scan",
+   "nsMin": 194030,
+   "mbps": 8901.73
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/stdlib",
+   "nsMin": 4295690,
+   "mbps": 774.69
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=256/unsorted-sonic",
+   "nsMin": 6770,
+   "mbps": 2382.28
+  },
+  {
+   "name": "BenchmarkMarshalStruct/sonic-std",
+   "nsMin": 35226,
+   "mbps": 3329.44
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=256/sonic-std",
+   "nsMin": 22996,
+   "mbps": 810.27
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=64/unsorted-ours",
+   "nsMin": 3873,
+   "mbps": 1041.24
+  },
+  {
+   "name": "BenchmarkAccessShape/early/jsonparser",
+   "nsMin": 46.17
+  },
+  {
+   "name": "BenchmarkGetField/n=1000/fastjson",
+   "nsMin": 126327,
+   "mbps": 902.02
+  },
+  {
+   "name": "BenchmarkSMLMarshal/small/stdlib",
+   "nsMin": 212,
+   "mbps": 632.12
+  },
+  {
+   "name": "BenchmarkSmall/config-2KB/minio",
+   "nsMin": 2049,
+   "mbps": 826.38
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=256/ours",
+   "nsMin": 19554,
+   "mbps": 824.84
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/apache_builds/ours",
+   "nsMin": 257777,
+   "mbps": 493.74
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/sonic",
+   "nsMin": 1098736,
+   "mbps": 1435.61
+  },
+  {
+   "name": "BenchmarkSMLMarshal/large/ours",
+   "nsMin": 1263,
+   "mbps": 2071.99
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/canada/ours",
+   "nsMin": 4656251,
+   "mbps": 483.45
+  },
+  {
+   "name": "BenchmarkReadme/n=100/goccy",
+   "nsMin": 94090,
+   "mbps": 118.32
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/gjson-Get",
+   "nsMin": 54.38,
+   "mbps": 21499201.57
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Valid/ours",
+   "nsMin": 904521,
+   "mbps": 2488.67
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/numbers/stdlib",
+   "nsMin": 965724,
+   "mbps": 155.45
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=10/gjson-parsed",
+   "nsMin": 1893175
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=4/unsorted-ours",
+   "nsMin": 315.4,
+   "mbps": 802.18
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Valid/goccy",
+   "nsMin": 819052,
+   "mbps": 269.03
+  },
+  {
+   "name": "BenchmarkCorpus/citm/sonic",
+   "nsMin": 2626261,
+   "mbps": 657.67
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/medium/stdlib",
+   "nsMin": 9771,
+   "mbps": 238.36
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/sonic",
+   "nsMin": 2282221,
+   "mbps": 1458.15
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Valid/ours",
+   "nsMin": 287484,
+   "mbps": 11575.7
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/gsoc-2018/goccy",
+   "nsMin": 4407288,
+   "mbps": 755.07
+  },
+  {
+   "name": "BenchmarkSMLMarshal/small/segmentio",
+   "nsMin": 112.5,
+   "mbps": 1191.19
+  },
+  {
+   "name": "BenchmarkWhy/q=1000/gjson-rescans",
+   "nsMin": 20196353
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/goccy",
+   "nsMin": 1895596,
+   "mbps": 333.15
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/github_events/sorted/goccy",
+   "nsMin": 120097,
+   "mbps": 542.33
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Valid/goccy",
+   "nsMin": 20476688,
+   "mbps": 145.7
+  },
+  {
+   "name": "BenchmarkTextOps/update-center/Valid/stdlib",
+   "nsMin": 1062781,
+   "mbps": 501.68
+  },
+  {
+   "name": "BenchmarkReadme/n=100/fastjson",
+   "nsMin": 12417,
+   "mbps": 896.58
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=16/word",
+   "nsMin": 9.78
+  },
+  {
+   "name": "BenchmarkUnmarshalFloatSlice/goccy",
+   "nsMin": 5110704,
+   "mbps": 410.35
+  },
+  {
+   "name": "BenchmarkSmall/tiny-64B/ours-Parse",
+   "nsMin": 145.2,
+   "mbps": 227.33
+  },
+  {
+   "name": "BenchmarkMarshalStruct/goccy",
+   "nsMin": 96772,
+   "mbps": 1211.95
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/numbers/sonic",
+   "nsMin": 272647,
+   "mbps": 550.62
+  },
+  {
+   "name": "BenchmarkSMLMarshal/small/goccy",
+   "nsMin": 98.16,
+   "mbps": 1365.19
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/canada/sonic",
+   "nsMin": 6074594,
+   "mbps": 370.57
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Indent/stdlib",
+   "nsMin": 10980742,
+   "mbps": 271.7
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/numbers/goccy",
+   "nsMin": 739717,
+   "mbps": 202.95
+  },
+  {
+   "name": "BenchmarkWhy/q=10/ours-index-once",
+   "nsMin": 169768
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Compact/ours",
+   "nsMin": 1045175,
+   "mbps": 1509.18
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=64/sonic-std",
+   "nsMin": 5780,
+   "mbps": 788.9
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/gsoc-2018/stdlib",
+   "nsMin": 11703659,
+   "mbps": 284.34
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/ours",
+   "nsMin": 111392,
+   "mbps": 1142.59
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Indent/stdlib",
+   "nsMin": 3770495,
+   "mbps": 418.34
+  },
+  {
+   "name": "BenchmarkShapeValid/update-center/sonic",
+   "nsMin": 151521,
+   "mbps": 3518.84
+  },
+  {
+   "name": "BenchmarkReadme/n=100/gjson-Valid+Get",
+   "nsMin": 7297,
+   "mbps": 1525.76
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=32/unicode/stdlib",
+   "nsMin": 20.67
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Indent/ours",
+   "nsMin": 1371628,
+   "mbps": 527.55
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=256/unsorted-ours",
+   "nsMin": 20759,
+   "mbps": 897.6
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/marine_ik/stdlib",
+   "nsMin": 23667972,
+   "mbps": 126.05
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/goccy",
+   "nsMin": 951933,
+   "mbps": 119.7
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Valid/ours",
+   "nsMin": 467651,
+   "mbps": 1547.3
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Compact/stdlib",
+   "nsMin": 4775990,
+   "mbps": 471.33
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Valid/sonic",
+   "nsMin": 70612,
+   "mbps": 2126.05
+  },
+  {
+   "name": "BenchmarkUnmarshalCitmStruct/jsoniter",
+   "nsMin": 2151617,
+   "mbps": 802.75
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/github_events/sonic",
+   "nsMin": 107601,
+   "mbps": 605.31
+  },
+  {
+   "name": "BenchmarkShapeValid/citm/stdlib",
+   "nsMin": 3166378,
+   "mbps": 545.48
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh.pretty/sonic",
+   "nsMin": 847584,
+   "mbps": 1861
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/github_events/sorted/ours",
+   "nsMin": 62183,
+   "mbps": 1047.43
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=256/stdlib",
+   "nsMin": 46519,
+   "mbps": 346.72
+  },
+  {
+   "name": "BenchmarkStreamDecode/sonic",
+   "nsMin": 13668407,
+   "mbps": 297.79
+  },
+  {
+   "name": "BenchmarkWhy/ours.Parse_(index_+_grammar_walk)",
+   "nsMin": 809415,
+   "mbps": 1444.4
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Indent/stdlib",
+   "nsMin": 330854,
+   "mbps": 384.69
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Indent/ours",
+   "nsMin": 1324747,
+   "mbps": 2512.05
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/medium/segmentio",
+   "nsMin": 1974,
+   "mbps": 1179.92
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Indent/stdlib",
+   "nsMin": 2174951,
+   "mbps": 332.7
+  },
+  {
+   "name": "BenchmarkSMLMarshal/medium/sonic",
+   "nsMin": 176,
+   "mbps": 1056.67
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/github_events/sonic",
+   "nsMin": 78591,
+   "mbps": 828.74
+  },
+  {
+   "name": "BenchmarkShapeValid/twitter/stdlib",
+   "nsMin": 1241598,
+   "mbps": 508.63
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/instruments/unsorted/sonic",
+   "nsMin": 220998,
+   "mbps": 997.05
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=64/kernel",
+   "nsMin": 6.421
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh.pretty/stdlib",
+   "nsMin": 2852612,
+   "mbps": 552.95
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=4/goccy",
+   "nsMin": 440.2,
+   "mbps": 633.73
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/twitter/sorted/sonic-std",
+   "nsMin": 790287,
+   "mbps": 799.1
+  },
+  {
+   "name": "BenchmarkWidgetGet/gjson",
+   "nsMin": 145
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=128/unicode/stdlib",
+   "nsMin": 88.35
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Valid/goccy",
+   "nsMin": 5124617,
+   "mbps": 141.2
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=64/ascii/simd",
+   "nsMin": 4.604
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Compact/ours",
+   "nsMin": 86761,
+   "mbps": 1466.96
+  },
+  {
+   "name": "BenchmarkGetField/n=1000/sonic",
+   "nsMin": 529528,
+   "mbps": 215.19
+  },
+  {
+   "name": "BenchmarkShapeValid/numbers/sonic",
+   "nsMin": 71857,
+   "mbps": 2089.21
+  },
+  {
+   "name": "BenchmarkShapeValid/numbers/stdlib",
+   "nsMin": 269037,
+   "mbps": 558.01
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Valid/sonic",
+   "nsMin": 324966,
+   "mbps": 10240.56
+  },
+  {
+   "name": "BenchmarkStreamEncode/goccy",
+   "nsMin": 6940815,
+   "mbps": 586.44
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/sonic-std",
+   "nsMin": 1104746,
+   "mbps": 1427.8
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh/stdlib",
+   "nsMin": 5612033,
+   "mbps": 128.94
+  },
+  {
+   "name": "BenchmarkShapeValid/apache_builds/sonic",
+   "nsMin": 41688,
+   "mbps": 3053.03
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/marine_ik/sorted/sonic-std",
+   "nsMin": 6496873,
+   "mbps": 459.22
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=32/ascii/simd",
+   "nsMin": 8.352
+  },
+  {
+   "name": "BenchmarkGetField/n=1000/minio",
+   "nsMin": 220775,
+   "mbps": 516.14
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/instruments/goccy",
+   "nsMin": 753447,
+   "mbps": 292.45
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/apache_builds/sorted/stdlib",
+   "nsMin": 339939,
+   "mbps": 374.41
+  },
+  {
+   "name": "BenchmarkMarshalIndentRow/stdlib",
+   "nsMin": 479944,
+   "mbps": 293.01
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh/ours",
+   "nsMin": 468842,
+   "mbps": 1543.37
+  },
+  {
+   "name": "BenchmarkSMLMarshal/small/ours",
+   "nsMin": 91,
+   "mbps": 1467.11
+  },
+  {
+   "name": "BenchmarkEasyjson/marshal-twitter-ours",
+   "nsMin": 55157,
+   "mbps": 2126.36
+  },
+  {
+   "name": "BenchmarkShapeValid/instruments/ours",
+   "nsMin": 44477,
+   "mbps": 4954.19
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/small/goccy",
+   "nsMin": 201,
+   "mbps": 940.18
+  },
+  {
+   "name": "BenchmarkMarshalIndentRow/ours",
+   "nsMin": 140406,
+   "mbps": 1001.58
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=4/ours",
+   "nsMin": 338.1,
+   "mbps": 748.22
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh/goccy",
+   "nsMin": 4862192,
+   "mbps": 148.82
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/gsoc-2018/sorted/sonic-std",
+   "nsMin": 1991963,
+   "mbps": 1670.63
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh/sonic",
+   "nsMin": 516735,
+   "mbps": 1400.33
+  },
+  {
+   "name": "BenchmarkShapeValid/citm/sonic",
+   "nsMin": 440363,
+   "mbps": 3922.23
+  },
+  {
+   "name": "BenchmarkParallelTwitterStruct/stdlib",
+   "nsMin": 257416,
+   "mbps": 2453.28
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/minio",
+   "nsMin": 304888,
+   "mbps": 2071.3
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/update-center/sorted/ours",
+   "nsMin": 805615,
+   "mbps": 661.83
+  },
+  {
+   "name": "BenchmarkShapeValid/apache_builds/goccy",
+   "nsMin": 395093,
+   "mbps": 322.14
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=256/sonic-std",
+   "nsMin": 15037,
+   "mbps": 381
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=256/sonic-std",
+   "nsMin": 17558,
+   "mbps": 918.6
+  },
+  {
+   "name": "BenchmarkUnmarshalCitmStruct/goccy",
+   "nsMin": 965921,
+   "mbps": 1788.14
+  },
+  {
+   "name": "BenchmarkWhy/ours.Scan_(vector,_builds_an_index)",
+   "nsMin": 172809,
+   "mbps": 6765.38
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/fastjson",
+   "nsMin": 239157,
+   "mbps": 2640.58
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh.pretty/stdlib",
+   "nsMin": 8650445,
+   "mbps": 182.34
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=4/sonic-std",
+   "nsMin": 436,
+   "mbps": 639.11
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/twitter/sorted/stdlib",
+   "nsMin": 2169712,
+   "mbps": 291.06
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Compact/ours",
+   "nsMin": 801748,
+   "mbps": 2154.3
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh.pretty/ours",
+   "nsMin": 549134,
+   "mbps": 2872.44
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/twitter/sonic",
+   "nsMin": 1174365,
+   "mbps": 537.75
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/twitter/ours",
+   "nsMin": 1138427,
+   "mbps": 554.73
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=64/unsorted-sonic",
+   "nsMin": 3067,
+   "mbps": 1486.84
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=256/goccy",
+   "nsMin": 26257,
+   "mbps": 218.19
+  },
+  {
+   "name": "BenchmarkUnmarshalCanadaStruct/stdlib",
+   "nsMin": 14549267,
+   "mbps": 154.72
+  },
+  {
+   "name": "BenchmarkSmall/small-200B/fastjson",
+   "nsMin": 100.9,
+   "mbps": 1119.67
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/numbers/unsorted/sonic",
+   "nsMin": 273459,
+   "mbps": 548.98
+  },
+  {
+   "name": "BenchmarkWidgetGet/fastjson",
+   "nsMin": 300
+  },
+  {
+   "name": "BenchmarkAccessShape/many/gjson",
+   "nsMin": 1538481
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=256/goccy",
+   "nsMin": 40634,
+   "mbps": 458.56
+  },
+  {
+   "name": "BenchmarkShapeValid/github_events/goccy",
+   "nsMin": 200318,
+   "mbps": 325.14
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/fastjson",
+   "nsMin": 1307308,
+   "mbps": 894.29
+  },
+  {
+   "name": "BenchmarkShapeValid/apache_builds/stdlib",
+   "nsMin": 243264,
+   "mbps": 523.2
+  },
+  {
+   "name": "BenchmarkShapeValid/twitter/goccy",
+   "nsMin": 3493288,
+   "mbps": 180.78
+  },
+  {
+   "name": "BenchmarkGetField/n=10000/jsonparser",
+   "nsMin": 45.95,
+   "mbps": 25445308.81
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/large/ours",
+   "nsMin": 20522,
+   "mbps": 1370.36
+  },
+  {
+   "name": "BenchmarkShapeValid/citm/ours",
+   "nsMin": 285423,
+   "mbps": 6051.38
+  },
+  {
+   "name": "BenchmarkCorpus/canada/gjson-Valid",
+   "nsMin": 1062761,
+   "mbps": 2118.12
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/twitter/goccy",
+   "nsMin": 1782982,
+   "mbps": 354.19
+  },
+  {
+   "name": "BenchmarkSmall/small-200B/stdlib-Valid",
+   "nsMin": 214.1,
+   "mbps": 527.91
+  },
+  {
+   "name": "BenchmarkMarshalIndentRow/sonic",
+   "nsMin": 387458,
+   "mbps": 362.95
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=16/sonic-std",
+   "nsMin": 1175,
+   "mbps": 858.84
+  },
+  {
+   "name": "BenchmarkTextOps/instruments/Compact/stdlib",
+   "nsMin": 582348,
+   "mbps": 378.37
+  },
+  {
+   "name": "BenchmarkReadme/n=100/ours-Parse",
+   "nsMin": 8379,
+   "mbps": 1328.69
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/apache_builds/unsorted/sonic",
+   "nsMin": 137425,
+   "mbps": 926.14
+  },
+  {
+   "name": "BenchmarkStreamDecode/ours",
+   "nsMin": 9659657,
+   "mbps": 421.38
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Valid/ours",
+   "nsMin": 16395,
+   "mbps": 7763.26
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=16/ascii/stdlib",
+   "nsMin": 5.979
+  },
+  {
+   "name": "BenchmarkCorpus/canada/ours-Scan",
+   "nsMin": 330667,
+   "mbps": 6807.6
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/ours-Scan",
+   "nsMin": 50372,
+   "mbps": 12536.96
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=100/ours",
+   "nsMin": 3072467
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Indent/stdlib",
+   "nsMin": 4333920,
+   "mbps": 398.53
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Indent/ours",
+   "nsMin": 46055,
+   "mbps": 1414.21
+  },
+  {
+   "name": "BenchmarkStreamEncode/ours",
+   "nsMin": 5873635,
+   "mbps": 692.99
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/canada/unsorted/sonic",
+   "nsMin": 4053620,
+   "mbps": 555.32
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/update-center/ours",
+   "nsMin": 1423333,
+   "mbps": 374.6
+  },
+  {
+   "name": "BenchmarkSMLMarshal/large/goccy",
+   "nsMin": 1305,
+   "mbps": 2004.71
+  },
+  {
+   "name": "BenchmarkShapeValid/canada/goccy",
+   "nsMin": 13828794,
+   "mbps": 162.78
+  },
+  {
+   "name": "BenchmarkColdStartUnmarshal/goccy",
+   "nsMin": 4629
+  },
+  {
+   "name": "BenchmarkSmall/config-2KB/ours-Parse",
+   "nsMin": 859,
+   "mbps": 1970.88
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=64/unicode/simd",
+   "nsMin": 8.694
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=100/gjson",
+   "nsMin": 20358391
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/canada/sorted/goccy",
+   "nsMin": 6915293,
+   "mbps": 325.52
+  },
+  {
+   "name": "BenchmarkCorpus/citm/fastjson",
+   "nsMin": 695088,
+   "mbps": 2484.87
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/ours-Parse",
+   "nsMin": 801975,
+   "mbps": 1457.8
+  },
+  {
+   "name": "BenchmarkSMLMarshal/medium/stdlib",
+   "nsMin": 244.7,
+   "mbps": 760.16
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/github_events/ours",
+   "nsMin": 108446,
+   "mbps": 600.59
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh.pretty/sorted/stdlib",
+   "nsMin": 3520234,
+   "mbps": 448.08
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/apache_builds/sorted/sonic-std",
+   "nsMin": 159665,
+   "mbps": 797.14
+  },
+  {
+   "name": "BenchmarkGetField/n=10000/goccy",
+   "nsMin": 9201764,
+   "mbps": 127.05
+  },
+  {
+   "name": "BenchmarkGetField/n=10000/gjson",
+   "nsMin": 54.62,
+   "mbps": 21404970.84
+  },
+  {
+   "name": "BenchmarkUnmarshalCanadaStruct/jsoniter",
+   "nsMin": 11730066,
+   "mbps": 191.9
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/twitter/goccy",
+   "nsMin": 1874101,
+   "mbps": 336.97
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=256/goccy",
+   "nsMin": 29243,
+   "mbps": 551.55
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/gjson-Valid",
+   "nsMin": 310035,
+   "mbps": 2036.92
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/update-center/goccy",
+   "nsMin": 2090064,
+   "mbps": 255.1
+  },
+  {
+   "name": "BenchmarkShapeValid/numbers/ours",
+   "nsMin": 54304,
+   "mbps": 2764.51
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=4/stdlib",
+   "nsMin": 800.2,
+   "mbps": 348.65
+  },
+  {
+   "name": "BenchmarkUnmarshalCanadaStruct/goccy",
+   "nsMin": 6141273,
+   "mbps": 366.54
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Valid/sonic",
+   "nsMin": 15960,
+   "mbps": 4080.92
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=8192/ascii/simd",
+   "nsMin": 75.43
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/canada/stdlib",
+   "nsMin": 15403403,
+   "mbps": 146.14
+  },
+  {
+   "name": "BenchmarkMarshalIndentRow/segmentio",
+   "nsMin": 470251,
+   "mbps": 299.05
+  },
+  {
+   "name": "BenchmarkShapeValid/canada/ours",
+   "nsMin": 885447,
+   "mbps": 2542.28
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/canada/sorted/stdlib",
+   "nsMin": 7718947,
+   "mbps": 291.63
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/apache_builds/ours",
+   "nsMin": 247719,
+   "mbps": 513.79
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=16/sonic-std",
+   "nsMin": 980.5,
+   "mbps": 342.7
+  },
+  {
+   "name": "BenchmarkWhy/q=100/gjson-rescans",
+   "nsMin": 219703
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/update-center/sonic",
+   "nsMin": 1518326,
+   "mbps": 351.16
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/citm/unsorted/ours",
+   "nsMin": 378103,
+   "mbps": 4568.08
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=32/word",
+   "nsMin": 18.89
+  },
+  {
+   "name": "BenchmarkGetField/n=1000/goccy",
+   "nsMin": 925285,
+   "mbps": 123.15
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=1024/ascii/stdlib",
+   "nsMin": 16.06
+  },
+  {
+   "name": "BenchmarkSmall/small-200B/ours-Parse",
+   "nsMin": 235.9,
+   "mbps": 479.09
+  },
+  {
+   "name": "BenchmarkTextOps/mesh.pretty/Indent/ours",
+   "nsMin": 1874369,
+   "mbps": 841.54
+  },
+  {
+   "name": "BenchmarkTextOps/gsoc-2018/Valid/goccy",
+   "nsMin": 296211765,
+   "mbps": 11.23
+  },
+  {
+   "name": "BenchmarkSmall/list-20KB/minio",
+   "nsMin": 23918,
+   "mbps": 500.17
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/sonic",
+   "nsMin": 1039347,
+   "mbps": 607.61
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=4/sonic-std",
+   "nsMin": 282,
+   "mbps": 293.85
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/canada/sonic",
+   "nsMin": 6550505,
+   "mbps": 343.65
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=256/stdlib",
+   "nsMin": 62428,
+   "mbps": 298.47
+  },
+  {
+   "name": "BenchmarkMarshalStructGenerated/ours-generated",
+   "nsMin": 55221,
+   "mbps": 2123.89
+  },
+  {
+   "name": "BenchmarkSmall/tiny-64B/stdlib-Valid",
+   "nsMin": 73.31,
+   "mbps": 450.15
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/large/goccy",
+   "nsMin": 16184,
+   "mbps": 1737.7
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/small/ours",
+   "nsMin": 416.3,
+   "mbps": 453.99
+  },
+  {
+   "name": "BenchmarkShapeValid/canada/stdlib",
+   "nsMin": 4174611,
+   "mbps": 539.22
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh.pretty/goccy",
+   "nsMin": 5211725,
+   "mbps": 302.65
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours-opts=none",
+   "nsMin": 37529,
+   "mbps": 3125.1
+  },
+  {
+   "name": "BenchmarkEasyjson/marshal-twitter",
+   "nsMin": 92269,
+   "mbps": 1271.1
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/github_events/stdlib",
+   "nsMin": 317754,
+   "mbps": 204.98
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/citm/stdlib",
+   "nsMin": 8403235,
+   "mbps": 205.54
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours-Std.Marshal",
+   "nsMin": 56005,
+   "mbps": 2094.14
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/gsoc-2018/sonic",
+   "nsMin": 2232189,
+   "mbps": 1490.84
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Indent/ours",
+   "nsMin": 194465,
+   "mbps": 771.99
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=4/sonic-std",
+   "nsMin": 325.4,
+   "mbps": 777.57
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/numbers/sorted/stdlib",
+   "nsMin": 565463,
+   "mbps": 265.49
+  },
+  {
+   "name": "BenchmarkTextOps/citm/Valid/ours",
+   "nsMin": 285308,
+   "mbps": 6053.82
+  },
+  {
+   "name": "BenchmarkSetPathRow/deep/sjson",
+   "nsMin": 310327,
+   "mbps": 2035
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=256/ours",
+   "nsMin": 23684,
+   "mbps": 786.74
+  },
+  {
+   "name": "BenchmarkShapeValid/twitter/sonic",
+   "nsMin": 172784,
+   "mbps": 3654.93
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/gsoc-2018/goccy",
+   "nsMin": 4260099,
+   "mbps": 781.16
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=64/stdlib",
+   "nsMin": 9363,
+   "mbps": 430.73
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/apache_builds/sonic",
+   "nsMin": 244125,
+   "mbps": 521.35
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours-opts=html",
+   "nsMin": 43103,
+   "mbps": 2720.99
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/numbers/sorted/sonic-std",
+   "nsMin": 269276,
+   "mbps": 557.51
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=64/ours",
+   "nsMin": 3194,
+   "mbps": 435.8
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/canada/goccy",
+   "nsMin": 12973831,
+   "mbps": 173.51
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=128/word",
+   "nsMin": 72.66
+  },
+  {
+   "name": "BenchmarkWidgetGet/ours",
+   "nsMin": 574.9
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=256/stdlib",
+   "nsMin": 36718,
+   "mbps": 156.03
+  },
+  {
+   "name": "BenchmarkAccessShape/early/ours",
+   "nsMin": 168232
+  },
+  {
+   "name": "BenchmarkShapeValid/mesh/stdlib",
+   "nsMin": 1422548,
+   "mbps": 508.66
+  },
+  {
+   "name": "BenchmarkSmall/list-20KB/fastjson",
+   "nsMin": 10660,
+   "mbps": 1122.23
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/numbers/goccy",
+   "nsMin": 737581,
+   "mbps": 203.54
+  },
+  {
+   "name": "BenchmarkShapeValid/github_events/stdlib",
+   "nsMin": 122873,
+   "mbps": 530.08
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=128/unicode/simd",
+   "nsMin": 14.93
+  },
+  {
+   "name": "BenchmarkEasyjson/unmarshal-canada-ours",
+   "nsMin": 2660064,
+   "mbps": 846.24
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=16/sonic-std",
+   "nsMin": 1473,
+   "mbps": 765.53
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh.pretty/stdlib",
+   "nsMin": 8555089,
+   "mbps": 184.38
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=1024/ascii/simd",
+   "nsMin": 11.08
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=256/unsorted-sonic",
+   "nsMin": 11969,
+   "mbps": 1556.74
+  },
+  {
+   "name": "BenchmarkCorpus/twitter/ours-Parse",
+   "nsMin": 198022,
+   "mbps": 3189.12
+  },
+  {
+   "name": "BenchmarkStreamShapes/tweet-2KB/ours",
+   "nsMin": 12208028,
+   "mbps": 515.36
+  },
+  {
+   "name": "BenchmarkCorpus/canada/minio",
+   "nsMin": 5504145,
+   "mbps": 408.97
+  },
+  {
+   "name": "BenchmarkWidgetGet/ours-second-query",
+   "nsMin": 138.6
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=256/ascii/stdlib",
+   "nsMin": 7.993
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/numbers/sorted/goccy",
+   "nsMin": 485771,
+   "mbps": 309.04
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/update-center/unsorted/ours",
+   "nsMin": 689390,
+   "mbps": 773.41
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/mesh/stdlib",
+   "nsMin": 5507414,
+   "mbps": 131.39
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=1000/ours",
+   "nsMin": 30018296
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Valid/stdlib",
+   "nsMin": 269861,
+   "mbps": 556.3
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/medium/jsoniter",
+   "nsMin": 3185,
+   "mbps": 731.25
+  },
+  {
+   "name": "BenchmarkSmall/small-200B/goccy-Valid",
+   "nsMin": 937.4,
+   "mbps": 120.54
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=16/unsorted-sonic",
+   "nsMin": 424.1,
+   "mbps": 792.22
+  },
+  {
+   "name": "BenchmarkShapeValid/github_events/sonic",
+   "nsMin": 16062,
+   "mbps": 4054.91
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/instruments/goccy",
+   "nsMin": 771458,
+   "mbps": 285.62
+  },
+  {
+   "name": "BenchmarkTextOps/apache_builds/Valid/goccy",
+   "nsMin": 391887,
+   "mbps": 324.77
+  },
+  {
+   "name": "BenchmarkSMLMarshal/large/segmentio",
+   "nsMin": 1575,
+   "mbps": 1660.44
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Compact/stdlib",
+   "nsMin": 307686,
+   "mbps": 487.91
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/gsoc-2018/unsorted/ours",
+   "nsMin": 1820663,
+   "mbps": 1827.81
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/medium/ours",
+   "nsMin": 2055,
+   "mbps": 1133.11
+  },
+  {
+   "name": "BenchmarkUnmarshalCitmStruct/segmentio",
+   "nsMin": 1224808,
+   "mbps": 1410.18
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=1000/gjson-parsed",
+   "nsMin": 208629590
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/citm/unsorted/sonic",
+   "nsMin": 1330144,
+   "mbps": 1298.51
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/apache_builds/goccy",
+   "nsMin": 311910,
+   "mbps": 408.05
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh.pretty/unsorted/ours",
+   "nsMin": 1354199,
+   "mbps": 1164.79
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=64/goccy",
+   "nsMin": 8074,
+   "mbps": 564.78
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=1/gjson",
+   "nsMin": 85.15
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=16/ours",
+   "nsMin": 1168,
+   "mbps": 864.0
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=16/ours",
+   "nsMin": 1531,
+   "mbps": 736.87
+  },
+  {
+   "name": "BenchmarkSMLMarshal/small/jsoniter",
+   "nsMin": 193.7,
+   "mbps": 691.96
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/mesh/unsorted/sonic",
+   "nsMin": 1112297,
+   "mbps": 650.54
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/marine_ik/stdlib",
+   "nsMin": 24245152,
+   "mbps": 123.05
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=4/stdlib",
+   "nsMin": 357.9,
+   "mbps": 231.93
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=64/ascii/stdlib",
+   "nsMin": 6.744
+  },
+  {
+   "name": "BenchmarkTextOps/mesh/Valid/sonic",
+   "nsMin": 542205,
+   "mbps": 1334.54
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/apache_builds/goccy",
+   "nsMin": 306642,
+   "mbps": 415.06
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh/sonic",
+   "nsMin": 1996251,
+   "mbps": 362.48
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/citm/sorted/sonic-std",
+   "nsMin": 1518879,
+   "mbps": 1137.16
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=16/goccy",
+   "nsMin": 935.3,
+   "mbps": 359.23
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/update-center/stdlib",
+   "nsMin": 3315442,
+   "mbps": 160.82
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/marine_ik/unsorted/sonic",
+   "nsMin": 6133998,
+   "mbps": 486.38
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/small/sonic",
+   "nsMin": 424.3,
+   "mbps": 445.47
+  },
+  {
+   "name": "BenchmarkSMLMarshal/large/stdlib",
+   "nsMin": 3438,
+   "mbps": 760.85
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/ours-Scan",
+   "nsMin": 16621,
+   "mbps": 6855.78
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/twitter/stdlib",
+   "nsMin": 3368274,
+   "mbps": 187.49
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/marine_ik/goccy",
+   "nsMin": 20092196,
+   "mbps": 148.49
+  },
+  {
+   "name": "BenchmarkGetField/n=1000/ours",
+   "nsMin": 16540,
+   "mbps": 6889.16
+  },
+  {
+   "name": "BenchmarkReadme/n=100/jsonparser",
+   "nsMin": 43.29,
+   "mbps": 257186.41
+  },
+  {
+   "name": "BenchmarkShapeValid/gsoc-2018/goccy",
+   "nsMin": 299758679,
+   "mbps": 11.1
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Indent/stdlib",
+   "nsMin": 7594013,
+   "mbps": 296.42
+  },
+  {
+   "name": "BenchmarkUnmarshalFloatSlice/jsoniter",
+   "nsMin": 9667787,
+   "mbps": 216.93
+  },
+  {
+   "name": "BenchmarkSmall/list-20KB/ours-Parse",
+   "nsMin": 7963,
+   "mbps": 1502.38
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=64/unicode/stdlib",
+   "nsMin": 38.3
+  },
+  {
+   "name": "BenchmarkRepeatedLookups/q=10/ours",
+   "nsMin": 447972
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=1024/unicode/stdlib",
+   "nsMin": 589.1
+  },
+  {
+   "name": "BenchmarkMarshalStruct/ours-opts=both",
+   "nsMin": 49790,
+   "mbps": 2355.56
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/large/stdlib",
+   "nsMin": 117785,
+   "mbps": 238.77
+  },
+  {
+   "name": "BenchmarkShapeValid/update-center/stdlib",
+   "nsMin": 1066179,
+   "mbps": 500.08
+  },
+  {
+   "name": "BenchmarkCorpus/canada/fastjson",
+   "nsMin": 1821546,
+   "mbps": 1235.79
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/stdlib",
+   "nsMin": 9763874,
+   "mbps": 119.74
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Valid/stdlib",
+   "nsMin": 6007715,
+   "mbps": 496.61
+  },
+  {
+   "name": "BenchmarkMarshalMap/int/n=16/stdlib",
+   "nsMin": 1671,
+   "mbps": 201.02
+  },
+  {
+   "name": "BenchmarkSmall/tiny-64B/fastjson",
+   "nsMin": 38.61,
+   "mbps": 854.65
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/medium/sonic",
+   "nsMin": 2635,
+   "mbps": 883.79
+  },
+  {
+   "name": "BenchmarkTextOps/twitter/Valid/sonic",
+   "nsMin": 173955,
+   "mbps": 3630.33
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/twitter/stdlib",
+   "nsMin": 3252441,
+   "mbps": 194.17
+  },
+  {
+   "name": "BenchmarkEquivalentWork/unvalidated/gjson-Get",
+   "nsMin": 53.73
+  },
+  {
+   "name": "BenchmarkTextOps/github_events/Compact/stdlib",
+   "nsMin": 154992,
+   "mbps": 420.23
+  },
+  {
+   "name": "BenchmarkAccessShape/early/gjson",
+   "nsMin": 54.62
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/github_events/ours",
+   "nsMin": 109561,
+   "mbps": 594.48
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Valid/sonic",
+   "nsMin": 967536,
+   "mbps": 2326.58
+  },
+  {
+   "name": "BenchmarkValidUTF8/n=256/unicode/simd",
+   "nsMin": 24.77
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=32/kernel",
+   "nsMin": 21.11
+  },
+  {
+   "name": "BenchmarkStreamEncode/stdlib",
+   "nsMin": 9590038,
+   "mbps": 424.44
+  },
+  {
+   "name": "BenchmarkColdStartUnmarshal/sonic",
+   "nsMin": 857495
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/large/sonic",
+   "nsMin": 33186,
+   "mbps": 847.44
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/citm/sonic",
+   "nsMin": 2424954,
+   "mbps": 712.26
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=16/stdlib",
+   "nsMin": 2129,
+   "mbps": 473.98
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh/ours",
+   "nsMin": 1875806,
+   "mbps": 385.75
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/ours-Parse",
+   "nsMin": 81322,
+   "mbps": 1401.22
+  },
+  {
+   "name": "BenchmarkTextOps/numbers/Indent/stdlib",
+   "nsMin": 373413,
+   "mbps": 402.03
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/mesh.pretty/sonic",
+   "nsMin": 2442567,
+   "mbps": 645.78
+  },
+  {
+   "name": "BenchmarkAccessShape/late/ours",
+   "nsMin": 231382
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=16/unsorted-sonic",
+   "nsMin": 553.6,
+   "mbps": 1822.55
+  },
+  {
+   "name": "BenchmarkEscapeScan/n=1024/word",
+   "nsMin": 580
+  },
+  {
+   "name": "BenchmarkReadme/n=1000/minio",
+   "nsMin": 224056,
+   "mbps": 508.58
+  },
+  {
+   "name": "BenchmarkParallelTwitterStruct/sonic",
+   "nsMin": 45779,
+   "mbps": 13794.73
+  },
+  {
+   "name": "BenchmarkStreamDecodeLong/field=64",
+   "nsMin": 5017869,
+   "mbps": 1153.64
+  },
+  {
+   "name": "BenchmarkMarshalDecoded/twitter/sorted/ours",
+   "nsMin": 255795,
+   "mbps": 2468.83
+  },
+  {
+   "name": "BenchmarkStreamShapes/batch-50KB/sonic",
+   "nsMin": 12510397,
+   "mbps": 504.69
+  },
+  {
+   "name": "BenchmarkWhy/q=10/gjson-rescans",
+   "nsMin": 3063
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/update-center/goccy",
+   "nsMin": 1977310,
+   "mbps": 269.65
+  },
+  {
+   "name": "BenchmarkTextOps/canada/Compact/ours",
+   "nsMin": 1040169,
+   "mbps": 2164.12
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=16/unsorted-ours",
+   "nsMin": 1030,
+   "mbps": 979.85
+  },
+  {
+   "name": "BenchmarkShapeValid/canada/sonic",
+   "nsMin": 985666,
+   "mbps": 2283.79
+  },
+  {
+   "name": "BenchmarkMarshalMap/string/n=4/stdlib",
+   "nsMin": 486.7,
+   "mbps": 519.85
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/citm/ours",
+   "nsMin": 2137303,
+   "mbps": 808.12
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=4/unsorted-ours",
+   "nsMin": 376.9,
+   "mbps": 740.31
+  },
+  {
+   "name": "BenchmarkSMLUnmarshal/small/segmentio",
+   "nsMin": 359.3,
+   "mbps": 525.96
+  },
+  {
+   "name": "BenchmarkCorpus/citm/gjson-Valid",
+   "nsMin": 737101,
+   "mbps": 2343.24
+  },
+  {
+   "name": "BenchmarkCorpus/canada/stdlib",
+   "nsMin": 15334479,
+   "mbps": 146.8
+  },
+  {
+   "name": "BenchmarkStreamShapes/tweet-2KB/stdlib",
+   "nsMin": 35790742,
+   "mbps": 175.79
+  },
+  {
+   "name": "BenchmarkUnmarshalAny/gsoc-2018/sonic",
+   "nsMin": 1672938,
+   "mbps": 1989.21
+  },
+  {
+   "name": "BenchmarkTextOps/marine_ik/Compact/ours",
+   "nsMin": 2166308,
+   "mbps": 1377.21
+  },
+  {
+   "name": "BenchmarkReadme/n=10000/gjson-Valid+Get",
+   "nsMin": 739166,
+   "mbps": 1581.67
+  },
+  {
+   "name": "BenchmarkMarshalMap/struct/n=16/stdlib",
+   "nsMin": 3348,
+   "mbps": 336.89
+  },
+  {
+   "name": "BenchmarkWhy/gjson.Get_alone_(stops_at_first_match)",
+   "nsMin": 54.13,
+   "mbps": 21599804.27
+  },
+  {
+   "name": "BenchmarkShapeDecodeMap/instruments/ours",
+   "nsMin": 455675,
+   "mbps": 483.56
+  },
+  {
+   "name": "BenchmarkEasyjson/unmarshal-canada",
+   "nsMin": 6334693,
+   "mbps": 355.35
+  }
+ ],
+ "skipped": [
+  {
+   "name": "BenchmarkScale",
+   "reason": "exceeds -max-discover-sec at 1x"
+  }
+ ]
+}

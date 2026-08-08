@@ -344,17 +344,15 @@ The kernels are a fifth of it. The Go word loop is 72%. That is the opposite of
 what "fuse the vector passes" assumes, and it is why the list below starts
 somewhere else.
 
-1. **Prefix-XOR eight words at a time.** 11.3% of `Scan` goes on six sequential
-   shift-XOR steps per word. minio does the same thing in one `VPCLMULQDQ`;
-   that instruction is not portable, but the chains for different words are
-   independent, so a `u64x8` does eight words' worth in six vector ops and the
-   cross-word carry reduces to a prefix XOR over the top bits alone. About 1.75
-   ops per word against 12. See #116.
-2. **Fuse the five mask passes into one.** Every `Parse`, `Scan`, `Valid`,
-   `Compact` and `Indent` pays for five passes over the document and five
-   dispatches; minio pays for one. The kernels here are generated from C, so
-   this is one kernel that writes four masks, not four kernels called four
-   times. Worth roughly two thirds of that 20.2%, and it also makes #117 cheap.
+1. ~~**Prefix-XOR eight words at a time.**~~ — *landed differently: quote
+   parity is `VPCLMULQDQ` itself on the amd64 vector tiers (`simd` v1.11.0's
+   `JSONStage1`), which beats the eight-wide shift chain it was competing
+   with.*
+2. ~~**Fuse the five mask passes into one.**~~ — *landed twice over:
+   `JSONMasks` writes all five regions in one pass, and `Valid` has gone the
+   whole way since `simd` v1.13.0 — classification, parity, escapes and the
+   grammar walk in a single kernel pass with no mask buffers at all, which is
+   what closed gsoc-2018.*
 3. ~~**An array-indexed type cache**~~ — *tried, measured worse, see
    `docs/wrong.md`.* The 10% figure below was measured before the per-Decoder
    cache existed. Profiling now puts the whole `sync.Map` lookup at **2.76%** of

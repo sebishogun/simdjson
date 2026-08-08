@@ -263,26 +263,26 @@ per box (the float payloads live in a document slab, like decoded strings):
 
 | into `any`, MB/s | ours | sonic | goccy | stdlib |
 |---|---|---|---|---|
-| twitter | 541 | **669** | 361 | 197 |
-| citm | **783** | 710 | 434 | 207 |
-| canada | **488** | 366 | 180 | 149 |
-| numbers | 576 | 574 | 204 | 164 |
-| github_events | 649 | **901** | 455 | 202 |
-| apache_builds | 548 | **671** | 428 | 200 |
-| gsoc-2018 | 1,345 | **2,050** | 744 | 283 |
-| instruments | 439 | **539** | 294 | 175 |
-| update-center | 366 | **484** | 264 | 172 |
-| mesh | 360 | 387 | 152 | 129 |
-| mesh.pretty | **766** | 648 | 301 | 183 |
-| marine_ik | **381** | 344 | 157 | 128 |
+| twitter | 570 | **683** | 361 | 197 |
+| citm | **808** | 712 | 434 | 207 |
+| canada | **483** | 371 | 180 | 149 |
+| numbers | 520 | 551 | 204 | 164 |
+| github_events | 601 | **829** | 455 | 202 |
+| apache_builds | 494 | **695** | 428 | 200 |
+| gsoc-2018 | 1,424 | **1,989** | 744 | 283 |
+| instruments | 453 | **570** | 294 | 175 |
+| update-center | 382 | **466** | 264 | 172 |
+| mesh | 386 | 362 | 152 | 129 |
+| mesh.pretty | **849** | 646 | 301 | 183 |
+| marine_ik | **413** | 342 | 157 | 128 |
 
 Bold marks a lead past the 8.3% noise floor; unmarked cells are
 statistically level, measured against sonic v1.15.2. The split follows the
-data's shape: this package holds the array-heavy corpora — canada 1.33×,
+data's shape: this package holds the array-heavy corpora — canada 1.30×,
 citm, mesh.pretty, marine_ik — where its []any values carve exact-size
-from a document-scoped slab; sonic holds five string- and object-heavy
-shapes by 9–52%, where its assembled walker feeds map assignment faster
-than a compiled Go loop can. Three are level. If decoding into `any` is
+from a document-scoped slab; sonic holds six string- and object-heavy
+shapes by 18–40%, where its assembled walker feeds map assignment faster
+than a compiled Go loop can. Two are level. If decoding into `any` is
 your hot path, the shape of your documents decides; measure both. goccy
 and stdlib trail throughout.
 
@@ -290,23 +290,26 @@ and stdlib trail throughout.
 
 | | twitter | citm | canada | vs stdlib |
 |---|---|---|---|---|
-| `Valid` | 4,602 | 4,883 | 2,619 | **4.7–9.6×** |
-| `Compact` | 1,531 | 2,128 | 2,241 | **4.3–5.7×** |
-| `Indent` | 1,117 | 1,128 | 670 | **2.4–3.3×** |
+| `Valid` | 7,648 | 6,054 | 2,489 | **4.6–15.2×** |
+| `Compact` | 1,588 | 2,154 | 2,164 | **4.2–5.5×** |
+| `Indent` | 1,210 | 1,227 | 599 | **2.0–3.3×** |
 
-`Valid` leads sonic on eleven of the twelve corpus shapes — 1.72× on twitter,
-1.52× on citm, up to 2.2× on the small-document shapes (200 iterations,
-minimum of two passes, same process). Two kernels carry it: stage one's
-quote parity by carry-less multiply (`simd` v1.11.0) and the grammar walk
-itself, fused into one scalar routine over the stage-one masks (`simd`
-v1.12.0, twitter −31% on its own). The one exception is gsoc-2018, 3.3 MB
-of escape-heavy strings, where sonic holds 1.43×: its single-pass native
-scan validates those bytes as it classifies them, where this pipeline
-stages masks, walk and escape checks separately — the measured price of
-the staged design on exactly one shape, and the same root as the
-any-decode family's residual. Everything cheaper than a full fusion of
-both stages has been tried and measured; docs/wrong.md holds the
-rejections.
+`Valid` is at or ahead of sonic on all twelve corpus shapes — past the
+noise floor on eleven (2.1× on twitter, 2.5× on apache_builds, 1.9–2.2×
+across the small-document shapes) and statistically level on the twelfth.
+Three kernels carry it: stage one's quote parity by carry-less multiply
+(`simd` v1.11.0), the grammar walk fused into one scalar routine over the
+stage-one masks (`simd` v1.12.0), and — since `simd` v1.13.0 — the whole
+of Valid as a single fused pass, per-block masks that never leave
+registers feeding parity, escape validation and the grammar machine with
+no mask buffers written or read. That fusion is what closed gsoc-2018,
+3.3 MB of escape-heavy strings and the last shape sonic held (1.43×, the
+measured price of the staged design): one pass now answers it 32% faster
+than the staged pipeline it replaces. A density probe routes
+number-dominated documents (canada is 94% number bytes) to the descent
+walk instead, which pays nothing per block between one number and the
+next; docs/wrong.md holds that measurement, alongside every rejected
+step on the way here.
 
 **Under concurrency** — aggregate throughput, every goroutine decoding its
 own twitter into its own struct (the many-requests server shape;
