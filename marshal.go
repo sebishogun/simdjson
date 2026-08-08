@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 	"unsafe"
+
+	"github.com/sebishogun/simd"
 )
 
 // Marshal returns the JSON encoding of v.
@@ -625,16 +627,15 @@ func appendFloat(b []byte, f float64, bits int) []byte {
 	if bits == 32 {
 		return appendFloatStrconv(b, f, 32)
 	}
-	if f == 0 {
-		if math.Signbit(f) {
-			return append(b, '-', '0')
-		}
-		return append(b, '0')
+	// The rest -- zero of either sign, the format rule, Schubfach itself and
+	// the render -- is one kernel call: simd v1.17.0's FormatFloat64 is the
+	// same transliteration this package carried in Go, 1.65x faster as C.
+	// The Go copy above (schubfach.go) stays as the differential's oracle.
+	if n := len(b); cap(b)-n >= 25 {
+		return b[:n+simd.FormatFloat64(b[n:n+25], f)]
 	}
-	// encoding/json's rule, not strconv's 'g': decimal while the magnitude is
-	// in [1e-6, 1e21), scientific outside it.
-	expFormat := abs < 1e-6 || abs >= 1e21
-	return appendShortest(b, math.Signbit(f), schubfach(math.Float64bits(abs)), expFormat)
+	var tmp [25]byte
+	return append(b, tmp[:simd.FormatFloat64(tmp[:], f)]...)
 }
 
 // appendFloatStrconv is the path this used to take everywhere, kept for

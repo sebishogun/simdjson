@@ -1,4 +1,4 @@
-github.com/sebishogun/simd v1.14.0 h1:87qMCFZxD9fJRWVJbXqqoKpGahe+ucTd4ncvcGa+ZZ0=
-github.com/sebishogun/simd v1.14.0/go.mod h1:c1C/Sh8PZowv0Tn/BaBVmeI87W1Gh9SYrwqpLVUW7tI=
+github.com/sebishogun/simd v1.17.0 h1:7mJlYMKPfYDi9SeKKQDmfQwNvaJbVc76+qm56NyN5XU=
+github.com/sebishogun/simd v1.17.0/go.mod h1:c1C/Sh8PZowv0Tn/BaBVmeI87W1Gh9SYrwqpLVUW7tI=
 golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
 golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
