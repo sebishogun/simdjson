@@ -2486,3 +2486,31 @@ their optdec carves []interface{} values from pooled arenas
 (rt.SlicePool) where this package allocates per array. That is the next
 and last cheap experiment; after it, the residual is theirs by
 architecture or ours by an arena.
+
+## The fused Valid kernel, everywhere, and the number-walls it lost
+
+The fused single-pass kernel -- classification, escapes, quote parity,
+control check, escape validation and the grammar walk in one C routine,
+masks never leaving registers -- wired as the first thing Valid tries on
+every document under the parallel threshold. Min of three interleaved
+rounds against the staged pipeline:
+
+    gsoc  -31.9%     update-center  -47.2%     apache  -17.9%
+    github  -17.6%   twitter  -13.6%           citm  -0.5%
+    numbers  +49.6%  canada  +16.9%            mesh.pretty  +6.0%
+
+Every string- and structure-heavy shape wins big; every number-wall
+loses. canada is 94% number bytes, numbers is 100%, mesh 90%: those
+documents took the descent walk before, which pays nothing per block,
+while the fused pass computes five predicate masks and a parity chain
+for blocks whose grammar content is three numbers and their commas. The
+kernel is not wrong there, it is simply doing per-block work the descent
+never does between one number and the next.
+
+Kept, behind a router instead of everywhere: the two families sit at
+46% and 22% number-ish bytes in their first two kilobytes, so one
+CountAny over that head at a one-third threshold sends the number-walls
+down the old path for tens of nanoseconds. With the router the sweep
+reads noise on every former regression and keeps every win, and gsoc --
+the last Valid shape sonic held, 1.43x -- measures ahead of it: 291.5µs
+versus 309.7µs, min of three, same session.

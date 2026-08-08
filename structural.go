@@ -81,6 +81,12 @@ type index struct {
 	// grammar walk to the JSONValidTokens kernel over that buffer.
 	s1ok bool
 
+	// spill is the container bit-stack overflow for the fused JSONValid
+	// kernel: one word per 64 levels past the first 64. 160 words is
+	// nesting 10,304 deep before the kernel hands back -1 and the staged
+	// walk below takes over.
+	spill []uint64
+
 	// stage1 is the JSONStage1 kernel's out buffer: inStr, wsw and the
 	// escape-verification targets, three nw-word regions in one allocation.
 	// When the kernel path runs, inStr and wsw below are re-pointed into it.

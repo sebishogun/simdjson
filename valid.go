@@ -12,6 +12,8 @@ package simdjson
 import (
 	"bytes"
 	"math/bits"
+
+	"github.com/sebishogun/simd"
 )
 
 // wsDenom sets where Valid switches from walking the document to walking the
@@ -44,6 +46,30 @@ var wsDenom = 64
 // The same grammar encoding/json.Valid applies, and the same answer for every
 // input: it is checked against it by a fuzzer. Trailing whitespace is allowed,
 // trailing anything else is not, and an empty input is not a document.
+// fusedValidTiers marks the tiers whose simd.JSONValid is the fused kernel
+// rather than its Go reference. Where it is the reference, the staged
+// pipeline below is the faster path and the one-call fast path is skipped.
+var fusedValidOK = map[string]bool{
+	"sse2": true, "avx2": true, "avx512": true,
+	"neon": true, "sve2": true, "rvv": true,
+}[simd.Tier()]
+
+// numberDense routes number-dominated documents away from the fused kernel.
+// Measured on the twelve-corpus sweep: the kernel wins every string- and
+// structure-heavy shape by 14-47%, and loses the number-walls -- canada 94%
+// number bytes, mesh 90%, numbers 100% -- by 17-50% to the descent walk,
+// which pays no per-block mask work between one number and the next. The
+// two families are 46% and 22% number-ish bytes in their first two
+// kilobytes, so one CountAny over that head at a one-third threshold
+// separates them for tens of nanoseconds.
+func numberDense(data []byte) bool {
+	s := data
+	if len(s) > 2048 {
+		s = s[:2048]
+	}
+	return 3*simd.CountAny(s, "0123456789.+-eE,[]") > len(s)
+}
+
 func Valid(data []byte) bool {
 	ix, _ := indexPool.Get().(*index)
 	defer func() {
@@ -51,6 +77,22 @@ func Valid(data []byte) bool {
 			indexPool.Put(ix)
 		}
 	}()
+	if fusedValidOK && len(data) < parallelMinBytes && !numberDense(data) {
+		// One fused pass: classification, escapes, quote parity, the
+		// in-string control check, escape validation and the grammar walk,
+		// no mask buffers written or read. The staged pipeline stays for
+		// everything that needs an index after the verdict -- and for the
+		// -1 answer, nesting past the spill, which it walks without limit.
+		if ix == nil {
+			ix = new(index)
+		}
+		if cap(ix.spill) < 160 {
+			ix.spill = make([]uint64, 160)
+		}
+		if r := simd.JSONValid(data, ix.spill[:160]); r >= 0 {
+			return r == 1
+		}
+	}
 	// Large documents take the full bracket index -- the parallel path Scan
 	// uses -- and, when the root is an array of containers, walk its elements
 	// across workers. Valid returns a bool, so the bar is bool agreement with

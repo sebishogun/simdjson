@@ -25,6 +25,11 @@ func FuzzAgainstStdlib(f *testing.F) {
 		// syntax rule, and comparing against it made the fuzzer report a bug
 		// that was in this test.
 		valid := json.Valid(data)
+		// Valid has its own fast path -- the fused kernel -- so it is
+		// checked directly, not inferred from Parse.
+		if got := Valid(data); got != valid {
+			t.Fatalf("input %q: json.Valid=%v, Valid=%v", data, valid, got)
+		}
 		doc, gotErr := Parse(data)
 		if valid != (gotErr == nil) {
 			t.Fatalf("input %q: json.Valid=%v, simdjson err=%v", data, valid, gotErr)
