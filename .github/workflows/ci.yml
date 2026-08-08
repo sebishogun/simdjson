@@ -1,0 +1,52 @@
+name: ci
+
+# The cheap-and-forgettable subset, on GitHub's disposable machines: this
+# repository is pure Go all the way down (the simd dependency ships its
+# kernels as committed assembly), so a hosted runner covers the whole
+# correctness surface. What does not run here: the benchmark gate, which
+# measures its neighbours and lies on shared hardware, and the qemu matrix,
+# both of which are a maintainer running make bench-check and make
+# test-cross before a release.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: build, vet and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # The floor comes out of go.mod; a pinned version drifts.
+          go-version-file: go.mod
+
+      - name: formatting
+        run: |
+          out=$(gofmt -l . || true)
+          if [ -n "$out" ]; then echo "not gofmt'd:"; echo "$out"; exit 1; fi
+
+      - name: vet
+        run: |
+          go vet ./...
+          cd tools && go vet ./...
+
+      - name: tests
+        run: go test ./...
+
+      - name: portable reference (-tags purego)
+        run: go test -tags purego .
+
+      - name: no cgo, as promised
+        run: CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go test -count=1 .
+
+      - name: report the selected tier
+        run: go test -run TestConformance -v . 2>/dev/null | head -2 || true
