@@ -136,23 +136,25 @@ and 286 µs against 345 µs on a 230 KB document.
 
 ## Performance
 
-Two passes of eight samples on an idle amd64 machine, minimum of each. The
+Eight samples per row, shuffled, one process per row, minimum of each, on an
+idle amd64 machine; every table below is confirmed by an independent second
+pass (worst row-to-row deviation 3.3%). The
 `encoding/json` columns are the v1 engine; Go 1.27 intends to make the much
 faster jsonv2 engine the default, and `make bench-v2` measures against it —
 stdlib struct decode rises to 614–712 MB/s (native v2 API: 759–896), and every
 row here still holds, at roughly 2–3× instead of 8×. Every
-number appeared in both passes within 1.6% unless noted. Competitors run in the
+Competitors run in the
 same process on the same bytes; [bench/](bench) is the harness.
 
 **Parsing** — a document in, a navigable and validated structure out:
 
 | | this | fastjson | minio | |
 |---|---|---|---|---|
-| twitter, 1.17 MB | **219 µs** | 232 µs | 305 µs | **1.06×** |
-| citm, 1.73 MB | **592 µs** | 736 µs | 664 µs | **1.12×** |
-| canada, 2.25 MB | **1,130 µs** | 1,910 µs | 5,569 µs | **1.69×** |
+| twitter, 0.63 MB | **198 µs** | 239 µs | 305 µs | **1.21×** |
+| citm, 1.73 MB | **548 µs** | 695 µs | 655 µs | **1.20×** |
+| canada, 2.25 MB | **1,136 µs** | 1,822 µs | 5,504 µs | **1.60×** |
 
-`Scan` on the same three documents is 52 / 188 / 318 µs. It is a different
+`Scan` on the same three documents is 50 / 194 / 331 µs. It is a different
 operation: it does not validate.
 
 **Validating**, against sonic, the other library doing it with vector
@@ -160,19 +162,19 @@ instructions:
 
 | | this | sonic | encoding/json | |
 |---|---|---|---|---|
-| twitter | **153 µs** | 174 µs | 1,251 µs | **1.14×** |
-| citm | **394 µs** | 441 µs | 3,173 µs | **1.12×** |
-| canada | **891 µs** | 978 µs | 4,153 µs | **1.10×** |
+| twitter | **82 µs** | 173 µs | 1,242 µs | **2.10×** |
+| citm | **285 µs** | 440 µs | 3,166 µs | **1.54×** |
+| canada | **885 µs** | 986 µs | 4,175 µs | **1.11×** |
 
 **Into Go values**, each corpus into its natural struct
 (bench/decode_rows_test.go, minimum of three):
 
 | `Unmarshal` → struct | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
-| twitter | **303 µs** | 330 µs | 410 µs | 2,645 µs |
-| canada | **2.66 ms** | 6.1 ms | 2.63 ms | 14.8 ms |
-| citm | 1.18 ms | **0.97 ms** | 1.60 ms | 7.8 ms |
-| 2 MB `[]float64` | **1.97 ms** | 5.2 ms | 2.10 ms | 10.8 ms |
+| twitter | **311 µs** | 361 µs | 414 µs | 2,562 µs |
+| canada | **2.58 ms** | 6.1 ms | 2.64 ms | 14.5 ms |
+| citm | 1.12 ms | **0.97 ms** | 1.47 ms | 7.5 ms |
+| 2 MB `[]float64` | **2.00 ms** | 5.1 ms | 2.22 ms | 11.2 ms |
 
 The memory column, same rows (`-benchmem`, minimum of two):
 
@@ -189,7 +191,7 @@ the memory and 2.6× the allocations; on the `any` tables the same holds —
 ours runs every shape at 40–70% of sonic's bytes and a quarter to a half of
 its allocations.
 
-canada is level with sonic — 1.1% apart, inside the noise floor — after the
+canada is level with sonic — 2.5% apart, inside the noise floor — after the
 compiled-array, extent-float and one-pass work.
 
 **The field's own fixtures** — the Small/Medium/Large payloads every Go JSON
@@ -197,22 +199,23 @@ README descends from (ported verbatim from buger/jsonparser; outputs
 byte-agreed with encoding/json before any timing; stdlib-compatible configs
 only, which most published tables for these fixtures do not use):
 
-| ns/op, minimum of three | ours | goccy | segmentio | sonic | jsoniter | stdlib |
+| ns/op, minimum of eight | ours | goccy | segmentio | sonic | jsoniter | stdlib |
 |---|---|---|---|---|---|---|
-| Unmarshal small (190 B) | 404 | **176** | 347 | 455 | 367 | 1,283 |
-| Unmarshal medium (2.2 KB) | 2,087 | **1,557** | 1,981 | 2,540 | 3,022 | 9,942 |
-| Unmarshal large (28 KB) | 19,718 | **16,241** | 29,192 | 32,468 | 54,309 | 124,789 |
-| Marshal small | 94 | **92** | 97 | 127 | 167 | 199 |
-| Marshal medium | 153 | **98** | 115 | 152 | 213 | 223 |
-| Marshal large | 1,646 | **1,344** | 1,357 | 1,550 | 2,530 | 3,276 |
+| Unmarshal small (190 B) | 416 | **201** | 359 | 424 | 390 | 1,330 |
+| Unmarshal medium (2.2 KB) | 2,055 | **1,484** | 1,974 | 2,635 | 3,185 | 9,771 |
+| Unmarshal large (28 KB) | 20,522 | **16,184** | 29,840 | 33,186 | 54,117 | 117,785 |
+| Marshal small | **91** | 98 | 112 | 144 | 194 | 212 |
+| Marshal medium | 168 | **110** | 126 | 176 | 229 | 245 |
+| Marshal large | **1,263** | 1,305 | 1,575 | 1,391 | 2,732 | 3,438 |
 
 goccy's scanner core owns this size class, and
 [`wrong.md`](docs/wrong.md) holds the instruction-level decomposition of
 why (537 decode instructions per field here against its 680 for
 everything). Getting the small decode row from 1,042 ns and 5.2 KB of
-garbage per call to 404 ns and 323 B — past sonic — is what this table's
+garbage per call to 416 ns and 323 B — past sonic — is what this table's
 first measurement bought; Marshal small is the generated-encoder row
-(`tools/structgen`), level with goccy at 2.3%. Everything else in the
+(`tools/structgen`), now the row's best, and Marshal large is level with
+goccy at 3.3%, ours in front. Everything else in the
 column beats every library except goccy at every size. citm is goccy's row, cut
 from 41% to 22% by the one-walk integer parse (segmentio's 1,388 MB/s now
 trails our 1,463): tiny objects of small integers, where a hand-tuned
@@ -226,8 +229,8 @@ in the harness under stdlib-compatible configurations.
 
 | | this | sonic | goccy | encoding/json |
 |---|---|---|---|---|
-| `Marshal`, a struct | 57 µs | **27–33 µs** | 88 µs | 110 µs |
-| `Marshal`, `map[string]struct`, 256 entries | 28 µs | **21 µs** | 38 µs | 58 µs |
+| `Marshal`, a struct | 60 µs | **35 µs** | 97 µs | 112 µs |
+| `Marshal`, `map[string]struct`, 256 entries | 24 µs | 23 µs | 41 µs | 62 µs |
 
 A decoded document — `map[string]any` with everything under it — encodes
 across cores when the output is a quarter megabyte or more: element ranges of
@@ -331,28 +334,29 @@ library has at all.
 building a fresh type per iteration (bench/coldstart_test.go), which is what
 a deploy's first request meets and what the Pretouch warm-up in published tables hides:
 
-| first contact, ns | ours | goccy | encoding/json | sonic |
+| first contact, ns | ours | encoding/json | goccy | sonic |
 |---|---|---|---|---|
-| Unmarshal, 5-field struct | **1,995** | 2,542 | 2,678 | 4,950 |
+| Unmarshal, 5-field struct | **3,205** | 3,546 | 4,629 | 857,495 |
 
-sonic's 2.5× is its JIT compiling; ours is a table build, and structgen'd
-types pay nothing at all.
+sonic's 268× is its JIT compiling the fresh type — the cost Pretouch
+warm-ups hide; ours is a table build, and structgen'd types pay nothing at
+all.
 
 **Streaming**, 50,000 newline-delimited records, 6.5 MB:
 
 | | this | goccy | sonic | encoding/json |
 |---|---|---|---|---|
-| `Decoder` | **11.7 ms** | 12.6 ms | 13.1 ms | 37.8 ms |
-| `Encoder` | **6.7 ms** | 7.0 ms | 10.7 ms | 10.0 ms |
+| `Decoder` | **9.7 ms** | 11.9 ms | 13.7 ms | 37.8 ms |
+| `Encoder` | **5.9 ms** | 6.9 ms | 9.1 ms | 9.6 ms |
 
 Allocation for the same input is 9.5 MB in 150,183 allocations, against goccy's
 12.9 MB in 306,525.
 
 Record size is the axis that decides it. Streams of two-kilobyte records --
-real tweets, newline-delimited, decoded into `any` -- run 524 MB/s here
-against sonic's 484; at fifty-kilobyte records the per-value work is almost
-entirely the any-decode itself and sonic's assembled walker takes it, 507
-against 415. The crossover is the same residual the any-decode table above
+real tweets, newline-delimited, decoded into `any` -- run 515 MB/s here
+against sonic's 505; at fifty-kilobyte records the per-value work is almost
+entirely the any-decode itself and sonic's assembled walker takes it, 505
+against 445. The crossover is the same residual the any-decode table above
 prices, reached through a different door.
 
 **Small documents** are the size where an index does not pay. It costs the same
@@ -373,16 +377,17 @@ Everything here validates the whole document:
 
 | | 10,000 items | |
 |---|---|---|
-| [valyala/fastjson](https://github.com/valyala/fastjson) | 1.335 ms | 1.09× faster |
-| **this — `Parse`** | **1.455 ms** | |
-| [minio/simdjson-go](https://github.com/minio/simdjson-go) | 2.066 ms | 1.42× |
-| [bytedance/sonic](https://github.com/bytedance/sonic) | 5.773 ms | 3.97× |
-| `encoding/json` | 9.522 ms | 6.54× |
-| [goccy/go-json](https://github.com/goccy/go-json) | 11.788 ms | 8.10× |
+| **this — `Parse`** | **0.802 ms** | |
+| [valyala/fastjson](https://github.com/valyala/fastjson) | 1.307 ms | 1.63× |
+| [minio/simdjson-go](https://github.com/minio/simdjson-go) | 2.054 ms | 2.56× |
+| [bytedance/sonic](https://github.com/bytedance/sonic) | 5.344 ms | 6.66× |
+| [goccy/go-json](https://github.com/goccy/go-json) | 8.794 ms | 10.97× |
+| `encoding/json` | 9.764 ms | 12.2× |
 
-fastjson leads by 9%. It builds a value tree into a reusable arena rather than
-an index, so navigation afterwards is a pointer walk where this is a lookup into
-a position array.
+fastjson led this table by 9% when it was first measured; the kernel work
+since put `Parse` 1.63× ahead. fastjson builds a value tree into a reusable
+arena rather than an index, so navigation afterwards is a pointer walk where
+this is a lookup into a position array.
 
 **Against lazy scanners.** [gjson](https://github.com/tidwall/gjson) and
 [jsonparser](https://github.com/buger/jsonparser) scan for a path and stop at
@@ -400,29 +405,30 @@ With validation on both sides, on a 10,000-item document:
 
 | | gjson | this | |
 |---|---|---|---|
-| both validating — `gjson.Valid`+`Get` against `Parse`+`Get` | 694 µs | 1.449 ms | gjson **2.09×** |
-| neither validating — `gjson.Get` against `Scan`+`Get` | 53.3 ns | 371 µs | gjson 6,960× |
+| both validating — `gjson.Valid`+`Get` against `Parse`+`Get` | 739 µs | 802 µs | gjson 1.08× — level |
+| neither validating — `gjson.Get` against `Scan`+`Get` | 0.1 µs | 169 µs | gjson ~1,700× |
 
-gjson is faster at reading a field out of a document either way. Two
-comparisons where the operations do match:
+For one field, stop-at-first-match wins by construction when nothing is
+validated, and validation brings the two level. Two comparisons where the
+operations do match:
 
 | reading the whole document once | time | result |
 |---|---|---|
-| `gjson.Valid` | 711 µs | a `bool` |
-| **`Scan`** | **374 µs** | a reusable index — **1.90×** |
-| `Parse` | 1,453 µs | that index, and the grammar proved |
+| `gjson.Valid` | 732 µs | a `bool` |
+| **`Scan`** | **173 µs** | a reusable index — **4.2×** |
+| `Parse` | 809 µs | that index, and the grammar proved |
 
 gjson retains nothing, so each `Get` rescans from byte zero, while this indexes
 once. Reading `items.N.score` for N across a 10,000-item document:
 
 | queries | gjson | this | |
 |---|---|---|---|
-| 1 | 365 ns | 375 µs | gjson 1,027× |
-| 10 | 3.1 µs | 382 µs | gjson 123× |
-| 100 | 187 µs | 484 µs | gjson 2.5× |
-| 1,000 | 17.3 ms | **10.7 ms** | **1.62×** |
+| 1 | 0.1 µs | 169 µs | gjson ~1,700× |
+| 10 | 3.1 µs | 170 µs | gjson 55× |
+| 100 | 220 µs | **205 µs** | **1.07× — level** |
+| 1,000 | 20.2 ms | **3.1 ms** | **6.4×** |
 
-The crossover is a few hundred queries per document. Both are quadratic —
+The crossover is about a hundred queries per document. Both are quadratic —
 gjson rescans to reach element N, `Index(j)` walks j elements — but each step
 here is a lookup rather than a byte scan.
 
@@ -728,8 +734,12 @@ than their READMEs and are the defensible ones.
 
 ## Status
 
-Early. Measured on amd64; the `simd` package underneath is verified on amd64 and
-arm64 NEON, and under emulation elsewhere.
+Feature-complete against `encoding/json`: the drop-in surface passes the
+stdlib's own decode, encode, stream and tag test files, vendored and run in
+CI, and every entry point is differentially fuzzed against it. Wall-clock
+numbers are measured on amd64 (tier and machine named in each snapshot);
+the `simd` package underneath is correctness-verified on six architectures
+under emulation and wall-clock-verified on amd64 and arm64 NEON.
 
 ## The rest of the family
 

@@ -7,13 +7,13 @@ committed). Our numbers are the same session's `BenchmarkCorpus` minima.
 
 | MB/s, single thread | C++ parse (validated tape) | ours `Parse` (validated) | ours `Scan` (index only) |
 |---|---|---|---|
-| twitter | 6,997 | 2,902 | 12,704 |
-| citm | 6,856 | 2,848 | 9,338 |
-| canada | 1,602 | **1,980** | 6,998 |
+| twitter | 6,997 | 3,189 | 12,537 |
+| citm | 6,856 | 3,150 | 8,902 |
+| canada | 1,602 | **1,982** | 6,808 |
 
 Reading it honestly:
 
-- **C++ leads validated parsing 2.4× on the string-heavy corpora.** Its tape
+- **C++ leads validated parsing 2.2× on the string-heavy corpora.** Its tape
   build fuses structure, UTF-8 and value validation into one branch-free
   pass; our `Parse` is the index plus a grammar descent. That is the
   architectural bill for a navigable `Doc` with encoding/json's exact error
