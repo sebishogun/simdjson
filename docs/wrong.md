@@ -2514,3 +2514,16 @@ down the old path for tens of nanoseconds. With the router the sweep
 reads noise on every former regression and keeps every win, and gsoc --
 the last Valid shape sonic held, 1.43x -- measures ahead of it: 291.5µs
 versus 309.7µs, min of three, same session.
+
+## The itoa kernel, and the forward-emission rewrite: both unwritten
+
+Two attacks on integer formatting, both measured against the shipped
+appendInt (6.2 ns at five digits, 13.6 at nineteen). A C kernel behind
+the dispatch pays the ~1.4 ns call boundary against a total the earlier
+entry already showed is not divide-bound -- the compiler strength-
+reduces /100 identically in both languages -- so its ceiling is a wash
+before it starts. The forward-emission rewrite (digit count from bit
+length, pairs written in place, no backwards buffer and no copy)
+measured 6.20 and 13.2: the copy it removes costs about what the
+append's zero-fill adds. Both stay unwritten; the batch slice form
+lives in simd as FormatInts, where amortization is real.
